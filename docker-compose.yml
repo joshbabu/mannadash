@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: hyd-food-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app_local_dev_password
+      POSTGRES_DB: hyd_food_delivery
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d hyd_food_delivery"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

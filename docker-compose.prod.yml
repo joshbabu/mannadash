@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: mannadash-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: mannadash
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d mannadash"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: mannadash-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: app
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: mannadash
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
+      PORT: 3000
+    ports:
+      - "3000:3000"
+
+  # Reverse proxy that gives us free, automatic HTTPS via Let's Encrypt — required because
+  # the frontends are served over HTTPS (Cloudflare Pages) and browsers block HTTPS pages
+  # from calling plain HTTP APIs. Uses nip.io as a free hostname for the server's IP until
+  # a real domain is set up (see Caddyfile).
+  caddy:
+    image: caddy:2-alpine
+    container_name: mannadash-caddy
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

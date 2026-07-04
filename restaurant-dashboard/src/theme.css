@@ -1,0 +1,204 @@
+:root {
+  --paper: #fdf8ef;
+  --paper-dim: #f3ecdc;
+  --ink: #1c1b29;
+  --chili: #e4572e;
+  --chili-dark: #c1432e;
+  --turmeric: #f4a200;
+  --charcoal: #2b2420;
+  --line: #e5ddc9;
+  --text-dim: #857a6a;
+  --curry: #4c7a52;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--charcoal);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+.display {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+}
+
+input,
+textarea,
+select {
+  font-family: inherit;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--charcoal);
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+input:focus,
+textarea:focus,
+select:focus,
+button:focus-visible {
+  outline: 2px solid var(--turmeric);
+  outline-offset: 2px;
+}
+
+.app-shell {
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 0 24px 60px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 0 16px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 20px;
+}
+
+.topbar .brand {
+  font-family: 'Fraunces', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--chili);
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.tabs button {
+  background: transparent;
+  border: 1px solid var(--line);
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.tabs button.active {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+.btn-primary {
+  background: var(--chili);
+  color: #fff;
+  padding: 12px 18px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: background 0.15s ease;
+}
+
+.btn-primary:hover {
+  background: var(--chili-dark);
+}
+
+.btn-primary:disabled {
+  background: var(--line);
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--chili-dark);
+  border: 1px solid var(--line);
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-dim);
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 14px;
+}
+
+.error-banner {
+  background: rgba(228, 87, 46, 0.08);
+  border: 1px solid var(--chili);
+  color: var(--chili-dark);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  margin-bottom: 14px;
+}
+
+.muted {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--paper-dim);
+  color: var(--charcoal);
+  white-space: nowrap;
+}
+
+.pill.status-placed { background: #fde8dd; color: var(--chili-dark); }
+.pill.status-accepted { background: #fff2d6; color: #8a5a00; }
+.pill.status-preparing { background: #fff2d6; color: #8a5a00; }
+.pill.status-ready_for_pickup { background: #ffe4c4; color: #8a4a00; }
+.pill.status-picked_up { background: #e3edd8; color: var(--curry); }
+.pill.status-delivered { background: #e3edd8; color: var(--curry); }
+.pill.status-cancelled { background: #f0e5e5; color: #8a3a3a; }
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}

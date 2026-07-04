@@ -1,0 +1,254 @@
+:root {
+  --ink: #1c1b29;
+  --ink-soft: #262536;
+  --chili: #e4572e;
+  --chili-dark: #c1432e;
+  --turmeric: #f4a200;
+  --paper: #fdf8ef;
+  --charcoal: #2b2420;
+  --curry: #4c7a52;
+  --line: rgba(253, 248, 239, 0.12);
+  --text-dim: rgba(253, 248, 239, 0.6);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+.display {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+}
+
+input,
+textarea {
+  font-family: inherit;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--ink-soft);
+  color: var(--paper);
+  padding: 12px 14px;
+  font-size: 15px;
+}
+
+input:focus,
+textarea:focus,
+button:focus-visible {
+  outline: 2px solid var(--turmeric);
+  outline-offset: 2px;
+}
+
+.app-shell {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 20px 12px;
+}
+
+.topbar .brand {
+  font-family: 'Fraunces', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--turmeric);
+}
+
+.screen {
+  flex: 1;
+  padding: 8px 20px 100px;
+}
+
+.btn-primary {
+  background: var(--chili);
+  color: var(--paper);
+  padding: 14px 20px;
+  font-weight: 600;
+  font-size: 15px;
+  width: 100%;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.btn-primary:hover {
+  background: var(--chili-dark);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-primary:disabled {
+  background: var(--ink-soft);
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--turmeric);
+  border: 1px solid var(--line);
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.card {
+  background: var(--paper);
+  color: var(--charcoal);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.error-banner {
+  background: rgba(228, 87, 46, 0.15);
+  border: 1px solid var(--chili);
+  color: var(--paper);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  margin-bottom: 14px;
+}
+
+.muted {
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--turmeric);
+  color: var(--charcoal);
+}
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--ink-soft);
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-around;
+  padding: 12px 0 20px;
+}
+
+.bottom-nav button {
+  background: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+}
+
+.bottom-nav button.active {
+  color: var(--turmeric);
+}
+
+.qty-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.qty-control button {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--chili);
+  color: var(--paper);
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+/* --- Tiffin stack: the signature order-tracking element --- */
+.tiffin-stack {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 6px;
+  padding: 24px 0;
+}
+
+.tiffin-tier {
+  width: 200px;
+  height: 46px;
+  border-radius: 8px;
+  background: var(--ink-soft);
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  transition: background 0.4s ease, color 0.4s ease, box-shadow 0.4s ease;
+}
+
+.tiffin-tier.filled {
+  background: var(--turmeric);
+  color: var(--charcoal);
+  box-shadow: 0 0 20px rgba(244, 162, 0, 0.4);
+}
+
+.tiffin-tier.current {
+  background: var(--chili);
+  color: var(--paper);
+  box-shadow: 0 0 24px rgba(228, 87, 46, 0.55);
+}
+
+.tiffin-handle {
+  width: 60px;
+  height: 10px;
+  border-radius: 6px 6px 0 0;
+  background: var(--line);
+  margin-bottom: -2px;
+}
