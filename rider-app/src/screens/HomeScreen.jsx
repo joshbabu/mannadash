@@ -220,7 +220,7 @@ export default function HomeScreen({ rider, onLogout }) {
                 <div key={order.id} className="card">
                   <div className="row" style={{ marginBottom: 8 }}>
                     <h3 style={{ fontSize: 15 }}>{order.restaurant.name}</h3>
-                    <span className="pill">{order.status.replace('_', ' ')}</span>
+                    <span className="pill">{order.status.replaceAll('_', ' ')}</span>
                   </div>
                   <p className="muted" style={{ color: '#6b6156', marginBottom: 4 }}>Pickup: {order.restaurant.address}</p>
                   <p className="muted" style={{ color: '#6b6156', marginBottom: 12 }}>Deliver to: {order.deliveryAddress}</p>

@@ -226,7 +226,7 @@ export default function OrdersScreen({ restaurant }) {
                     {urgency.label}
                   </span>
                 )}
-                <span className={`pill status-${order.status}`}>{order.status.replace('_', ' ')}</span>
+                <span className={`pill status-${order.status}`}>{order.status.replaceAll('_', ' ')}</span>
               </div>
             </div>
 
