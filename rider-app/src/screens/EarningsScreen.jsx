@@ -15,18 +15,20 @@ export default function EarningsScreen() {
   return (
     <div>
       <div className="card" style={{ textAlign: 'center', marginBottom: 16 }}>
-        <p className="muted" style={{ marginBottom: 4 }}>Today</p>
-        <p style={{ fontSize: 32, fontWeight: 700, margin: 0, color: 'var(--curry)' }}>₹{earnings.todayTotal.toFixed(0)}</p>
+        <p style={{ margin: '0 0 4px', color: '#8a8378', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          Earned today
+        </p>
+        <p style={{ fontSize: 36, fontWeight: 700, margin: 0, color: 'var(--curry)' }}>₹{earnings.todayTotal.toFixed(0)}</p>
       </div>
 
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="row">
-          <span className="muted">Lifetime earnings</span>
-          <strong>₹{earnings.lifetimeTotal.toFixed(0)}</strong>
+      <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 12 }}>
+        <div style={{ flex: 1, textAlign: 'center', borderRight: '1px solid #e5ddc9', paddingRight: 12 }}>
+          <p style={{ margin: '0 0 4px', color: '#8a8378', fontSize: 12 }}>Lifetime earnings</p>
+          <p style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>₹{earnings.lifetimeTotal.toFixed(0)}</p>
         </div>
-        <div className="row" style={{ marginTop: 8 }}>
-          <span className="muted">Total deliveries</span>
-          <strong>{earnings.deliveryCount}</strong>
+        <div style={{ flex: 1, textAlign: 'center' }}>
+          <p style={{ margin: '0 0 4px', color: '#8a8378', fontSize: 12 }}>Deliveries</p>
+          <p style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{earnings.deliveryCount}</p>
         </div>
       </div>
 
@@ -38,11 +40,11 @@ export default function EarningsScreen() {
             <div className="row">
               <div>
                 <p style={{ margin: 0, fontWeight: 600 }}>{h.restaurantName}</p>
-                <p className="muted" style={{ margin: '2px 0 0' }}>
-                  {new Date(h.deliveredAt).toLocaleDateString()} · {new Date(h.deliveredAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                <p style={{ margin: '2px 0 0', color: '#8a8378', fontSize: 13 }}>
+                  {new Date(h.deliveredAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} · {new Date(h.deliveredAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                 </p>
               </div>
-              <strong style={{ color: 'var(--curry)' }}>+₹{h.amount.toFixed(0)}</strong>
+              <strong style={{ color: 'var(--curry)', fontSize: 17 }}>+₹{h.amount.toFixed(0)}</strong>
             </div>
           </div>
         ))}

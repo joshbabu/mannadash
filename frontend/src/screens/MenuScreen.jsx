@@ -59,7 +59,7 @@ export default function MenuScreen({ restaurant, onBack, onCheckout }) {
                 <p className="muted" style={{ color: '#6b6156' }}>₹{Number(item.price).toFixed(0)}</p>
               </div>
               {!item.isAvailable ? (
-                <span className="muted">Sold out</span>
+                <span className="muted" style={{ color: '#8a8378' }}>Sold out</span>
               ) : cart[item.id] ? (
                 <div className="qty-control">
                   <button onClick={() => changeQty(item.id, -1)}>−</button>

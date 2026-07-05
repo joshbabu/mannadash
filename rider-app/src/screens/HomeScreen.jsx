@@ -231,7 +231,7 @@ export default function HomeScreen({ rider, onLogout }) {
                       {action.label}
                     </button>
                   ) : (
-                    <p className="muted">{WAITING_MESSAGE[order.status] || 'Waiting on the restaurant…'}</p>
+                    <p className="muted" style={{ color: '#8a8378' }}>{WAITING_MESSAGE[order.status] || 'Waiting on the restaurant…'}</p>
                   )}
                 </div>
               );

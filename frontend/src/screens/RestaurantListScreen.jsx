@@ -50,7 +50,7 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
       {!loading && restaurants.length === 0 && !error && (
         <div className="card" style={{ textAlign: 'center' }}>
           <p>No restaurants nearby yet.</p>
-          <p className="muted">Try widening the search or check back soon — MannaDash is just getting started here.</p>
+          <p className="muted" style={{ color: '#6b6156' }}>Try widening the search or check back soon — MannaDash is just getting started here.</p>
         </div>
       )}
 
