@@ -420,6 +420,30 @@ export class OrdersService {
   }
 
   /**
+   * One-time backfill — recalculates ratingAvg/ratingCount for every restaurant and rider that
+   * has any rating history, from scratch. Needed once after adding ratingCount as a new column,
+   * since existing ratings never triggered a recompute against a column that didn't exist yet.
+   * Safe to re-run any time; it always reflects true historical totals, never double-counts.
+   */
+  async backfillAllRatingStats(): Promise<{ restaurantsUpdated: number; ridersUpdated: number }> {
+    const restaurantIds = await this.orderRepo.manager.query(
+      `SELECT DISTINCT o."restaurantId" FROM ratings r JOIN orders o ON o.id = r."orderId"`,
+    );
+    for (const row of restaurantIds) {
+      await this.recomputeRestaurantRating(row.restaurantId);
+    }
+
+    const riderIds = await this.orderRepo.manager.query(
+      `SELECT DISTINCT o."deliveryPartnerId" FROM ratings r JOIN orders o ON o.id = r."orderId" WHERE o."deliveryPartnerId" IS NOT NULL`,
+    );
+    for (const row of riderIds) {
+      await this.recomputeRiderRating(row.deliveryPartnerId);
+    }
+
+    return { restaurantsUpdated: restaurantIds.length, ridersUpdated: riderIds.length };
+  }
+
+  /**
    * Rider earnings — currently modeled as the flat delivery fee per completed delivery.
    * Returns lifetime total, today's total, and the underlying list of delivered orders.
    */

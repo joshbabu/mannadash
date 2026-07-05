@@ -121,4 +121,15 @@ export class OrdersController {
   rateOrder(@Req() req: any, @Param('id', ParseUUIDPipe) id: string, @Body() dto: CreateRatingDto) {
     return this.ordersService.rateOrder(id, req.user.userId, dto);
   }
+
+  // Admin-only, one-time (but safe to re-run) — recalculates ratingCount/ratingAvg for every
+  // restaurant and rider from their full historical ratings, needed once after adding ratingCount
+  @UseGuards(JwtAuthGuard)
+  @Post('admin/backfill-rating-stats')
+  backfillRatingStats(@Req() req: any) {
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Only an admin can run this');
+    }
+    return this.ordersService.backfillAllRatingStats();
+  }
 }
