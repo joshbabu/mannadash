@@ -80,9 +80,9 @@ export class RestaurantsService {
     return this.restaurantRepo.save(restaurant);
   }
 
-  // Called by OrdersService whenever a new rating comes in — keeps ratingAvg in sync
-  async setRatingAvg(id: string, ratingAvg: number): Promise<void> {
-    await this.restaurantRepo.update(id, { ratingAvg });
+  // Called by OrdersService whenever a new rating comes in — keeps ratingAvg/ratingCount in sync
+  async setRatingStats(id: string, ratingAvg: number, ratingCount: number): Promise<void> {
+    await this.restaurantRepo.update(id, { ratingAvg, ratingCount });
   }
 
   /**

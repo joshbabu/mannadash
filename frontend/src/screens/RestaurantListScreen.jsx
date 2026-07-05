@@ -9,6 +9,7 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [sortBy, setSortBy] = useState('distance'); // 'distance' | 'rating'
 
   useEffect(() => {
     load(DEFAULT_LAT, DEFAULT_LNG);
@@ -35,14 +36,27 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
     );
   }
 
+  const sortedRestaurants = [...restaurants].sort((a, b) => {
+    if (sortBy === 'rating') return Number(b.ratingAvg || 0) - Number(a.ratingAvg || 0);
+    return a.distanceMeters - b.distanceMeters;
+  });
+
   return (
     <div className="screen">
       <div className="row" style={{ marginTop: 12, marginBottom: 4 }}>
         <h1 style={{ fontSize: 26 }}>Nearby restaurants</h1>
       </div>
-      <button className="btn-secondary" onClick={useMyLocation} style={{ marginBottom: 16 }}>
-        📍 Use my location
-      </button>
+      <div className="row" style={{ marginBottom: 16, gap: 8 }}>
+        <button className="btn-secondary" onClick={useMyLocation}>
+          📍 Use my location
+        </button>
+        <button
+          className="btn-secondary"
+          onClick={() => setSortBy(sortBy === 'distance' ? 'rating' : 'distance')}
+        >
+          Sort: {sortBy === 'distance' ? 'Nearest' : 'Top rated'}
+        </button>
+      </div>
 
       {error && <div className="error-banner">{error}</div>}
       {loading && <p className="muted">Finding what's cooking nearby…</p>}
@@ -55,7 +69,7 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
       )}
 
       <div className="stack">
-        {restaurants.map((r) => (
+        {sortedRestaurants.map((r) => (
           <button
             key={r.id}
             className="card"
@@ -66,7 +80,10 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
               <h3 style={{ fontSize: 17 }}>{r.name}</h3>
               <span className="pill">{(r.distanceMeters / 1000).toFixed(1)} km</span>
             </div>
-            <p className="muted" style={{ color: '#6b6156' }}>{r.cuisineType} · {r.avgPrepTimeMins} min prep</p>
+            <p className="muted" style={{ color: '#6b6156' }}>
+              {Number(r.ratingAvg) > 0 && <>★ {Number(r.ratingAvg).toFixed(1)} ({r.ratingCount}) · </>}
+              {r.cuisineType} · {r.avgPrepTimeMins} min prep
+            </p>
           </button>
         ))}
       </div>

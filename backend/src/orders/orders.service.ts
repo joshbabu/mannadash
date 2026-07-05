@@ -395,26 +395,28 @@ export class OrdersService {
 
   private async recomputeRestaurantRating(restaurantId: string): Promise<void> {
     const result = await this.orderRepo.manager.query(
-      `SELECT AVG(r."restaurantRating") as avg
+      `SELECT AVG(r."restaurantRating") as avg, COUNT(*) as count
        FROM ratings r
        JOIN orders o ON o.id = r."orderId"
        WHERE o."restaurantId" = $1`,
       [restaurantId],
     );
     const avg = parseFloat(result[0].avg) || 0;
-    await this.restaurantsService.setRatingAvg(restaurantId, Math.round(avg * 100) / 100);
+    const count = parseInt(result[0].count) || 0;
+    await this.restaurantsService.setRatingStats(restaurantId, Math.round(avg * 100) / 100, count);
   }
 
   private async recomputeRiderRating(riderId: string): Promise<void> {
     const result = await this.orderRepo.manager.query(
-      `SELECT AVG(r."deliveryRating") as avg
+      `SELECT AVG(r."deliveryRating") as avg, COUNT(*) as count
        FROM ratings r
        JOIN orders o ON o.id = r."orderId"
        WHERE o."deliveryPartnerId" = $1`,
       [riderId],
     );
     const avg = parseFloat(result[0].avg) || 0;
-    await this.deliveryPartnersService.setRatingAvg(riderId, Math.round(avg * 100) / 100);
+    const count = parseInt(result[0].count) || 0;
+    await this.deliveryPartnersService.setRatingStats(riderId, Math.round(avg * 100) / 100, count);
   }
 
   /**

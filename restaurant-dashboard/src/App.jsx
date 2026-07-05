@@ -39,7 +39,7 @@ export default function App() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span className="muted">{restaurant.name}</span>
           {freshStatus?.ratingAvg > 0 && (
-            <span className="pill">★ {Number(freshStatus.ratingAvg).toFixed(1)}</span>
+            <span className="pill">★ {Number(freshStatus.ratingAvg).toFixed(1)} ({freshStatus.ratingCount})</span>
           )}
           <button className="btn-secondary" onClick={logout}>Log out</button>
         </div>

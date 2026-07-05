@@ -39,7 +39,10 @@ export default function MenuScreen({ restaurant, onBack, onCheckout }) {
         ← Back
       </button>
       <h1 style={{ fontSize: 24 }}>{restaurant.name}</h1>
-      <p className="muted">{restaurant.cuisineType}</p>
+      <p className="muted">
+        {Number(restaurant.ratingAvg) > 0 && <>★ {Number(restaurant.ratingAvg).toFixed(1)} ({restaurant.ratingCount}) · </>}
+        {restaurant.cuisineType}
+      </p>
 
       {error && <div className="error-banner">{error}</div>}
       {loading && <p className="muted">Loading menu…</p>}

@@ -47,6 +47,9 @@ export class DeliveryPartner {
   @Column({ type: 'decimal', precision: 3, scale: 2, default: 0 })
   ratingAvg: number;
 
+  @Column({ type: 'int', default: 0 })
+  ratingCount: number;
+
   @CreateDateColumn()
   createdAt: Date;
 }

@@ -149,7 +149,7 @@ export default function DashboardScreen({ onLogout }) {
                     <p className="muted" style={{ margin: '2px 0 0' }}>{r.vehicleType} · {r.phone}</p>
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    {Number(r.ratingAvg) > 0 && <span className="pill verified">★ {Number(r.ratingAvg).toFixed(1)}</span>}
+                    {Number(r.ratingAvg) > 0 && <span className="pill verified">★ {Number(r.ratingAvg).toFixed(1)} ({r.ratingCount})</span>}
                     <span className={`pill ${r.isAvailable ? 'approved' : 'pending'}`}>{r.isAvailable ? 'online' : 'offline'}</span>
                     <span className="pill verified">verified</span>
                   </div>

@@ -22,6 +22,7 @@ export default function HomeScreen({ rider, onLogout }) {
   const [isOnline, setIsOnline] = useState(rider.isAvailable);
   const [isVerified, setIsVerified] = useState(rider.isVerified);
   const [ratingAvg, setRatingAvg] = useState(rider.ratingAvg || 0);
+  const [ratingCount, setRatingCount] = useState(rider.ratingCount || 0);
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState('');
   const [locationError, setLocationError] = useState('');
@@ -36,6 +37,7 @@ export default function HomeScreen({ rider, onLogout }) {
     api.getRider(rider.id).then((fresh) => {
       setIsVerified(fresh.isVerified);
       setRatingAvg(Number(fresh.ratingAvg) || 0);
+      setRatingCount(Number(fresh.ratingCount) || 0);
     }).catch(() => {});
   }, [rider.id]);
 
@@ -150,7 +152,7 @@ export default function HomeScreen({ rider, onLogout }) {
       <div className="topbar">
         <span className="brand">MannaDash Rider</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {ratingAvg > 0 && <span className="pill">★ {ratingAvg.toFixed(1)}</span>}
+          {ratingAvg > 0 && <span className="pill">★ {ratingAvg.toFixed(1)} ({ratingCount})</span>}
           <button className="btn-secondary" onClick={onLogout} style={{ fontSize: 12, padding: '6px 10px' }}>
             Log out
           </button>

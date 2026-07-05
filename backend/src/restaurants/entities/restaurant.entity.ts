@@ -54,6 +54,9 @@ export class Restaurant {
   @Column({ type: 'decimal', precision: 3, scale: 2, default: 0 })
   ratingAvg: number;
 
+  @Column({ type: 'int', default: 0 })
+  ratingCount: number;
+
   // Null until the owner claims this restaurant via /restaurants/signup — see RestaurantsService.signup
   @Exclude()
   @Column({ type: 'varchar', nullable: true })
