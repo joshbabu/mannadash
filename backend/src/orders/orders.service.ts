@@ -140,7 +140,11 @@ export class OrdersService {
     }
     await this.orderRepo.manager.getRepository(OrderItem).save(orderItems);
 
-    return this.findOne(savedOrderId);
+    const created = await this.findOne(savedOrderId);
+    // Push directly to the restaurant's personal channel — this is what actually notifies them
+    // of a brand new order, since they can't have subscribed to this order's room before it existed.
+    this.ordersGateway.emitNewOrder(restaurant.id, created);
+    return created;
   }
 
   async findAllForCustomer(userId: string): Promise<Order[]> {

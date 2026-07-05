@@ -22,6 +22,18 @@ const AWARENESS_MESSAGE = {
   delivered: 'Delivered.',
 };
 
+// Unique to this dashboard, not something Swiggy/Zomato surface to restaurants directly —
+// a live-aging urgency indicator so a restaurant juggling several orders can triage at a
+// glance instead of treating every order as equally pressing.
+const ACTIVE_STATUSES = ['placed', 'accepted', 'preparing', 'ready_for_pickup'];
+function getUrgency(order, now) {
+  if (!ACTIVE_STATUSES.includes(order.status)) return null;
+  const minutesElapsed = (now - new Date(order.placedAt).getTime()) / 60000;
+  if (minutesElapsed < 5) return { label: `${Math.max(0, Math.round(minutesElapsed))}m`, color: 'var(--curry)' };
+  if (minutesElapsed < 15) return { label: `${Math.round(minutesElapsed)}m`, color: 'var(--turmeric)' };
+  return { label: `${Math.round(minutesElapsed)}m`, color: 'var(--chili)' };
+}
+
 export default function OrdersScreen({ restaurant }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,15 +43,67 @@ export default function OrdersScreen({ restaurant }) {
   const [riderPickerOrderId, setRiderPickerOrderId] = useState(null);
   const [availableRiders, setAvailableRiders] = useState([]);
   const [loadingRiders, setLoadingRiders] = useState(false);
+  const [newOrderAlert, setNewOrderAlert] = useState(null);
+  const [now, setNow] = useState(Date.now()); // ticks forward so urgency badges age live, no refresh needed
   const socketRef = useRef(null);
   const subscribedIds = useRef(new Set());
+  const alertIntervalRef = useRef(null);
+
+  function playAlertSound() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 740;
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      osc.stop(ctx.currentTime + 0.4);
+    } catch {
+      // Some browsers block audio until the user interacts with the page — non-fatal
+    }
+  }
 
   // Create the socket connection once, for the lifetime of this screen
   useEffect(() => {
     const socket = io(SOCKET_URL);
+    socket.on('connect', () => socket.emit('subscribeToRestaurant', restaurant.id));
+    socket.on('newOrder', (order) => {
+      setNewOrderAlert(order);
+      playAlertSound();
+      load();
+    });
     socket.on('orderUpdate', () => load());
     socketRef.current = socket;
     return () => socket.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep re-alerting every 20s as long as there's an order still waiting to be accepted —
+  // a single chime is easy to miss in a busy kitchen. Stops on its own once nothing's pending.
+  useEffect(() => {
+    const hasUnaccepted = orders.some((o) => o.status === 'placed');
+    if (hasUnaccepted && !alertIntervalRef.current) {
+      alertIntervalRef.current = setInterval(playAlertSound, 20000);
+    } else if (!hasUnaccepted && alertIntervalRef.current) {
+      clearInterval(alertIntervalRef.current);
+      alertIntervalRef.current = null;
+    }
+    return () => {
+      if (alertIntervalRef.current) {
+        clearInterval(alertIntervalRef.current);
+        alertIntervalRef.current = null;
+      }
+    };
+  }, [orders]);
+
+  // Ticks the clock forward every 15s purely so urgency badges (computed from elapsed time)
+  // visibly age without the restaurant needing to refresh the page
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 15000);
+    return () => clearInterval(tick);
   }, []);
 
   // Initial load
@@ -137,12 +201,33 @@ export default function OrdersScreen({ restaurant }) {
       {loading && <p className="muted">Loading orders…</p>}
       {!loading && orders.length === 0 && <p className="muted">No orders yet.</p>}
 
+      {newOrderAlert && (
+        <div className="card" style={{ background: '#fff2d6', border: '2px solid var(--turmeric)', marginBottom: 16 }}>
+          <div className="row">
+            <div>
+              <strong>🔔 New order from {newOrderAlert.customer.user.name}</strong>
+              <p style={{ margin: '4px 0 0' }}>₹{Number(newOrderAlert.total).toFixed(0)}</p>
+            </div>
+            <button className="btn-secondary" onClick={() => setNewOrderAlert(null)}>Got it</button>
+          </div>
+        </div>
+      )}
+
       <div className="stack">
-        {orders.map((order) => (
-          <div key={order.id} className="card">
+        {orders.map((order) => {
+          const urgency = getUrgency(order, now);
+          return (
+          <div key={order.id} className="card" style={urgency ? { borderLeft: `4px solid ${urgency.color}` } : undefined}>
             <div className="row" style={{ marginBottom: 8 }}>
               <h3 style={{ fontSize: 15 }}>{order.customer.user.name}</h3>
-              <span className={`pill status-${order.status}`}>{order.status.replace('_', ' ')}</span>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                {urgency && (
+                  <span className="pill" style={{ background: urgency.color, color: '#fff' }} title="Time since order was placed">
+                    {urgency.label}
+                  </span>
+                )}
+                <span className={`pill status-${order.status}`}>{order.status.replace('_', ' ')}</span>
+              </div>
             </div>
 
             <div style={{ marginBottom: 8 }}>
@@ -211,7 +296,8 @@ export default function OrdersScreen({ restaurant }) {
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

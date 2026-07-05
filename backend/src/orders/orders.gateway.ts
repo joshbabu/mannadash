@@ -52,6 +52,18 @@ export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`rider:${riderId}`).emit('newAssignment', payload);
   }
 
+  // Same idea, restaurant-side — lets a restaurant find out about a brand new order the instant
+  // it's placed, without needing to refresh or poll.
+  @SubscribeMessage('subscribeToRestaurant')
+  handleSubscribeRestaurant(client: Socket, restaurantId: string) {
+    client.join(`restaurant:${restaurantId}`);
+    this.logger.log(`Client ${client.id} subscribed to restaurant channel ${restaurantId}`);
+  }
+
+  emitNewOrder(restaurantId: string, payload: unknown) {
+    this.server.to(`restaurant:${restaurantId}`).emit('newOrder', payload);
+  }
+
   // Called by OrdersService whenever an order's status or rider assignment changes
   emitOrderUpdate(orderId: string, payload: unknown) {
     this.server.to(`order:${orderId}`).emit('orderUpdate', payload);
