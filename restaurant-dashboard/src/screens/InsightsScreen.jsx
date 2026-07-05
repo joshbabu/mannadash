@@ -32,6 +32,40 @@ export default function InsightsScreen() {
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
+        <h3 style={{ fontSize: 15, marginBottom: 12 }}>Last 7 days vs. the 7 before that</h3>
+        <div className="row">
+          <span>Revenue</span>
+          <strong>
+            ₹{insights.weekOverWeek.thisWeekRevenue.toFixed(0)}
+            {insights.weekOverWeek.pctChange !== null && (
+              <span style={{ color: insights.weekOverWeek.pctChange >= 0 ? 'var(--curry)' : 'var(--chili)', marginLeft: 8, fontSize: 14 }}>
+                {insights.weekOverWeek.pctChange >= 0 ? '▲' : '▼'} {Math.abs(insights.weekOverWeek.pctChange)}%
+              </span>
+            )}
+          </strong>
+        </div>
+        <div className="row" style={{ marginTop: 8 }}>
+          <span>Orders</span>
+          <strong>{insights.weekOverWeek.thisWeekOrders} <span className="muted">vs {insights.weekOverWeek.lastWeekOrders} last week</span></strong>
+        </div>
+      </div>
+
+      <div className="grid-2" style={{ marginBottom: 16 }}>
+        <div className="card" style={{ textAlign: 'center' }}>
+          <p className="muted" style={{ marginBottom: 4 }}>Repeat customers</p>
+          <p style={{ fontSize: 24, fontWeight: 700, margin: 0, color: 'var(--curry)' }}>{insights.repeatCustomerRate}%</p>
+          <p className="muted" style={{ marginTop: 2, fontSize: 12 }}>have ordered more than once</p>
+        </div>
+        <div className="card" style={{ textAlign: 'center' }}>
+          <p className="muted" style={{ marginBottom: 4 }}>Cancellation rate</p>
+          <p style={{ fontSize: 24, fontWeight: 700, margin: 0, color: insights.cancellationRate > 10 ? 'var(--chili)' : 'var(--charcoal)' }}>
+            {insights.cancellationRate}%
+          </p>
+          <p className="muted" style={{ marginTop: 2, fontSize: 12 }}>of orders end up cancelled</p>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
         <h3 style={{ fontSize: 15, marginBottom: 12 }}>Orders by hour of day</h3>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 80 }}>
           {insights.ordersByHour.map((h) => (

@@ -529,6 +529,71 @@ export class OrdersService {
       ordersByHour,
       avgAcceptMinutes: timing.avg_accept_minutes ? Math.round(Number(timing.avg_accept_minutes) * 10) / 10 : null,
       avgPrepMinutes: timing.avg_prep_minutes ? Math.round(Number(timing.avg_prep_minutes) * 10) / 10 : null,
+      weekOverWeek: await this.getWeekOverWeek(restaurantId),
+      cancellationRate: await this.getCancellationRate(restaurantId),
+      repeatCustomerRate: await this.getRepeatCustomerRate(restaurantId),
     };
+  }
+
+  // Rolling 7-day windows rather than calendar weeks — avoids Monday/Sunday ambiguity and is
+  // more actionable ("compared to the last 7 days" is always meaningful, regardless of today's date)
+  private async getWeekOverWeek(restaurantId: string) {
+    const rows = await this.orderRepo.manager.query(
+      `SELECT
+         COALESCE(SUM(subtotal) FILTER (WHERE "deliveredAt" >= now() - interval '7 days'), 0) as this_week_revenue,
+         COUNT(*) FILTER (WHERE "deliveredAt" >= now() - interval '7 days') as this_week_orders,
+         COALESCE(SUM(subtotal) FILTER (WHERE "deliveredAt" >= now() - interval '14 days' AND "deliveredAt" < now() - interval '7 days'), 0) as last_week_revenue,
+         COUNT(*) FILTER (WHERE "deliveredAt" >= now() - interval '14 days' AND "deliveredAt" < now() - interval '7 days') as last_week_orders
+       FROM orders
+       WHERE "restaurantId" = $1 AND status = 'delivered'`,
+      [restaurantId],
+    );
+    const r = rows[0];
+    const thisWeekRevenue = Math.round(Number(r.this_week_revenue) * 100) / 100;
+    const lastWeekRevenue = Math.round(Number(r.last_week_revenue) * 100) / 100;
+    const pctChange = lastWeekRevenue > 0 ? Math.round(((thisWeekRevenue - lastWeekRevenue) / lastWeekRevenue) * 1000) / 10 : null;
+    return {
+      thisWeekRevenue,
+      lastWeekRevenue,
+      thisWeekOrders: parseInt(r.this_week_orders),
+      lastWeekOrders: parseInt(r.last_week_orders),
+      pctChange,
+    };
+  }
+
+  // What % of orders end up cancelled rather than delivered — an honesty metric most platforms
+  // track internally but don't hand back to the restaurant itself
+  private async getCancellationRate(restaurantId: string) {
+    const rows = await this.orderRepo.manager.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled,
+         COUNT(*) FILTER (WHERE status IN ('cancelled', 'delivered')) as total
+       FROM orders
+       WHERE "restaurantId" = $1`,
+      [restaurantId],
+    );
+    const r = rows[0];
+    const total = parseInt(r.total);
+    return total > 0 ? Math.round((parseInt(r.cancelled) / total) * 1000) / 10 : 0;
+  }
+
+  // % of this restaurant's customers who have ordered more than once — a genuine loyalty signal
+  // that isn't typically surfaced to restaurants on major platforms at all
+  private async getRepeatCustomerRate(restaurantId: string) {
+    const rows = await this.orderRepo.manager.query(
+      `SELECT
+         COUNT(*) as total_customers,
+         COUNT(*) FILTER (WHERE order_count > 1) as repeat_customers
+       FROM (
+         SELECT "customerId", COUNT(*) as order_count
+         FROM orders
+         WHERE "restaurantId" = $1
+         GROUP BY "customerId"
+       ) per_customer`,
+      [restaurantId],
+    );
+    const r = rows[0];
+    const totalCustomers = parseInt(r.total_customers);
+    return totalCustomers > 0 ? Math.round((parseInt(r.repeat_customers) / totalCustomers) * 1000) / 10 : 0;
   }
 }

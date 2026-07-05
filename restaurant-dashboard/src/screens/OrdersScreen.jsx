@@ -40,6 +40,7 @@ export default function OrdersScreen({ restaurant }) {
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
   const [restaurantLocation, setRestaurantLocation] = useState(null);
+  const [busyHourNudge, setBusyHourNudge] = useState(null);
   const [riderPickerOrderId, setRiderPickerOrderId] = useState(null);
   const [availableRiders, setAvailableRiders] = useState([]);
   const [loadingRiders, setLoadingRiders] = useState(false);
@@ -114,6 +115,20 @@ export default function OrdersScreen({ restaurant }) {
     api.getRestaurant(restaurant.id).then((full) => {
       const [lng, lat] = full.location.coordinates;
       setRestaurantLocation({ lat, lng });
+    }).catch(() => {});
+
+    // Real-time operational nudge, driven by real history rather than a guess — if this hour
+    // has historically been in this restaurant's top 25% busiest, give a heads-up before it hits.
+    api.getMyInsights().then((insights) => {
+      const currentHour = new Date().getHours();
+      const counts = insights.ordersByHour.map((h) => h.count).filter((c) => c > 0);
+      if (counts.length < 4) return; // not enough history yet to call anything "busy"
+      const sorted = [...counts].sort((a, b) => b - a);
+      const top25Threshold = sorted[Math.floor(sorted.length * 0.25)] ?? sorted[0];
+      const thisHourCount = insights.ordersByHour.find((h) => h.hour === currentHour)?.count ?? 0;
+      if (thisHourCount >= top25Threshold && thisHourCount > 0) {
+        setBusyHourNudge(thisHourCount);
+      }
     }).catch(() => {});
   }, []);
 
@@ -200,6 +215,15 @@ export default function OrdersScreen({ restaurant }) {
       {actionError && <div className="error-banner">{actionError}</div>}
       {loading && <p className="muted">Loading orders…</p>}
       {!loading && orders.length === 0 && <p className="muted">No orders yet.</p>}
+
+      {busyHourNudge && (
+        <div className="card" style={{ background: '#fff2d6', border: '1px solid var(--turmeric)', marginBottom: 16 }}>
+          <div className="row">
+            <span>🔥 This hour is historically one of your busiest — heads up.</span>
+            <button className="btn-secondary" onClick={() => setBusyHourNudge(null)}>Dismiss</button>
+          </div>
+        </div>
+      )}
 
       {newOrderAlert && (
         <div className="card" style={{ background: '#fff2d6', border: '2px solid var(--turmeric)', marginBottom: 16 }}>
