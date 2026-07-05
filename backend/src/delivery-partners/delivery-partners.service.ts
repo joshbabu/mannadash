@@ -105,6 +105,11 @@ export class DeliveryPartnersService {
     return this.riderRepo.save(rider);
   }
 
+  // Called by OrdersService whenever a new rating comes in — keeps ratingAvg in sync
+  async setRatingAvg(id: string, ratingAvg: number): Promise<void> {
+    await this.riderRepo.update(id, { ratingAvg });
+  }
+
   /**
    * Find the nearest verified, available rider to a given point (typically the restaurant's location).
    * Returns null if none are within range — caller decides how to handle that (retry, widen radius, alert ops).

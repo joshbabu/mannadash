@@ -51,6 +51,9 @@ export class Restaurant {
   @Column({ type: 'enum', enum: RestaurantStatus, default: RestaurantStatus.PENDING })
   status: RestaurantStatus;
 
+  @Column({ type: 'decimal', precision: 3, scale: 2, default: 0 })
+  ratingAvg: number;
+
   // Null until the owner claims this restaurant via /restaurants/signup — see RestaurantsService.signup
   @Exclude()
   @Column({ type: 'varchar', nullable: true })

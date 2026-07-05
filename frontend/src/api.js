@@ -45,6 +45,7 @@ export const api = {
   getMyOrders: () => request('/orders', { auth: true }),
   getOrder: (id) => request(`/orders/${id}`, { auth: true }),
   createPayment: (orderId) => request(`/orders/${orderId}/create-payment`, { method: 'POST', auth: true }),
+  rateOrder: (orderId, body) => request(`/orders/${orderId}/rating`, { method: 'POST', body, auth: true }),
 
   getToken,
   setToken: (token) => localStorage.setItem('dabba_token', token),

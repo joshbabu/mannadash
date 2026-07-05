@@ -3,11 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Order, OrderStatus, PaymentStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
+import { Rating } from './entities/rating.entity';
 import { Restaurant, RestaurantStatus } from '../restaurants/entities/restaurant.entity';
 import { MenuItem } from '../menu-items/entities/menu-item.entity';
 import { Customer } from '../customers/entities/customer.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { CreateRatingDto } from './dto/create-rating.dto';
 import { DeliveryPartnersService } from '../delivery-partners/delivery-partners.service';
+import { RestaurantsService } from '../restaurants/restaurants.service';
 import { OrdersGateway } from './orders.gateway';
 import { RazorpayService } from '../payments/razorpay.service';
 
@@ -36,7 +39,10 @@ export class OrdersService {
     private readonly menuItemRepo: Repository<MenuItem>,
     @InjectRepository(Customer)
     private readonly customerRepo: Repository<Customer>,
+    @InjectRepository(Rating)
+    private readonly ratingRepo: Repository<Rating>,
     private readonly deliveryPartnersService: DeliveryPartnersService,
+    private readonly restaurantsService: RestaurantsService,
     private readonly ordersGateway: OrdersGateway,
     private readonly razorpayService: RazorpayService,
   ) {}
@@ -92,6 +98,19 @@ export class OrdersService {
     const commissionAmount = Math.round(subtotal * (Number(restaurant.commissionRate) / 100) * 100) / 100;
     const total = subtotal + FLAT_DELIVERY_FEE;
 
+    // Rough ETA: restaurant's stated prep time + a distance-based travel estimate.
+    // Assumes ~20km/h average city delivery speed — doesn't account for real traffic,
+    // so treat this as a reasonable estimate shown to the customer, not a guarantee.
+    const AVG_DELIVERY_SPEED_MPS = 5.56;
+    const distanceRow = await this.orderRepo.manager.query(
+      `SELECT ST_Distance(location, ST_SetSRID(ST_MakePoint($1, $2), 4326)) as dist FROM restaurants WHERE id = $3`,
+      [dto.longitude, dto.latitude, restaurant.id],
+    );
+    const distanceMeters = parseFloat(distanceRow[0].dist);
+    const travelSeconds = distanceMeters / AVG_DELIVERY_SPEED_MPS;
+    const prepSeconds = restaurant.avgPrepTimeMins * 60;
+    const estimatedDeliveryAt = new Date(Date.now() + (prepSeconds + travelSeconds) * 1000);
+
     // deliveryLocation needs a raw SQL expression, which TypeORM's save() doesn't support directly —
     // so we insert via query builder, same pattern used in RestaurantsService.create
     const insertResult = await this.orderRepo
@@ -108,6 +127,7 @@ export class OrdersService {
         deliveryFee: FLAT_DELIVERY_FEE,
         commissionAmount,
         total,
+        estimatedDeliveryAt,
       } as any)
       .returning('*')
       .execute();
@@ -333,5 +353,101 @@ export class OrdersService {
     const updated = await this.findOne(orderId);
     this.ordersGateway.emitOrderUpdate(orderId, updated);
     return updated;
+  }
+
+  /**
+   * Customer rates a delivered order — one rating per order, only after delivery, only by the
+   * customer who placed it. Updates both the restaurant's and (if assigned) the rider's running
+   * average immediately after.
+   */
+  async rateOrder(orderId: string, userId: string, dto: CreateRatingDto): Promise<Rating> {
+    const order = await this.findOne(orderId, userId); // enforces ownership, throws 403/404 as needed
+
+    if (order.status !== OrderStatus.DELIVERED) {
+      throw new BadRequestException('You can only rate an order after it has been delivered');
+    }
+
+    const existing = await this.ratingRepo.findOne({ where: { order: { id: orderId } } });
+    if (existing) {
+      throw new BadRequestException('This order has already been rated');
+    }
+
+    const rating = await this.ratingRepo.save(
+      this.ratingRepo.create({
+        order: { id: orderId } as Order,
+        restaurantRating: dto.restaurantRating,
+        deliveryRating: dto.deliveryRating,
+        comment: dto.comment,
+      }),
+    );
+
+    await this.recomputeRestaurantRating(order.restaurant.id);
+    if (order.deliveryPartner) {
+      await this.recomputeRiderRating(order.deliveryPartner.id);
+    }
+
+    return rating;
+  }
+
+  private async recomputeRestaurantRating(restaurantId: string): Promise<void> {
+    const result = await this.orderRepo.manager.query(
+      `SELECT AVG(r."restaurantRating") as avg
+       FROM ratings r
+       JOIN orders o ON o.id = r."orderId"
+       WHERE o."restaurantId" = $1`,
+      [restaurantId],
+    );
+    const avg = parseFloat(result[0].avg) || 0;
+    await this.restaurantsService.setRatingAvg(restaurantId, Math.round(avg * 100) / 100);
+  }
+
+  private async recomputeRiderRating(riderId: string): Promise<void> {
+    const result = await this.orderRepo.manager.query(
+      `SELECT AVG(r."deliveryRating") as avg
+       FROM ratings r
+       JOIN orders o ON o.id = r."orderId"
+       WHERE o."deliveryPartnerId" = $1`,
+      [riderId],
+    );
+    const avg = parseFloat(result[0].avg) || 0;
+    await this.deliveryPartnersService.setRatingAvg(riderId, Math.round(avg * 100) / 100);
+  }
+
+  /**
+   * Rider earnings — currently modeled as the flat delivery fee per completed delivery.
+   * Returns lifetime total, today's total, and the underlying list of delivered orders.
+   */
+  async getRiderEarnings(riderId: string) {
+    const deliveredOrders = await this.orderRepo.find({
+      where: { deliveryPartner: { id: riderId }, status: OrderStatus.DELIVERED },
+      relations: { restaurant: true },
+      order: { deliveredAt: 'DESC' },
+    });
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    let lifetimeTotal = 0;
+    let todayTotal = 0;
+    const history = deliveredOrders.map((order) => {
+      const amount = Number(order.deliveryFee);
+      lifetimeTotal += amount;
+      if (order.deliveredAt && order.deliveredAt >= startOfToday) {
+        todayTotal += amount;
+      }
+      return {
+        orderId: order.id,
+        restaurantName: order.restaurant.name,
+        amount,
+        deliveredAt: order.deliveredAt,
+      };
+    });
+
+    return {
+      lifetimeTotal: Math.round(lifetimeTotal * 100) / 100,
+      todayTotal: Math.round(todayTotal * 100) / 100,
+      deliveryCount: deliveredOrders.length,
+      history,
+    };
   }
 }

@@ -38,6 +38,7 @@ export const api = {
     request('/delivery-partners/me/location', { method: 'PATCH', body: { latitude, longitude }, auth: true }),
 
   getMyOrders: () => request('/orders/rider/mine', { auth: true }),
+  getMyEarnings: () => request('/orders/rider/earnings', { auth: true }),
   updateOrderStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PATCH', body: { status }, auth: true }),
 
   getToken,

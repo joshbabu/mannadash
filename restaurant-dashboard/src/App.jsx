@@ -37,6 +37,9 @@ export default function App() {
         <span className="brand">MannaDash for Restaurants</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span className="muted">{restaurant.name}</span>
+          {freshStatus?.ratingAvg > 0 && (
+            <span className="pill">★ {Number(freshStatus.ratingAvg).toFixed(1)}</span>
+          )}
           <button className="btn-secondary" onClick={logout}>Log out</button>
         </div>
       </div>

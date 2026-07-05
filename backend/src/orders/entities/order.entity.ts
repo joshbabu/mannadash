@@ -71,6 +71,11 @@ export class Order {
   @Column({ nullable: true })
   paymentId: string;
 
+  // Computed once at order creation from prep time + estimated travel time — a rough ETA,
+  // not re-calculated as the order progresses (real traffic/prep variance isn't modeled)
+  @Column({ type: 'timestamp', nullable: true })
+  estimatedDeliveryAt: Date;
+
   @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })
   items: OrderItem[];
 

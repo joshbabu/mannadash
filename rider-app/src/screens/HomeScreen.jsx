@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { api, SOCKET_URL } from '../api';
+import EarningsScreen from './EarningsScreen';
 
 // What each status can move to next, from the rider's side only —
 // mirrors the backend's rider-owned transitions (picked_up, delivered)
@@ -17,6 +18,7 @@ const WAITING_MESSAGE = {
 };
 
 export default function HomeScreen({ rider, onLogout }) {
+  const [tab, setTab] = useState('deliveries');
   const [isOnline, setIsOnline] = useState(rider.isAvailable);
   const [isVerified, setIsVerified] = useState(rider.isVerified);
   const [orders, setOrders] = useState([]);
@@ -148,65 +150,88 @@ export default function HomeScreen({ rider, onLogout }) {
         </button>
       </div>
 
-      {!isVerified && (
-        <div className="error-banner">
-          Your account isn't verified yet — you can't go online until an admin verifies you.
-        </div>
-      )}
-
-      {newOrderAlert && (
-        <div className="status-banner online" style={{ borderColor: 'var(--turmeric)', background: 'rgba(244,162,0,0.15)' }}>
-          <p style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>🔔 New delivery!</p>
-          <p className="muted" style={{ margin: '4px 0 16px' }}>{newOrderAlert.restaurant.name} · ₹{Number(newOrderAlert.total).toFixed(0)}</p>
-          <button className="btn-secondary" onClick={() => setNewOrderAlert(null)}>Got it</button>
-        </div>
-      )}
-
-      <div className={`status-banner ${isOnline ? 'online' : 'offline'}`}>
-        <p style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{isOnline ? "You're online" : "You're offline"}</p>
-        <p className="muted" style={{ margin: '4px 0 16px' }}>
-          {isOnline ? 'Sharing your location, ready for orders' : 'Go online to start receiving deliveries'}
-        </p>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <button
-          className={isOnline ? 'btn-stop' : 'btn-primary'}
-          onClick={toggleOnline}
-          disabled={!isVerified}
+          className="btn-secondary"
+          style={{ opacity: tab === 'deliveries' ? 1 : 0.5 }}
+          onClick={() => setTab('deliveries')}
         >
-          {isOnline ? 'Go offline' : 'Go online'}
+          Deliveries
+        </button>
+        <button
+          className="btn-secondary"
+          style={{ opacity: tab === 'earnings' ? 1 : 0.5 }}
+          onClick={() => setTab('earnings')}
+        >
+          Earnings
         </button>
       </div>
 
-      {/* Location permission issues are common and easily fixed — muted note rather than an alarming red banner */}
-      {locationError && <p className="muted" style={{ marginBottom: 14 }}>📍 {locationError}</p>}
-      {error && <div className="error-banner">{error}</div>}
-
-      <h2 style={{ fontSize: 18, marginBottom: 12 }}>Your deliveries</h2>
-      {activeOrders.length === 0 && <p className="muted">No active deliveries right now.</p>}
-
-      <div className="stack">
-        {activeOrders.map((order) => {
-          const action = RIDER_ACTIONS[order.status];
-          return (
-            <div key={order.id} className="card">
-              <div className="row" style={{ marginBottom: 8 }}>
-                <h3 style={{ fontSize: 15 }}>{order.restaurant.name}</h3>
-                <span className="pill">{order.status.replace('_', ' ')}</span>
-              </div>
-              <p className="muted" style={{ color: '#6b6156', marginBottom: 4 }}>Pickup: {order.restaurant.address}</p>
-              <p className="muted" style={{ color: '#6b6156', marginBottom: 12 }}>Deliver to: {order.deliveryAddress}</p>
-              <p style={{ fontWeight: 600, marginBottom: 12 }}>₹{Number(order.total).toFixed(0)}</p>
-
-              {action ? (
-                <button className="btn-primary" style={{ background: 'var(--curry)' }} onClick={() => advance(order, action.value)}>
-                  {action.label}
-                </button>
-              ) : (
-                <p className="muted">{WAITING_MESSAGE[order.status] || 'Waiting on the restaurant…'}</p>
-              )}
+      {tab === 'earnings' ? (
+        <EarningsScreen />
+      ) : (
+        <>
+          {!isVerified && (
+            <div className="error-banner">
+              Your account isn't verified yet — you can't go online until an admin verifies you.
             </div>
-          );
-        })}
-      </div>
+          )}
+
+          {newOrderAlert && (
+            <div className="status-banner online" style={{ borderColor: 'var(--turmeric)', background: 'rgba(244,162,0,0.15)' }}>
+              <p style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>🔔 New delivery!</p>
+              <p className="muted" style={{ margin: '4px 0 16px' }}>{newOrderAlert.restaurant.name} · ₹{Number(newOrderAlert.total).toFixed(0)}</p>
+              <button className="btn-secondary" onClick={() => setNewOrderAlert(null)}>Got it</button>
+            </div>
+          )}
+
+          <div className={`status-banner ${isOnline ? 'online' : 'offline'}`}>
+            <p style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{isOnline ? "You're online" : "You're offline"}</p>
+            <p className="muted" style={{ margin: '4px 0 16px' }}>
+              {isOnline ? 'Sharing your location, ready for orders' : 'Go online to start receiving deliveries'}
+            </p>
+            <button
+              className={isOnline ? 'btn-stop' : 'btn-primary'}
+              onClick={toggleOnline}
+              disabled={!isVerified}
+            >
+              {isOnline ? 'Go offline' : 'Go online'}
+            </button>
+          </div>
+
+          {/* Location permission issues are common and easily fixed — muted note rather than an alarming red banner */}
+          {locationError && <p className="muted" style={{ marginBottom: 14 }}>📍 {locationError}</p>}
+          {error && <div className="error-banner">{error}</div>}
+
+          <h2 style={{ fontSize: 18, marginBottom: 12 }}>Your deliveries</h2>
+          {activeOrders.length === 0 && <p className="muted">No active deliveries right now.</p>}
+
+          <div className="stack">
+            {activeOrders.map((order) => {
+              const action = RIDER_ACTIONS[order.status];
+              return (
+                <div key={order.id} className="card">
+                  <div className="row" style={{ marginBottom: 8 }}>
+                    <h3 style={{ fontSize: 15 }}>{order.restaurant.name}</h3>
+                    <span className="pill">{order.status.replace('_', ' ')}</span>
+                  </div>
+                  <p className="muted" style={{ color: '#6b6156', marginBottom: 4 }}>Pickup: {order.restaurant.address}</p>
+                  <p className="muted" style={{ color: '#6b6156', marginBottom: 12 }}>Deliver to: {order.deliveryAddress}</p>
+                  <p style={{ fontWeight: 600, marginBottom: 12 }}>₹{Number(order.total).toFixed(0)}</p>
+
+                  {action ? (
+                    <button className="btn-primary" style={{ background: 'var(--curry)' }} onClick={() => advance(order, action.value)}>
+                      {action.label}
+                    </button>
+                  ) : (
+                    <p className="muted">{WAITING_MESSAGE[order.status] || 'Waiting on the restaurant…'}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }

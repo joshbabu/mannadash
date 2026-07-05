@@ -3,6 +3,7 @@ import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
+import { CreateRatingDto } from './dto/create-rating.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('orders')
@@ -31,6 +32,12 @@ export class OrdersController {
   @Get('rider/mine')
   findMyRiderOrders(@Req() req: any) {
     return this.ordersService.findAllForRider(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('rider/earnings')
+  getMyEarnings(@Req() req: any) {
+    return this.ordersService.getRiderEarnings(req.user.userId);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -101,5 +108,11 @@ export class OrdersController {
   @Post(':id/verify-payment')
   verifyPayment(@Param('id', ParseUUIDPipe) id: string, @Body() dto: VerifyPaymentDto) {
     return this.ordersService.verifyPayment(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/rating')
+  rateOrder(@Req() req: any, @Param('id', ParseUUIDPipe) id: string, @Body() dto: CreateRatingDto) {
+    return this.ordersService.rateOrder(id, req.user.userId, dto);
   }
 }
