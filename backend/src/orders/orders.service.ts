@@ -454,4 +454,81 @@ export class OrdersService {
       history,
     };
   }
+
+  /**
+   * Restaurant intelligence — the kind of operational visibility Swiggy/Zomato keep for their
+   * own internal ops dashboards, not typically shown transparently to the restaurant itself.
+   * Everything here is computed from the restaurant's own order history, no external data needed.
+   */
+  async getRestaurantInsights(restaurantId: string) {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    // Revenue + order counts, lifetime and today — DELIVERED orders only, so cancelled/in-flight
+    // orders don't inflate "revenue you've actually earned"
+    const revenueRows = await this.orderRepo.manager.query(
+      `SELECT
+         COALESCE(SUM(subtotal), 0) as lifetime_revenue,
+         COUNT(*) as lifetime_orders,
+         COALESCE(SUM(subtotal) FILTER (WHERE "deliveredAt" >= $2), 0) as today_revenue,
+         COUNT(*) FILTER (WHERE "deliveredAt" >= $2) as today_orders
+       FROM orders
+       WHERE "restaurantId" = $1 AND status = 'delivered'`,
+      [restaurantId, startOfToday],
+    );
+    const revenue = revenueRows[0];
+
+    // Top-selling items by quantity — helps a restaurant see what's actually working,
+    // not just guess from memory
+    const topItems = await this.orderRepo.manager.query(
+      `SELECT mi.name, SUM(oi.quantity) as total_quantity
+       FROM order_items oi
+       JOIN orders o ON o.id = oi."orderId"
+       JOIN menu_items mi ON mi.id = oi."menuItemId"
+       WHERE o."restaurantId" = $1 AND o.status = 'delivered'
+       GROUP BY mi.name
+       ORDER BY total_quantity DESC
+       LIMIT 5`,
+      [restaurantId],
+    );
+
+    // Orders by hour of day (0-23), lifetime — reveals actual peak hours from real data,
+    // not assumption. Frontend renders this as a simple bar chart.
+    const hourlyRows = await this.orderRepo.manager.query(
+      `SELECT EXTRACT(HOUR FROM "placedAt") as hour, COUNT(*) as order_count
+       FROM orders
+       WHERE "restaurantId" = $1
+       GROUP BY hour
+       ORDER BY hour`,
+      [restaurantId],
+    );
+    const ordersByHour = Array.from({ length: 24 }, (_, hour) => {
+      const row = hourlyRows.find((r: any) => parseInt(r.hour) === hour);
+      return { hour, count: row ? parseInt(row.order_count) : 0 };
+    });
+
+    // Accountability metrics — how fast does this restaurant actually accept and prepare
+    // orders, versus what they claim (avgPrepTimeMins)? This is exactly the kind of thing
+    // platforms track internally but rarely show restaurants about themselves.
+    const timingRows = await this.orderRepo.manager.query(
+      `SELECT
+         AVG(EXTRACT(EPOCH FROM ("acceptedAt" - "placedAt")) / 60) as avg_accept_minutes,
+         AVG(EXTRACT(EPOCH FROM ("readyAt" - "acceptedAt")) / 60) as avg_prep_minutes
+       FROM orders
+       WHERE "restaurantId" = $1 AND "acceptedAt" IS NOT NULL`,
+      [restaurantId],
+    );
+    const timing = timingRows[0];
+
+    return {
+      lifetimeRevenue: Math.round(Number(revenue.lifetime_revenue) * 100) / 100,
+      lifetimeOrders: parseInt(revenue.lifetime_orders),
+      todayRevenue: Math.round(Number(revenue.today_revenue) * 100) / 100,
+      todayOrders: parseInt(revenue.today_orders),
+      topItems: topItems.map((r: any) => ({ name: r.name, quantity: parseInt(r.total_quantity) })),
+      ordersByHour,
+      avgAcceptMinutes: timing.avg_accept_minutes ? Math.round(Number(timing.avg_accept_minutes) * 10) / 10 : null,
+      avgPrepMinutes: timing.avg_prep_minutes ? Math.round(Number(timing.avg_prep_minutes) * 10) / 10 : null,
+    };
+  }
 }

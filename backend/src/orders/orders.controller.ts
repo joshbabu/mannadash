@@ -29,6 +29,12 @@ export class OrdersController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('restaurant/insights')
+  getMyRestaurantInsights(@Req() req: any) {
+    return this.ordersService.getRestaurantInsights(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('rider/mine')
   findMyRiderOrders(@Req() req: any) {
     return this.ordersService.findAllForRider(req.user.userId);

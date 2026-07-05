@@ -3,6 +3,7 @@ import { api } from './api';
 import AuthScreen from './screens/AuthScreen';
 import MenuScreen from './screens/MenuScreen';
 import OrdersScreen from './screens/OrdersScreen';
+import InsightsScreen from './screens/InsightsScreen';
 
 export default function App() {
   const [restaurant, setRestaurant] = useState(api.getStoredRestaurant());
@@ -57,9 +58,12 @@ export default function App() {
       <div className="tabs">
         <button className={tab === 'orders' ? 'active' : ''} onClick={() => setTab('orders')}>Orders</button>
         <button className={tab === 'menu' ? 'active' : ''} onClick={() => setTab('menu')}>Menu</button>
+        <button className={tab === 'insights' ? 'active' : ''} onClick={() => setTab('insights')}>Insights</button>
       </div>
 
-      {tab === 'orders' ? <OrdersScreen restaurant={restaurant} /> : <MenuScreen restaurant={restaurant} />}
+      {tab === 'orders' && <OrdersScreen restaurant={restaurant} />}
+      {tab === 'menu' && <MenuScreen restaurant={restaurant} />}
+      {tab === 'insights' && <InsightsScreen />}
     </div>
   );
 }

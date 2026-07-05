@@ -44,6 +44,7 @@ export const api = {
 
   // Orders
   getMyOrders: () => request('/orders/restaurant/mine', { auth: true }),
+  getMyInsights: () => request('/orders/restaurant/insights', { auth: true }),
   updateOrderStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PATCH', body: { status }, auth: true }),
   assignRider: (id) => request(`/orders/${id}/assign-rider`, { method: 'POST', auth: true }),
   assignSpecificRider: (orderId, riderId) => request(`/orders/${orderId}/assign-rider/${riderId}`, { method: 'POST', auth: true }),
