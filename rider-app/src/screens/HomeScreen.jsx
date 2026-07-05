@@ -21,6 +21,7 @@ export default function HomeScreen({ rider, onLogout }) {
   const [tab, setTab] = useState('deliveries');
   const [isOnline, setIsOnline] = useState(rider.isAvailable);
   const [isVerified, setIsVerified] = useState(rider.isVerified);
+  const [ratingAvg, setRatingAvg] = useState(rider.ratingAvg || 0);
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState('');
   const [locationError, setLocationError] = useState('');
@@ -32,7 +33,10 @@ export default function HomeScreen({ rider, onLogout }) {
   // The login snapshot can go stale the instant an admin verifies this rider elsewhere —
   // re-check the real status on load instead of trusting what we got at login time.
   useEffect(() => {
-    api.getRider(rider.id).then((fresh) => setIsVerified(fresh.isVerified)).catch(() => {});
+    api.getRider(rider.id).then((fresh) => {
+      setIsVerified(fresh.isVerified);
+      setRatingAvg(Number(fresh.ratingAvg) || 0);
+    }).catch(() => {});
   }, [rider.id]);
 
   useEffect(() => {
@@ -145,9 +149,12 @@ export default function HomeScreen({ rider, onLogout }) {
     <div className="app-shell">
       <div className="topbar">
         <span className="brand">MannaDash Rider</span>
-        <button className="btn-secondary" onClick={onLogout} style={{ fontSize: 12, padding: '6px 10px' }}>
-          Log out
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {ratingAvg > 0 && <span className="pill">★ {ratingAvg.toFixed(1)}</span>}
+          <button className="btn-secondary" onClick={onLogout} style={{ fontSize: 12, padding: '6px 10px' }}>
+            Log out
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
