@@ -6,7 +6,9 @@ set -e
 cd /root/mannadash-app
 
 echo "Pulling latest code..."
-git pull origin main
+git fetch origin main
+git reset --hard origin/main
+chmod +x backup-db.sh restore-db.sh deploy.sh
 
 echo "Rebuilding and restarting containers..."
 docker compose -f docker-compose.prod.yml up -d --build
