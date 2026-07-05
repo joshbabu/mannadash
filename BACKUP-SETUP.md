@@ -80,11 +80,29 @@ storage tidy without any scripting.
 
 ## Testing a restore (do this at least once!)
 
-A backup that's never been restored is not a proven safety net. On a quiet moment:
+A backup that's never been restored is not a proven safety net. But testing directly against
+your live database can produce a wall of confusing "already exists" errors if the data hasn't
+changed since the backup — safe, but noisy. The cleaner way is to restore into a **throwaway**
+container instead:
+
+```bash
+docker run -d --name restore-test -e POSTGRES_USER=app -e POSTGRES_PASSWORD=test -e POSTGRES_DB=mannadash postgis/postgis:16-3.4
+sleep 5
+aws s3 cp s3://mannadash-backups/<pick-a-recent-filename>.sql.gz - --endpoint-url $R2_ENDPOINT | gunzip | docker exec -i restore-test psql -U app -d mannadash
+docker exec restore-test psql -U app -d mannadash -c "SELECT count(*) FROM restaurants;"
+docker rm -f restore-test
+```
+
+If that final count comes back with real data, your backup is proven to work — and your actual
+live database was never touched in the process.
+
+## Restoring for real (an actual emergency)
+
+If you ever genuinely need to restore into the live database (data loss, corruption, etc.):
 
 ```bash
 aws s3 ls s3://mannadash-backups/ --endpoint-url $R2_ENDPOINT
 ./restore-db.sh <pick-a-recent-filename>.sql.gz
 ```
 
-Confirm your data is intact afterward with `curl http://localhost:3000/restaurants`.
+Confirm afterward with `curl http://localhost:3000/restaurants`.

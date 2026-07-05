@@ -13,8 +13,10 @@ mkdir -p "$BACKUP_DIR"
 
 echo "[$(date)] Starting backup..."
 
-# Dump the database from inside the running Postgres container, compress it
-docker exec mannadash-db pg_dump -U app mannadash | gzip > "$LOCAL_PATH"
+# Dump the database from inside the running Postgres container, compress it.
+# --clean --if-exists makes the dump DROP each object before recreating it, so a restore
+# is safe to run even against a database that already has data in it (won't just error out).
+docker exec mannadash-db pg_dump -U app --clean --if-exists mannadash | gzip > "$LOCAL_PATH"
 
 echo "[$(date)] Dump created: $LOCAL_PATH ($(du -h "$LOCAL_PATH" | cut -f1))"
 
