@@ -10,7 +10,45 @@ on:
       - 'deploy.sh'
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: mannadash_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Run e2e tests
+        working-directory: backend
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: app
+          DB_PASSWORD: test_password
+          DB_NAME: mannadash_test
+          JWT_SECRET: test_jwt_secret_for_ci_only
+          ADMIN_USERNAME: admin
+          ADMIN_PASSWORD: test_admin_password_for_ci_only
+        run: npm run test:e2e -- --runInBand
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to Hetzner via SSH
