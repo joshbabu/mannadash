@@ -17,7 +17,9 @@ import { MenuItemsService } from './menu-items.service';
 import { CreateMenuItemDto } from './dto/create-menu-item.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
 import { ListMenuItemsQueryDto } from './dto/list-menu-items-query.dto';
+import { UploadImageDto } from './dto/upload-image.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UploadsService } from '../uploads/uploads.service';
 
 class SetAvailabilityDto {
   @IsBoolean()
@@ -26,7 +28,10 @@ class SetAvailabilityDto {
 
 @Controller('menu-items')
 export class MenuItemsController {
-  constructor(private readonly menuItemsService: MenuItemsService) {}
+  constructor(
+    private readonly menuItemsService: MenuItemsService,
+    private readonly uploadsService: UploadsService,
+  ) {}
 
   // Owner-only — can only add items to their own restaurant
   @UseGuards(JwtAuthGuard)
@@ -67,6 +72,17 @@ export class MenuItemsController {
       throw new ForbiddenException('You can only update your own restaurant\'s menu items');
     }
     return this.menuItemsService.setAvailability(id, dto.isAvailable);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/image')
+  async uploadImage(@Req() req: any, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UploadImageDto) {
+    const item = await this.menuItemsService.findOne(id);
+    if (item.restaurant.id !== req.user.userId) {
+      throw new ForbiddenException('You can only update your own restaurant\'s menu items');
+    }
+    const imageUrl = await this.uploadsService.uploadMenuItemImage(dto.imageBase64);
+    return this.menuItemsService.update(id, { imageUrl });
   }
 
   @UseGuards(JwtAuthGuard)

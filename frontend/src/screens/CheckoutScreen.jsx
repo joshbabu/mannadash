@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api';
 
 // Default delivery point for the MVP demo — matches the restaurant list's default search center
@@ -7,8 +7,24 @@ const DEFAULT_LNG = 78.39;
 
 export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBack, onOrderPlaced }) {
   const [address, setAddress] = useState('');
+  const [latitude, setLatitude] = useState(DEFAULT_LAT);
+  const [longitude, setLongitude] = useState(DEFAULT_LNG);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [saveThisAddress, setSaveThisAddress] = useState(false);
+  const [newLabel, setNewLabel] = useState('');
+
+  useEffect(() => {
+    api.getSavedAddresses().then(setSavedAddresses).catch(() => {});
+  }, []);
+
+  function pickSavedAddress(saved) {
+    setAddress(saved.address);
+    setLatitude(saved.latitude);
+    setLongitude(saved.longitude);
+    setSaveThisAddress(false);
+  }
 
   const lines = orderItems.map((oi) => {
     const item = menuItems.find((m) => m.id === oi.menuItemId);
@@ -24,12 +40,15 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
     setLoading(true);
     setError('');
     try {
+      if (saveThisAddress && newLabel.trim()) {
+        api.saveAddress({ label: newLabel.trim(), address, latitude, longitude }).catch(() => {});
+      }
       const order = await api.placeOrder({
         restaurantId: restaurant.id,
         items: orderItems,
         deliveryAddress: address,
-        latitude: DEFAULT_LAT,
-        longitude: DEFAULT_LNG,
+        latitude,
+        longitude,
       });
       onOrderPlaced(order);
     } catch (err) {
@@ -63,6 +82,22 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
 
       <div className="card">
         <h3 style={{ fontSize: 15, marginBottom: 10 }}>Delivery address</h3>
+
+        {savedAddresses.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+            {savedAddresses.map((saved) => (
+              <button
+                key={saved.id}
+                className="btn-secondary"
+                style={{ color: 'var(--chili-dark)', borderColor: 'var(--chili)' }}
+                onClick={() => pickSavedAddress(saved)}
+              >
+                📍 {saved.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         <textarea
           rows={3}
           placeholder="Flat / house number, street, landmark"
@@ -70,6 +105,19 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
           onChange={(e) => setAddress(e.target.value)}
           style={{ width: '100%', background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd' }}
         />
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, marginTop: 10 }}>
+          <input type="checkbox" checked={saveThisAddress} onChange={(e) => setSaveThisAddress(e.target.checked)} style={{ width: 'auto' }} />
+          Save this address for next time
+        </label>
+        {saveThisAddress && (
+          <input
+            placeholder="Label it (e.g. Home, Work)"
+            value={newLabel}
+            onChange={(e) => setNewLabel(e.target.value)}
+            style={{ width: '100%', background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd', marginTop: 8 }}
+          />
+        )}
       </div>
 
       {error && <div className="error-banner">{error}</div>}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 
-export default function OrderHistoryScreen({ onSelectOrder }) {
+export default function OrderHistoryScreen({ onSelectOrder, onReorder }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -24,13 +24,22 @@ export default function OrderHistoryScreen({ onSelectOrder }) {
 
       <div className="stack" style={{ marginTop: 12 }}>
         {orders.map((o) => (
-          <button key={o.id} className="card" style={{ textAlign: 'left', width: '100%' }} onClick={() => onSelectOrder(o.id)}>
-            <div className="row">
-              <h3 style={{ fontSize: 16 }}>{o.restaurant.name}</h3>
-              <span className="pill">{o.status.replaceAll('_', ' ')}</span>
-            </div>
-            <p className="muted" style={{ color: '#6b6156' }}>₹{Number(o.total).toFixed(0)} · {new Date(o.placedAt).toLocaleDateString()}</p>
-          </button>
+          <div key={o.id} className="card">
+            <button style={{ textAlign: 'left', width: '100%', background: 'none', padding: 0 }} onClick={() => onSelectOrder(o.id)}>
+              <div className="row">
+                <h3 style={{ fontSize: 16 }}>{o.restaurant.name}</h3>
+                <span className="pill">{o.status.replaceAll('_', ' ')}</span>
+              </div>
+              <p className="muted" style={{ color: '#6b6156' }}>₹{Number(o.total).toFixed(0)} · {new Date(o.placedAt).toLocaleDateString()}</p>
+            </button>
+            <button
+              className="btn-secondary"
+              style={{ color: 'var(--chili-dark)', borderColor: 'var(--chili)', marginTop: 10 }}
+              onClick={() => onReorder(o)}
+            >
+              🔁 Reorder
+            </button>
+          </div>
         ))}
       </div>
     </div>

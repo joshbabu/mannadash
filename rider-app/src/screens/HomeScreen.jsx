@@ -24,6 +24,7 @@ export default function HomeScreen({ rider, onLogout }) {
   const [ratingAvg, setRatingAvg] = useState(rider.ratingAvg || 0);
   const [ratingCount, setRatingCount] = useState(rider.ratingCount || 0);
   const [orders, setOrders] = useState([]);
+  const ordersRef = useRef(orders); // avoids stale-closure bug in the location-sharing interval below
   const [error, setError] = useState('');
   const [locationError, setLocationError] = useState('');
   const [newOrderAlert, setNewOrderAlert] = useState(null);
@@ -107,6 +108,10 @@ export default function HomeScreen({ rider, onLogout }) {
     }
   }
 
+  useEffect(() => {
+    ordersRef.current = orders;
+  }, [orders]);
+
   function shareLocation() {
     if (!navigator.geolocation) {
       setLocationError('Location sharing is not supported on this device');
@@ -114,7 +119,15 @@ export default function HomeScreen({ rider, onLogout }) {
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        api.updateLocation(pos.coords.latitude, pos.coords.longitude).catch(() => {});
+        const { latitude, longitude } = pos.coords;
+        api.updateLocation(latitude, longitude).catch(() => {});
+        // Also push straight to any active orders' tracking screens — this is what makes the
+        // customer's live map actually move, rather than just updating our own stored position
+        ordersRef.current.forEach((order) => {
+          if (order.status === 'preparing' || order.status === 'ready_for_pickup' || order.status === 'picked_up') {
+            socketRef.current?.emit('riderLocationUpdate', { orderId: order.id, lat: latitude, lng: longitude });
+          }
+        });
         setLocationError('');
       },
       () => setLocationError('Could not get your location — enable location access for this site'),

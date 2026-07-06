@@ -41,6 +41,7 @@ export const api = {
   setMenuItemAvailability: (id, isAvailable) =>
     request(`/menu-items/${id}/availability`, { method: 'PATCH', body: { isAvailable }, auth: true }),
   deleteMenuItem: (id) => request(`/menu-items/${id}`, { method: 'DELETE', auth: true }),
+  uploadMenuItemImage: (id, imageBase64) => request(`/menu-items/${id}/image`, { method: 'POST', body: { imageBase64 }, auth: true }),
 
   // Orders
   getMyOrders: () => request('/orders/restaurant/mine', { auth: true }),

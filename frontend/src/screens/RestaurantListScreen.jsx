@@ -10,6 +10,7 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sortBy, setSortBy] = useState('distance'); // 'distance' | 'rating'
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     load(DEFAULT_LAT, DEFAULT_LNG);
@@ -36,7 +37,13 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
     );
   }
 
-  const sortedRestaurants = [...restaurants].sort((a, b) => {
+  const filteredRestaurants = restaurants.filter((r) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return r.name.toLowerCase().includes(q) || r.cuisineType.toLowerCase().includes(q);
+  });
+
+  const sortedRestaurants = [...filteredRestaurants].sort((a, b) => {
     if (sortBy === 'rating') return Number(b.ratingAvg || 0) - Number(a.ratingAvg || 0);
     return a.distanceMeters - b.distanceMeters;
   });
@@ -46,6 +53,12 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
       <div className="row" style={{ marginTop: 12, marginBottom: 4 }}>
         <h1 style={{ fontSize: 26 }}>Nearby restaurants</h1>
       </div>
+      <input
+        placeholder="Search by name or cuisine…"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        style={{ width: '100%', background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd', marginBottom: 12 }}
+      />
       <div className="row" style={{ marginBottom: 16, gap: 8 }}>
         <button className="btn-secondary" onClick={useMyLocation}>
           📍 Use my location

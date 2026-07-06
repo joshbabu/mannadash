@@ -9,7 +9,9 @@ export default function MenuScreen({ restaurant }) {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [isVeg, setIsVeg] = useState(true);
+  const [category, setCategory] = useState('main');
   const [saving, setSaving] = useState(false);
+  const [uploadingId, setUploadingId] = useState(null);
 
   useEffect(() => {
     load();
@@ -29,7 +31,7 @@ export default function MenuScreen({ restaurant }) {
     setSaving(true);
     setError('');
     try {
-      await api.createMenuItem({ restaurantId: restaurant.id, name, price: Number(price), isVeg });
+      await api.createMenuItem({ restaurantId: restaurant.id, name, price: Number(price), isVeg, category });
       setName('');
       setPrice('');
       setShowForm(false);
@@ -47,6 +49,26 @@ export default function MenuScreen({ restaurant }) {
       load();
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  async function handleImageSelect(item, file) {
+    if (!file) return;
+    setUploadingId(item.id);
+    setError('');
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      await api.uploadMenuItemImage(item.id, base64);
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploadingId(null);
     }
   }
 
@@ -75,6 +97,12 @@ export default function MenuScreen({ restaurant }) {
         <form onSubmit={addItem} className="card stack">
           <input placeholder="Item name" value={name} onChange={(e) => setName(e.target.value)} required />
           <input placeholder="Price (₹)" type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} required />
+          <select value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="starter">Starter</option>
+            <option value="main">Main</option>
+            <option value="dessert">Dessert</option>
+            <option value="beverage">Beverage</option>
+          </select>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
             <input type="checkbox" checked={isVeg} onChange={(e) => setIsVeg(e.target.checked)} style={{ width: 'auto' }} />
             Vegetarian
@@ -92,11 +120,28 @@ export default function MenuScreen({ restaurant }) {
         {items.map((item) => (
           <div key={item.id} className="card">
             <div className="row">
-              <div>
-                <h3 style={{ fontSize: 15 }}>{item.name} {item.isVeg ? '🌱' : ''}</h3>
-                <p className="muted">₹{Number(item.price).toFixed(0)}</p>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                {item.imageUrl ? (
+                  <img src={item.imageUrl} alt={item.name} style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: 48, height: 48, borderRadius: 8, background: 'var(--paper-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🍽️</div>
+                )}
+                <div>
+                  <h3 style={{ fontSize: 15 }}>{item.name} {item.isVeg ? '🌱' : ''}</h3>
+                  <p className="muted">₹{Number(item.price).toFixed(0)}</p>
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <label className="btn-secondary" style={{ cursor: 'pointer' }}>
+                  {uploadingId === item.id ? 'Uploading…' : item.imageUrl ? 'Change photo' : 'Add photo'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    disabled={uploadingId === item.id}
+                    onChange={(e) => handleImageSelect(item, e.target.files[0])}
+                  />
+                </label>
                 <button className="btn-secondary" onClick={() => toggleAvailability(item)}>
                   {item.isAvailable ? 'Mark sold out' : 'Mark available'}
                 </button>

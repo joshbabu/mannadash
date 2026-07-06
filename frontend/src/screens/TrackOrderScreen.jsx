@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import { api, SOCKET_URL } from '../api';
 import StarRating from '../components/StarRating';
+import LiveMap from '../components/LiveMap';
 
 const STAGES = [
   { key: 'placed', label: 'Order placed' },
@@ -12,9 +13,16 @@ const STAGES = [
   { key: 'delivered', label: 'Delivered' },
 ];
 
+// Backend returns PostGIS points as GeoJSON: { type: 'Point', coordinates: [lng, lat] }
+function parseGeoPoint(geo) {
+  if (!geo?.coordinates) return null;
+  return { lng: geo.coordinates[0], lat: geo.coordinates[1] };
+}
+
 export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
   const [order, setOrder] = useState(null);
   const [error, setError] = useState('');
+  const [riderPosition, setRiderPosition] = useState(null);
   const [restaurantRating, setRestaurantRating] = useState(0);
   const [deliveryRating, setDeliveryRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -33,6 +41,7 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
     socket = io(SOCKET_URL);
     socket.on('connect', () => socket.emit('subscribeToOrder', orderId));
     socket.on('orderUpdate', (updated) => setOrder(updated));
+    socket.on('riderLocation', ({ lat, lng }) => setRiderPosition({ lat, lng }));
 
     return () => socket.disconnect();
   }, [orderId]);
@@ -118,6 +127,16 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
         <div className="card">
           <h3 style={{ fontSize: 15, marginBottom: 4 }}>Your rider</h3>
           <p style={{ margin: 0 }}>{order.deliveryPartner.name} · {order.deliveryPartner.vehicleType}</p>
+        </div>
+      )}
+
+      {order.deliveryPartner && order.deliveryLocation && !['delivered', 'cancelled'].includes(order.status) && (
+        <div style={{ marginBottom: 14 }}>
+          <LiveMap
+            riderPosition={riderPosition || parseGeoPoint(order.deliveryPartner.currentLocation)}
+            destination={parseGeoPoint(order.deliveryLocation)}
+          />
+          {!riderPosition && <p className="muted" style={{ marginTop: 6, fontSize: 13 }}>Waiting for your rider's live location…</p>}
         </div>
       )}
 

@@ -73,4 +73,14 @@ export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect {
   emitRiderLocation(orderId: string, lat: number, lng: number) {
     this.server.to(`order:${orderId}`).emit('riderLocation', { lat, lng });
   }
+
+  // The rider app emits this directly (client-to-server) whenever it gets a fresh GPS position,
+  // for each order it's currently carrying. We just relay it into that order's room — no database
+  // round-trip needed here, since the REST endpoint (PATCH /delivery-partners/me/location) already
+  // persists the canonical location separately for nearest-rider search.
+  @SubscribeMessage('riderLocationUpdate')
+  handleRiderLocationUpdate(client: Socket, payload: { orderId: string; lat: number; lng: number }) {
+    if (!payload?.orderId || typeof payload.lat !== 'number' || typeof payload.lng !== 'number') return;
+    this.emitRiderLocation(payload.orderId, payload.lat, payload.lng);
+  }
 }

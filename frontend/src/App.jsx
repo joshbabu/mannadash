@@ -11,6 +11,7 @@ export default function App() {
   const [user, setUser] = useState(api.getStoredUser());
   const [tab, setTab] = useState('browse'); // 'browse' | 'orders'
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
+  const [reorderCart, setReorderCart] = useState(null);
   const [pendingOrder, setPendingOrder] = useState(null); // { restaurant, orderItems, menuItems }
   const [trackingOrderId, setTrackingOrderId] = useState(null);
 
@@ -29,6 +30,15 @@ export default function App() {
 
   function handleCheckout(restaurant, orderItems, menuItems) {
     setPendingOrder({ restaurant, orderItems, menuItems });
+  }
+
+  function handleReorder(order) {
+    const cart = {};
+    for (const line of order.items) {
+      cart[line.menuItem.id] = line.quantity;
+    }
+    setReorderCart(cart);
+    setSelectedRestaurant(order.restaurant);
   }
 
   function handleOrderPlaced(order) {
@@ -67,12 +77,13 @@ export default function App() {
     content = (
       <MenuScreen
         restaurant={selectedRestaurant}
-        onBack={() => setSelectedRestaurant(null)}
+        onBack={() => { setSelectedRestaurant(null); setReorderCart(null); }}
         onCheckout={handleCheckout}
+        initialCart={reorderCart}
       />
     );
   } else if (tab === 'orders') {
-    content = <OrderHistoryScreen onSelectOrder={setTrackingOrderId} />;
+    content = <OrderHistoryScreen onSelectOrder={setTrackingOrderId} onReorder={handleReorder} />;
   } else {
     content = <RestaurantListScreen onSelectRestaurant={setSelectedRestaurant} />;
   }
