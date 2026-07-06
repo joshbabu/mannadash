@@ -22,7 +22,7 @@ export default defineConfig({
       cwd: '../backend',
       url: 'http://localhost:3000/restaurants',
       timeout: 60_000,
-      reuseExistingServer: true,
+      reuseExistingServer: false, // must always be OUR test-configured instance, never a stray leftover process
       env: {
         DB_NAME: 'mannadash_test',
         JWT_SECRET: 'test_jwt_secret',
