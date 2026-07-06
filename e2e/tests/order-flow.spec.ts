@@ -15,10 +15,11 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
   // not re-proving that every signup form works, which the backend e2e tests already cover ---
 
   const restaurantPhone = uniquePhone(1);
+  const restaurantName = `E2E Test Restaurant ${restaurantPhone}`;
   const created = await api.post('/restaurants', {
     data: {
       ownerName: 'E2E Test Owner',
-      name: 'E2E Test Restaurant',
+      name: restaurantName,
       cuisineType: 'Test',
       address: 'Test Address',
       phone: restaurantPhone,
@@ -101,14 +102,14 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
   await customerPage.getByPlaceholder('Password').fill('testpass123');
   await customerPage.locator('button[type="submit"]').click();
 
-  await customerPage.getByPlaceholder('Search by name or cuisine…').fill('E2E Test Restaurant');
-  await customerPage.getByText('E2E Test Restaurant').click();
+  await customerPage.getByPlaceholder('Search by name or cuisine…').fill(restaurantName);
+  await customerPage.getByText(restaurantName).click();
   await customerPage.getByText('E2E Test Dish').waitFor();
   await customerPage.getByRole('button', { name: 'Add' }).first().click();
   await customerPage.getByText(/View cart/).click();
   await customerPage.getByPlaceholder('Flat / house number, street, landmark').fill('E2E Test Delivery Address');
   await customerPage.getByRole('button', { name: 'Place order' }).click();
-  await expect(customerPage.getByText('E2E Test Restaurant')).toBeVisible();
+  await expect(customerPage.getByText(restaurantName)).toBeVisible();
 
   // Restaurant: the new order should appear live (this is the exact bug we fixed earlier —
   // no refresh should be needed). Full lifecycle: accept -> start preparing -> mark ready.
