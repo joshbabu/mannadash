@@ -3,8 +3,9 @@ import { test, expect, request } from '@playwright/test';
 const API_BASE = 'http://localhost:3000';
 
 function uniquePhone(prefix: number) {
-  // Valid Indian mobile format: 10 digits, starts 6-9
-  return `9${String(Date.now()).slice(-8)}${prefix}`;
+  // Must be exactly 10 digits, starting with 6-9 — same fix applied to the backend test helpers
+  const raw = `${Date.now()}${prefix}`.slice(-9).padStart(9, '0');
+  return `9${raw}`;
 }
 
 test('full order flow: customer orders, restaurant accepts, rider delivers', async ({ browser }) => {
@@ -25,17 +26,20 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
       longitude: 78.38,
     },
   });
+  expect(created.ok()).toBeTruthy();
   const restaurantId = (await created.json()).id;
 
   const restaurantAuth = await api.post('/restaurants/signup', {
     data: { restaurantId, password: 'testpass123' },
   });
+  expect(restaurantAuth.ok()).toBeTruthy();
   const restaurantToken = (await restaurantAuth.json()).accessToken;
 
   const riderPhone = uniquePhone(2);
   const riderAuth = await api.post('/delivery-partners/signup', {
     data: { name: 'E2E Test Rider', phone: riderPhone, password: 'testpass123', vehicleType: 'bike' },
   });
+  expect(riderAuth.ok()).toBeTruthy();
   const riderBody = await riderAuth.json();
   const riderToken = riderBody.accessToken;
   const riderId = riderBody.rider.id;
@@ -43,20 +47,25 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
   const adminAuth = await api.post('/admin/login', {
     data: { username: 'admin', password: 'test_admin_password' },
   });
+  expect(adminAuth.ok()).toBeTruthy();
   const adminToken = (await adminAuth.json()).accessToken;
 
-  await api.patch(`/restaurants/${restaurantId}/status`, {
+  const approveRes = await api.patch(`/restaurants/${restaurantId}/status`, {
     headers: { Authorization: `Bearer ${adminToken}` },
     data: { status: 'approved' },
   });
-  await api.patch(`/delivery-partners/${riderId}/verify`, {
+  expect(approveRes.ok()).toBeTruthy();
+
+  const verifyRes = await api.patch(`/delivery-partners/${riderId}/verify`, {
     headers: { Authorization: `Bearer ${adminToken}` },
   });
+  expect(verifyRes.ok()).toBeTruthy();
 
-  await api.post('/menu-items', {
+  const menuItemRes = await api.post('/menu-items', {
     headers: { Authorization: `Bearer ${restaurantToken}` },
     data: { restaurantId, name: 'E2E Test Dish', price: 199, category: 'main' },
   });
+  expect(menuItemRes.ok()).toBeTruthy();
 
   // --- Three simultaneous real browser sessions, exactly like our manual multi-tab testing ---
 
