@@ -72,7 +72,13 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
 
   const customerContext = await browser.newContext();
   const restaurantContext = await browser.newContext();
-  const riderContext = await browser.newContext();
+  // Grant location permission up front with fixed coordinates near the test restaurant —
+  // otherwise Chrome's real permission prompt appears and just sits there waiting for a click
+  // Playwright never makes, silently blocking the rider from ever getting a location on file.
+  const riderContext = await browser.newContext({
+    permissions: ['geolocation'],
+    geolocation: { latitude: 17.44, longitude: 78.38 },
+  });
 
   const customerPage = await customerContext.newPage();
   const restaurantPage = await restaurantContext.newPage();
