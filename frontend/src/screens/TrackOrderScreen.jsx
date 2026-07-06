@@ -133,7 +133,7 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
       {order.deliveryPartner && order.deliveryLocation && !['delivered', 'cancelled'].includes(order.status) && (
         <div style={{ marginBottom: 14 }}>
           <LiveMap
-            riderPosition={riderPosition || parseGeoPoint(order.deliveryPartner.currentLocation)}
+            riderPosition={riderPosition}
             destination={parseGeoPoint(order.deliveryLocation)}
           />
           {!riderPosition && <p className="muted" style={{ marginTop: 6, fontSize: 13 }}>Waiting for your rider's live location…</p>}
