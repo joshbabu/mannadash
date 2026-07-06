@@ -39,6 +39,17 @@ npm test
 Playwright automatically starts the backend and all three frontends for you (see
 `playwright.config.ts`), runs the test, then shuts everything down.
 
+## Viewing results
+
+Terminal output shows pass/fail immediately. For a full visual report — step by step, with a
+screenshot and replay trace of anything that failed — run:
+
+```bash
+npx playwright show-report
+```
+
+See `../TESTING.md` for the overall testing policy, what's covered, and how this fits into CI.
+
 ## An honest note on verification
 
 Every other piece of this project has been tested directly before being handed to you — real
