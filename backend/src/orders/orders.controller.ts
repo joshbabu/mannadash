@@ -47,6 +47,24 @@ export class OrdersController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post('rider/:id/payout')
+  createPayout(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Only an admin can issue a payout');
+    }
+    return this.ordersService.createPayout(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/complete-refund')
+  completeRefund(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Only an admin can mark a refund as completed');
+    }
+    return this.ordersService.completeRefund(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   findOne(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
     return this.ordersService.findOne(id, req.user.userId);
@@ -61,12 +79,23 @@ export class OrdersController {
   @Patch(':id/status')
   async updateStatus(@Req() req: any, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateOrderStatusDto) {
     const order = await this.ordersService.findOne(id);
-    const restaurantOwnedStatuses = ['accepted', 'preparing', 'ready_for_pickup', 'cancelled'];
+    const restaurantOnlyStatuses = ['accepted', 'preparing', 'ready_for_pickup'];
     const riderOwnedStatuses = ['picked_up', 'delivered'];
 
-    if (restaurantOwnedStatuses.includes(dto.status)) {
+    if (dto.status === 'cancelled') {
+      const isRestaurant = order.restaurant.id === req.user.userId;
+      // Customers can cancel their own order, but only before the restaurant has accepted it —
+      // once accepted, cancelling wastes real prep work, so only the restaurant can call it off
+      const isCustomerCancellingBeforeAccept =
+        req.user.role === 'customer' && order.customer.user.id === req.user.userId && order.status === 'placed';
+      if (!isRestaurant && !isCustomerCancellingBeforeAccept) {
+        throw new ForbiddenException(
+          'Only the restaurant can cancel after acceptance — you can cancel your own order only before it\'s accepted',
+        );
+      }
+    } else if (restaurantOnlyStatuses.includes(dto.status)) {
       if (order.restaurant.id !== req.user.userId) {
-        throw new ForbiddenException('Only the restaurant can accept, prepare, or cancel this order');
+        throw new ForbiddenException('Only the restaurant can accept, prepare, or mark this order ready');
       }
     } else if (riderOwnedStatuses.includes(dto.status)) {
       if (!order.deliveryPartner || order.deliveryPartner.id !== req.user.userId) {

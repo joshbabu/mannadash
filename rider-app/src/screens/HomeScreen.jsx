@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { api, SOCKET_URL } from '../api';
 import EarningsScreen from './EarningsScreen';
+import { enablePushNotifications, isPushSupported } from '../utils/pushNotifications';
 
 // What each status can move to next, from the rider's side only —
 // mirrors the backend's rider-owned transitions (picked_up, delivered)
@@ -23,6 +24,8 @@ export default function HomeScreen({ rider, onLogout }) {
   const [isVerified, setIsVerified] = useState(rider.isVerified);
   const [ratingAvg, setRatingAvg] = useState(rider.ratingAvg || 0);
   const [ratingCount, setRatingCount] = useState(rider.ratingCount || 0);
+  const [pushStatus, setPushStatus] = useState('idle'); // 'idle' | 'enabling' | 'enabled' | 'error'
+  const [pushError, setPushError] = useState('');
   const [orders, setOrders] = useState([]);
   const ordersRef = useRef(orders); // avoids stale-closure bug in the location-sharing interval below
   const [error, setError] = useState('');
@@ -112,6 +115,18 @@ export default function HomeScreen({ rider, onLogout }) {
     ordersRef.current = orders;
   }, [orders]);
 
+  async function handleEnablePush() {
+    setPushStatus('enabling');
+    setPushError('');
+    try {
+      await enablePushNotifications();
+      setPushStatus('enabled');
+    } catch (err) {
+      setPushStatus('error');
+      setPushError(err.message);
+    }
+  }
+
   function shareLocation() {
     if (!navigator.geolocation) {
       setLocationError('Location sharing is not supported on this device');
@@ -198,6 +213,15 @@ export default function HomeScreen({ rider, onLogout }) {
               Your account isn't verified yet — you can't go online until an admin verifies you.
             </div>
           )}
+
+          {isPushSupported() && pushStatus === 'idle' && (
+            <div className="card" style={{ marginBottom: 14 }}>
+              <p style={{ margin: '0 0 10px' }}>🔔 Get notified of new deliveries even when this app is closed.</p>
+              <button className="btn-secondary" onClick={handleEnablePush}>Enable notifications</button>
+            </div>
+          )}
+          {pushStatus === 'enabling' && <p className="muted" style={{ marginBottom: 14 }}>Enabling notifications…</p>}
+          {pushStatus === 'error' && <p className="muted" style={{ marginBottom: 14, color: 'var(--chili)' }}>Couldn't enable notifications: {pushError}</p>}
 
           {newOrderAlert && (
             <div className="status-banner online" style={{ borderColor: 'var(--turmeric)', background: 'rgba(244,162,0,0.15)' }}>

@@ -2,6 +2,7 @@ import { Column, CreateDateColumn, Entity, ManyToOne, OneToMany, PrimaryGenerate
 import { Customer } from '../../customers/entities/customer.entity';
 import { Restaurant } from '../../restaurants/entities/restaurant.entity';
 import { DeliveryPartner } from '../../delivery-partners/entities/delivery-partner.entity';
+import { Payout } from '../../delivery-partners/entities/payout.entity';
 import { OrderItem } from './order-item.entity';
 
 export enum OrderStatus {
@@ -19,6 +20,12 @@ export enum PaymentStatus {
   PAID = 'paid',
   FAILED = 'failed',
   REFUNDED = 'refunded',
+}
+
+export enum RefundStatus {
+  NONE = 'none',
+  PENDING = 'pending',
+  COMPLETED = 'completed',
 }
 
 @Entity('orders')
@@ -75,6 +82,19 @@ export class Order {
   // not re-calculated as the order progresses (real traffic/prep variance isn't modeled)
   @Column({ type: 'timestamp', nullable: true })
   estimatedDeliveryAt: Date;
+
+  // Null until an admin runs a payout covering this order — see DeliveryPartnersService.payout()
+  @ManyToOne(() => Payout, { nullable: true })
+  payout: Payout | null;
+
+  // Refund tracking. Automatically flagged "pending" when a paid order gets cancelled — actually
+  // issuing the refund through Razorpay's API is stubbed until real payment keys are live (see
+  // OrdersService.completeRefund for the exact TODO).
+  @Column({ type: 'enum', enum: RefundStatus, default: RefundStatus.NONE })
+  refundStatus: RefundStatus;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  refundAmount: number | null;
 
   @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })
   items: OrderItem[];

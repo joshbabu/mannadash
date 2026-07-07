@@ -12,9 +12,14 @@ Not as cleanup later, not "if there's time." A feature without a test is treated
 
 ## What's covered right now
 
-**Backend** (`backend/test/*.e2e-spec.ts`) — order lifecycle authority, ratings math, admin gating.
-See the top of this file's previous version in git history for the full list, or just read the
-spec files directly — they're written to be readable as documentation of the rules themselves.
+**Backend** (`backend/test/*.e2e-spec.ts`, 16 tests across 4 files):
+- Order lifecycle authority — restaurant vs rider vs customer permission boundaries
+- Ratings math, admin gating
+- Operating hours enforcement, customer-initiated cancellation window, rider payout tracking
+- Push notification subscription auth
+
+Read the spec files directly — they're written to be readable as documentation of the rules
+themselves.
 
 **Frontend / cross-app** (`e2e/tests/order-flow.spec.ts`) — the complete order flow across all
 three apps: customer orders, restaurant accepts/prepares/assigns, rider delivers, customer sees

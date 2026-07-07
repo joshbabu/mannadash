@@ -1,4 +1,4 @@
-import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
 
 export class CreateRestaurantDto {
   @IsString()
@@ -42,4 +42,13 @@ export class CreateRestaurantDto {
   @IsOptional()
   @IsInt()
   avgPrepTimeMins?: number;
+
+  // HH:MM 24-hour format, e.g. "09:00" and "22:00" — both optional, omit for "always open"
+  @IsOptional()
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'openTime must be in HH:MM 24-hour format' })
+  openTime?: string;
+
+  @IsOptional()
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'closeTime must be in HH:MM 24-hour format' })
+  closeTime?: string;
 }

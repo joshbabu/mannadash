@@ -1,16 +1,19 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
-import { Order, OrderStatus, PaymentStatus } from './entities/order.entity';
+import { In, IsNull, Repository } from 'typeorm';
+import { Order, OrderStatus, PaymentStatus, RefundStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Rating } from './entities/rating.entity';
+import { Payout } from '../delivery-partners/entities/payout.entity';
 import { Restaurant, RestaurantStatus } from '../restaurants/entities/restaurant.entity';
+import { isWithinOperatingHours } from '../restaurants/operating-hours.util';
 import { MenuItem } from '../menu-items/entities/menu-item.entity';
 import { Customer } from '../customers/entities/customer.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { CreateRatingDto } from './dto/create-rating.dto';
 import { DeliveryPartnersService } from '../delivery-partners/delivery-partners.service';
 import { RestaurantsService } from '../restaurants/restaurants.service';
+import { PushService } from '../push/push.service';
 import { OrdersGateway } from './orders.gateway';
 import { RazorpayService } from '../payments/razorpay.service';
 
@@ -41,8 +44,11 @@ export class OrdersService {
     private readonly customerRepo: Repository<Customer>,
     @InjectRepository(Rating)
     private readonly ratingRepo: Repository<Rating>,
+    @InjectRepository(Payout)
+    private readonly payoutRepo: Repository<Payout>,
     private readonly deliveryPartnersService: DeliveryPartnersService,
     private readonly restaurantsService: RestaurantsService,
+    private readonly pushService: PushService,
     private readonly ordersGateway: OrdersGateway,
     private readonly razorpayService: RazorpayService,
   ) {}
@@ -59,6 +65,11 @@ export class OrdersService {
     }
     if (restaurant.status !== RestaurantStatus.APPROVED || !restaurant.isOpen) {
       throw new BadRequestException('This restaurant is not currently accepting orders');
+    }
+    if (!isWithinOperatingHours(restaurant.openTime, restaurant.closeTime)) {
+      throw new BadRequestException(
+        `This restaurant is currently closed — hours are ${restaurant.openTime}–${restaurant.closeTime}`,
+      );
     }
 
     const menuItemIds = dto.items.map((i) => i.menuItemId);
@@ -144,6 +155,11 @@ export class OrdersService {
     // Push directly to the restaurant's personal channel — this is what actually notifies them
     // of a brand new order, since they can't have subscribed to this order's room before it existed.
     this.ordersGateway.emitNewOrder(restaurant.id, created);
+    // Also send a real push notification — reaches the restaurant even if their tab is closed
+    this.pushService.sendToSubscriber(restaurant.id, 'restaurant', {
+      title: 'New order!',
+      body: `${created.customer.user.name} · ₹${Number(created.total).toFixed(0)}`,
+    });
     return created;
   }
 
@@ -213,6 +229,10 @@ export class OrdersService {
     if (newStatus === OrderStatus.READY_FOR_PICKUP) order.readyAt = new Date();
     if (newStatus === OrderStatus.PICKED_UP) order.pickedUpAt = new Date();
     if (newStatus === OrderStatus.DELIVERED) order.deliveredAt = new Date();
+    if (newStatus === OrderStatus.CANCELLED && order.paymentStatus === PaymentStatus.PAID) {
+      order.refundStatus = RefundStatus.PENDING;
+      order.refundAmount = order.total;
+    }
 
     await this.orderRepo.save(order);
 
@@ -287,6 +307,12 @@ export class OrdersService {
     // Push directly to the rider's personal channel — this is what actually notifies them,
     // since they can't have subscribed to this order's room before knowing it exists.
     this.ordersGateway.emitNewAssignment(rider.id, updated);
+    // Also send a real push notification — unlike the socket event above, this reaches the rider
+    // even if their browser tab is closed or the phone is asleep.
+    this.pushService.sendToSubscriber(rider.id, 'rider', {
+      title: 'New delivery!',
+      body: `${updated.restaurant.name} · ₹${Number(updated.total).toFixed(0)}`,
+    });
     return updated;
   }
 
@@ -444,13 +470,14 @@ export class OrdersService {
   }
 
   /**
-   * Rider earnings — currently modeled as the flat delivery fee per completed delivery.
-   * Returns lifetime total, today's total, and the underlying list of delivered orders.
+   * Rider earnings — modeled as the flat delivery fee per completed delivery. Now split into
+   * "pending payout" (delivered, not yet paid out) and "already paid out", so a rider can see
+   * exactly what they're still owed versus what's already been settled.
    */
   async getRiderEarnings(riderId: string) {
     const deliveredOrders = await this.orderRepo.find({
       where: { deliveryPartner: { id: riderId }, status: OrderStatus.DELIVERED },
-      relations: { restaurant: true },
+      relations: { restaurant: true, payout: true },
       order: { deliveredAt: 'DESC' },
     });
 
@@ -459,26 +486,69 @@ export class OrdersService {
 
     let lifetimeTotal = 0;
     let todayTotal = 0;
+    let pendingPayout = 0;
     const history = deliveredOrders.map((order) => {
       const amount = Number(order.deliveryFee);
       lifetimeTotal += amount;
       if (order.deliveredAt && order.deliveredAt >= startOfToday) {
         todayTotal += amount;
       }
+      if (!order.payout) {
+        pendingPayout += amount;
+      }
       return {
         orderId: order.id,
         restaurantName: order.restaurant.name,
         amount,
         deliveredAt: order.deliveredAt,
+        paidOut: !!order.payout,
       };
+    });
+
+    const payouts = await this.payoutRepo.find({
+      where: { deliveryPartner: { id: riderId } },
+      order: { createdAt: 'DESC' },
     });
 
     return {
       lifetimeTotal: Math.round(lifetimeTotal * 100) / 100,
       todayTotal: Math.round(todayTotal * 100) / 100,
+      pendingPayout: Math.round(pendingPayout * 100) / 100,
       deliveryCount: deliveredOrders.length,
       history,
+      payouts: payouts.map((p) => ({ id: p.id, amount: Number(p.amount), createdAt: p.createdAt })),
     };
+  }
+
+  /**
+   * Admin-only — settles all of a rider's currently-unpaid delivered orders into a single
+   * payout record. Safe to run repeatedly: only ever touches orders with no payout attached yet,
+   * so it can never double-pay the same delivery.
+   */
+  async createPayout(riderId: string) {
+    const unpaidOrders = await this.orderRepo.find({
+      where: { deliveryPartner: { id: riderId }, status: OrderStatus.DELIVERED, payout: IsNull() },
+    });
+
+    if (unpaidOrders.length === 0) {
+      throw new BadRequestException('This rider has no pending earnings to pay out');
+    }
+
+    const totalAmount = unpaidOrders.reduce((sum, o) => sum + Number(o.deliveryFee), 0);
+
+    const payout = await this.payoutRepo.save(
+      this.payoutRepo.create({
+        deliveryPartner: { id: riderId } as any,
+        amount: Math.round(totalAmount * 100) / 100,
+      }),
+    );
+
+    await this.orderRepo.update(
+      { id: In(unpaidOrders.map((o) => o.id)) },
+      { payout: { id: payout.id } as any },
+    );
+
+    return { payoutId: payout.id, amount: payout.amount, ordersSettled: unpaidOrders.length };
   }
 
   /**
@@ -621,5 +691,23 @@ export class OrdersService {
     const r = rows[0];
     const totalCustomers = parseInt(r.total_customers);
     return totalCustomers > 0 ? Math.round((parseInt(r.repeat_customers) / totalCustomers) * 1000) / 10 : 0;
+  }
+
+  /**
+   * Admin marks a pending refund as completed — for now, this only updates our own records.
+   *
+   * TODO once Razorpay is fully live: call Razorpay's refund API here
+   * (razorpay.payments.refund(order.paymentId, { amount: order.refundAmount * 100 })) before
+   * marking this completed, so the money actually moves. Right now this just tracks that a
+   * human handled the refund manually/externally.
+   */
+  async completeRefund(orderId: string): Promise<Order> {
+    const order = await this.findOne(orderId);
+    if (order.refundStatus !== RefundStatus.PENDING) {
+      throw new BadRequestException('This order has no pending refund to complete');
+    }
+    order.refundStatus = RefundStatus.COMPLETED;
+    await this.orderRepo.save(order);
+    return this.findOne(orderId);
   }
 }

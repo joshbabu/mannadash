@@ -42,6 +42,14 @@ export class Restaurant {
   @Column({ default: true })
   isOpen: boolean;
 
+  // Simple daily hours (same schedule every day) — HH:MM 24-hour format. Null means "always open"
+  // whenever isOpen is true, keeping backward compatibility with restaurants that never set these.
+  @Column({ type: 'varchar', length: 5, nullable: true })
+  openTime: string | null;
+
+  @Column({ type: 'varchar', length: 5, nullable: true })
+  closeTime: string | null;
+
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 20.0 })
   commissionRate: number;
 
