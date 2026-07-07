@@ -83,6 +83,10 @@ jobs:
       - name: Install e2e dependencies and browser
         working-directory: e2e
         run: |
+          # Works around a known GitHub Actions runner issue — a pre-installed Microsoft package
+          # repo (for Azure CLI, which we don't use) periodically ships a broken signing key,
+          # which blocks apt-get update entirely and takes down unrelated installs with it.
+          sudo rm -f /etc/apt/sources.list.d/azure-cli.list /etc/apt/sources.list.d/microsoft-prod.list
           npm ci
           npx playwright install --with-deps chromium
 
