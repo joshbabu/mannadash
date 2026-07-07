@@ -12,18 +12,22 @@ Not as cleanup later, not "if there's time." A feature without a test is treated
 
 ## What's covered right now
 
-**Backend** (`backend/test/*.e2e-spec.ts`, 16 tests across 4 files):
+**Backend** (`backend/test/*.e2e-spec.ts`, 18 tests across 4 files):
 - Order lifecycle authority — restaurant vs rider vs customer permission boundaries
 - Ratings math, admin gating
 - Operating hours enforcement, customer-initiated cancellation window, rider payout tracking
+- **Refund auto-flagging on cancellation of a paid order, and admin refund completion** (added
+  after catching that this was tested manually but never automated — see note below)
 - Push notification subscription auth
 
 Read the spec files directly — they're written to be readable as documentation of the rules
 themselves.
 
-**Frontend / cross-app** (`e2e/tests/order-flow.spec.ts`) — the complete order flow across all
-three apps: customer orders, restaurant accepts/prepares/assigns, rider delivers, customer sees
-every update live with no refresh.
+**Frontend / cross-app** (`e2e/tests/order-flow.spec.ts`, 2 tests):
+- The complete order flow across all three apps: customer orders, restaurant accepts/prepares/
+  assigns, rider delivers, customer sees every update live with no refresh
+- **Customer cancelling their own order via the real Cancel button** (added for the same reason
+  as above — this shipped with zero automated coverage until caught)
 
 **Not yet covered** (fair game for "add a test when you touch this next"): ratings submission,
 the live map, saved addresses/reorder, insights calculations, menu photo upload.
@@ -84,3 +88,10 @@ of which is set up yet.
 An untested feature, or a test suite that stops growing, gives false confidence — worse than no
 tests at all, since it looks like safety without actually being safety. The value here comes
 entirely from keeping both suites current as the product grows, not from having written them once.
+
+**A real example of this happening**: cancellation and refund tracking were built, manually
+verified working correctly (including live on production), and shipped — without automated tests
+for the refund-completion logic or the actual Cancel button in the UI. That's exactly the gap
+this policy exists to prevent. Both gaps were caught and closed the same day, but the lesson
+stands: manual verification, however thorough, is not a substitute for the automated test — it
+only proves the feature worked *once*, for the person who happened to click through it.

@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { createTestApp, signUpCustomer, signUpRestaurant, signUpRider, adminLogin } from './test-helpers';
+import { createTestApp, signUpCustomer, signUpRestaurant, signUpRider, adminLogin, markOrderAsPaid } from './test-helpers';
 
 describe('Operating hours, payouts, and refunds (e2e)', () => {
   let app: INestApplication;
@@ -137,5 +137,66 @@ describe('Operating hours, payouts, and refunds (e2e)', () => {
 
     // Running it again with nothing pending is rejected — can never double-pay
     await request(app.getHttpServer()).post(`/orders/rider/${rider.id}/payout`).set('Authorization', `Bearer ${admin}`).expect(400);
+  });
+
+  it('auto-flags a refund as pending when a PAID order is cancelled, and lets admin complete it', async () => {
+    const customer = await signUpCustomer(app);
+    const restaurant = await signUpRestaurant(app);
+    const admin = await adminLogin(app);
+    await request(app.getHttpServer()).patch(`/restaurants/${restaurant.id}/status`).set('Authorization', `Bearer ${admin}`).send({ status: 'approved' }).expect(200);
+    const menuItem = await request(app.getHttpServer()).post('/menu-items').set('Authorization', `Bearer ${restaurant.token}`).send({ restaurantId: restaurant.id, name: 'Test Item', price: 100, category: 'main' }).expect(201);
+
+    const order = await request(app.getHttpServer())
+      .post('/orders')
+      .set('Authorization', `Bearer ${customer.token}`)
+      .send({ restaurantId: restaurant.id, items: [{ menuItemId: menuItem.body.id, quantity: 1 }], deliveryAddress: 'x', latitude: 17.45, longitude: 78.39 })
+      .expect(201);
+    const orderId = order.body.id;
+
+    // Simulate a real payment succeeding (can't call the real Razorpay flow in tests)
+    await markOrderAsPaid(app, orderId);
+
+    // Restaurant accepts, then cancels — a paid order being cancelled should auto-flag a refund
+    await request(app.getHttpServer()).patch(`/orders/${orderId}/status`).set('Authorization', `Bearer ${restaurant.token}`).send({ status: 'accepted' }).expect(200);
+    const cancelled = await request(app.getHttpServer())
+      .patch(`/orders/${orderId}/status`)
+      .set('Authorization', `Bearer ${restaurant.token}`)
+      .send({ status: 'cancelled' })
+      .expect(200);
+    expect(cancelled.body.refundStatus).toBe('pending');
+    expect(Number(cancelled.body.refundAmount)).toBe(Number(cancelled.body.total));
+
+    // Non-admin cannot complete the refund
+    await request(app.getHttpServer()).post(`/orders/${orderId}/complete-refund`).set('Authorization', `Bearer ${customer.token}`).expect(403);
+
+    // Admin completes it
+    const completed = await request(app.getHttpServer()).post(`/orders/${orderId}/complete-refund`).set('Authorization', `Bearer ${admin}`).expect(201);
+    expect(completed.body.refundStatus).toBe('completed');
+
+    // Can't complete the same refund twice
+    await request(app.getHttpServer()).post(`/orders/${orderId}/complete-refund`).set('Authorization', `Bearer ${admin}`).expect(400);
+  });
+
+  it('does NOT flag a refund when cancelling an order that was never paid', async () => {
+    const customer = await signUpCustomer(app);
+    const restaurant = await signUpRestaurant(app);
+    const admin = await adminLogin(app);
+    await request(app.getHttpServer()).patch(`/restaurants/${restaurant.id}/status`).set('Authorization', `Bearer ${admin}`).send({ status: 'approved' }).expect(200);
+    const menuItem = await request(app.getHttpServer()).post('/menu-items').set('Authorization', `Bearer ${restaurant.token}`).send({ restaurantId: restaurant.id, name: 'Test Item', price: 100, category: 'main' }).expect(201);
+
+    const order = await request(app.getHttpServer())
+      .post('/orders')
+      .set('Authorization', `Bearer ${customer.token}`)
+      .send({ restaurantId: restaurant.id, items: [{ menuItemId: menuItem.body.id, quantity: 1 }], deliveryAddress: 'x', latitude: 17.45, longitude: 78.39 })
+      .expect(201);
+
+    // Cancel while still "placed", via the customer — no payment was ever made
+    const cancelled = await request(app.getHttpServer())
+      .patch(`/orders/${order.body.id}/status`)
+      .set('Authorization', `Bearer ${customer.token}`)
+      .send({ status: 'cancelled' })
+      .expect(200);
+    expect(cancelled.body.refundStatus).toBe('none');
+    expect(cancelled.body.refundAmount).toBeNull();
   });
 });

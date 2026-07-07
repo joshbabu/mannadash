@@ -148,3 +148,74 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
   await restaurantContext.close();
   await riderContext.close();
 });
+
+test('customer can cancel their own order before the restaurant accepts it', async ({ browser }) => {
+  const api = await request.newContext({ baseURL: API_BASE });
+
+  const restaurantPhone = uniquePhone(4);
+  const restaurantName = `E2E Cancel Test Restaurant ${restaurantPhone}`;
+  const created = await api.post('/restaurants', {
+    data: {
+      ownerName: 'Cancel Test Owner',
+      name: restaurantName,
+      cuisineType: 'Test',
+      address: 'Test Address',
+      phone: restaurantPhone,
+      latitude: 17.44,
+      longitude: 78.38,
+    },
+  });
+  expect(created.ok()).toBeTruthy();
+  const restaurantId = (await created.json()).id;
+
+  const restaurantAuth = await api.post('/restaurants/signup', { data: { restaurantId, password: 'testpass123' } });
+  expect(restaurantAuth.ok()).toBeTruthy();
+  const restaurantToken = (await restaurantAuth.json()).accessToken;
+
+  const adminAuth = await api.post('/admin/login', { data: { username: 'admin', password: 'test_admin_password' } });
+  expect(adminAuth.ok()).toBeTruthy();
+  const adminToken = (await adminAuth.json()).accessToken;
+
+  const approveRes = await api.patch(`/restaurants/${restaurantId}/status`, {
+    headers: { Authorization: `Bearer ${adminToken}` },
+    data: { status: 'approved' },
+  });
+  expect(approveRes.ok()).toBeTruthy();
+
+  const menuItemRes = await api.post('/menu-items', {
+    headers: { Authorization: `Bearer ${restaurantToken}` },
+    data: { restaurantId, name: 'Cancel Test Dish', price: 149, category: 'main' },
+  });
+  expect(menuItemRes.ok()).toBeTruthy();
+
+  const customerContext = await browser.newContext();
+  const customerPage = await customerContext.newPage();
+
+  await test.step('Customer places an order', async () => {
+    const customerPhone = uniquePhone(5);
+    await customerPage.goto('http://localhost:5173');
+    await customerPage.getByText('Create an account').click();
+    await customerPage.getByPlaceholder('Full name').fill('Cancel Test Customer');
+    await customerPage.getByPlaceholder('Phone number').fill(customerPhone);
+    await customerPage.getByPlaceholder('Password').fill('testpass123');
+    await customerPage.locator('button[type="submit"]').click();
+
+    await customerPage.getByPlaceholder('Search by name or cuisine…').fill(restaurantName);
+    await customerPage.getByText(restaurantName).click();
+    await customerPage.getByText('Cancel Test Dish').waitFor();
+    await customerPage.getByRole('button', { name: 'Add' }).first().click();
+    await customerPage.getByText(/View cart/).click();
+    await customerPage.getByPlaceholder('Flat / house number, street, landmark').fill('Cancel Test Address');
+    await customerPage.getByRole('button', { name: 'Place order' }).click();
+    await expect(customerPage.getByText(restaurantName)).toBeVisible();
+  });
+
+  await test.step('Customer cancels it using the real Cancel button', async () => {
+    // Auto-accept the confirm() dialog the cancel button triggers
+    customerPage.on('dialog', (dialog) => dialog.accept());
+    await customerPage.getByRole('button', { name: 'Cancel order' }).click();
+    await expect(customerPage.getByText('This order was cancelled')).toBeVisible({ timeout: 10_000 });
+  });
+
+  await customerContext.close();
+});

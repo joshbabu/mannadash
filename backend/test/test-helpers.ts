@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { ClassSerializerInterceptor, INestApplication, ValidationPipe } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { DataSource } from 'typeorm';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 
@@ -80,4 +81,12 @@ export async function adminLogin(app: INestApplication) {
     })
     .expect(201);
   return res.body.accessToken;
+}
+
+// Directly updates payment status via the app's own DB connection — a real payment only ever
+// gets marked "paid" through Razorpay's webhook, which we can't call in tests without live keys.
+// This simulates that outcome so we can test what happens AFTER a payment succeeds.
+export async function markOrderAsPaid(app: INestApplication, orderId: string) {
+  const dataSource = app.get(DataSource);
+  await dataSource.query(`UPDATE orders SET "paymentStatus" = 'paid' WHERE id = $1`, [orderId]);
 }
