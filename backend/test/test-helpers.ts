@@ -2,17 +2,21 @@ import { Test } from '@nestjs/testing';
 import { ClassSerializerInterceptor, INestApplication, ValidationPipe } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { DataSource } from 'typeorm';
+import { json } from 'express';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 
 /**
  * Boots a real Nest app against the test database, with the exact same global
- * pipes/interceptors main.ts applies in production — so these tests exercise the
- * real validation and serialization behavior, not a simplified stand-in.
+ * pipes/interceptors/middleware main.ts applies in production — so these tests exercise the
+ * real validation and serialization behavior, not a simplified stand-in. Keep this in sync with
+ * main.ts whenever that file changes, or tests can silently drift from what production actually
+ * does (this is exactly how the body-size-limit test initially failed — worth remembering).
  */
 export async function createTestApp(): Promise<INestApplication> {
   const moduleFixture = await Test.createTestingModule({ imports: [AppModule] }).compile();
   const app = moduleFixture.createNestApplication();
+  app.use(json({ limit: '10mb' }));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
   await app.init();

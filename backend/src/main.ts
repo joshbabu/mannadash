@@ -1,5 +1,6 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+import { json } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -7,6 +8,9 @@ async function bootstrap() {
   // Wide open for local dev so the frontend (different port) can call the API —
   // restrict this to the actual deployed frontend origin(s) before production
   app.enableCors({ origin: true, credentials: true });
+  // Default Express body limit is 100kb — nowhere near enough for a base64-encoded photo upload
+  // (base64 inflates size ~33%, so even our 5MB image cap needs real headroom here).
+  app.use(json({ limit: '10mb' }));
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // strips properties not defined in the DTO

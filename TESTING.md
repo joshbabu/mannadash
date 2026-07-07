@@ -95,3 +95,11 @@ for the refund-completion logic or the actual Cancel button in the UI. That's ex
 this policy exists to prevent. Both gaps were caught and closed the same day, but the lesson
 stands: manual verification, however thorough, is not a substitute for the automated test — it
 only proves the feature worked *once*, for the person who happened to click through it.
+
+**A second example, different lesson**: a real production bug (photo uploads rejected with
+"request entity too large") was fixed in `main.ts`, and a test was written for it immediately —
+which then itself failed, because `test-helpers.ts` bootstraps the test app separately from
+`main.ts` and didn't apply the same fix. The test caught a real gap in the test environment
+itself, not just the original bug. Any new middleware/config added to `main.ts` needs the same
+change mirrored in `createTestApp()`, or tests can pass while quietly testing against
+production-inaccurate behavior.
