@@ -13,6 +13,25 @@ export function isPushSupported() {
   return 'serviceWorker' in navigator && 'PushManager' in window;
 }
 
+// The browser remembers permission decisions permanently — checking this on load means we never
+// show "Enable notifications" again once someone's already said yes (or no) previously.
+export function getInitialPushStatus() {
+  if (!isPushSupported()) return 'unsupported';
+  return Notification.permission === 'granted' ? 'enabled' : 'idle';
+}
+
+// Called silently on load when permission's already granted — re-confirms the subscription is
+// actually saved on the backend (it can go stale across sessions/devices), with no visible UI.
+export async function silentlyRefreshSubscription() {
+  if (Notification.permission !== 'granted') return;
+  try {
+    await enablePushNotifications();
+  } catch {
+    // Best-effort only — permission is already granted either way, so no need to alarm the user
+    // if this background refresh fails; it'll just retry next time the app loads.
+  }
+}
+
 /**
  * Full subscribe flow: register the service worker, ask for notification permission, subscribe
  * with the browser's push service, then save that subscription on the backend. Safe to call

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { api, SOCKET_URL } from '../api';
 import EarningsScreen from './EarningsScreen';
-import { enablePushNotifications, isPushSupported } from '../utils/pushNotifications';
+import { enablePushNotifications, isPushSupported, getInitialPushStatus, silentlyRefreshSubscription } from '../utils/pushNotifications';
 
 // What each status can move to next, from the rider's side only —
 // mirrors the backend's rider-owned transitions (picked_up, delivered)
@@ -24,7 +24,7 @@ export default function HomeScreen({ rider, onLogout }) {
   const [isVerified, setIsVerified] = useState(rider.isVerified);
   const [ratingAvg, setRatingAvg] = useState(rider.ratingAvg || 0);
   const [ratingCount, setRatingCount] = useState(rider.ratingCount || 0);
-  const [pushStatus, setPushStatus] = useState('idle'); // 'idle' | 'enabling' | 'enabled' | 'error'
+  const [pushStatus, setPushStatus] = useState(getInitialPushStatus); // 'idle' | 'enabling' | 'enabled' | 'error' | 'unsupported'
   const [pushError, setPushError] = useState('');
   const [orders, setOrders] = useState([]);
   const ordersRef = useRef(orders); // avoids stale-closure bug in the location-sharing interval below
@@ -114,6 +114,11 @@ export default function HomeScreen({ rider, onLogout }) {
   useEffect(() => {
     ordersRef.current = orders;
   }, [orders]);
+
+  useEffect(() => {
+    if (pushStatus === 'enabled') silentlyRefreshSubscription();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleEnablePush() {
     setPushStatus('enabling');

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { api, SOCKET_URL } from '../api';
-import { enablePushNotifications, isPushSupported } from '../utils/pushNotifications';
+import { enablePushNotifications, isPushSupported, getInitialPushStatus, silentlyRefreshSubscription } from '../utils/pushNotifications';
 
 // What each status can move to next — mirrors the backend's allowed transitions.
 // Note: picked_up/delivered are intentionally absent here — only the assigned rider can set those
@@ -42,7 +42,7 @@ export default function OrdersScreen({ restaurant }) {
   const [actionError, setActionError] = useState('');
   const [restaurantLocation, setRestaurantLocation] = useState(null);
   const [busyHourNudge, setBusyHourNudge] = useState(null);
-  const [pushStatus, setPushStatus] = useState('idle');
+  const [pushStatus, setPushStatus] = useState(getInitialPushStatus);
   const [pushError, setPushError] = useState('');
   const [riderPickerOrderId, setRiderPickerOrderId] = useState(null);
   const [availableRiders, setAvailableRiders] = useState([]);
@@ -147,6 +147,11 @@ export default function OrdersScreen({ restaurant }) {
       }
     });
   }, [orders]);
+
+  useEffect(() => {
+    if (pushStatus === 'enabled') silentlyRefreshSubscription();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleEnablePush() {
     setPushStatus('enabling');
