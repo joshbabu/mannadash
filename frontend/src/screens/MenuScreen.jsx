@@ -40,8 +40,8 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
   const cartCount = Object.values(cart).reduce((a, b) => a + b, 0);
   const cartTotal = items.reduce((sum, item) => sum + (cart[item.id] || 0) * Number(item.price), 0);
 
-  const CATEGORY_LABELS = { starter: 'Starters', main: 'Mains', dessert: 'Desserts', beverage: 'Beverages' };
-  const CATEGORY_ORDER = ['starter', 'main', 'dessert', 'beverage'];
+  const CATEGORY_LABELS = { breakfast: 'Breakfast', starter: 'Starters', lunch: 'Lunch', dinner: 'Dinner', main: 'Mains', dessert: 'Desserts', beverage: 'Beverages' };
+  const CATEGORY_ORDER = ['breakfast', 'starter', 'lunch', 'dinner', 'main', 'dessert', 'beverage'];
   const groupedItems = CATEGORY_ORDER.map((cat) => ({
     category: cat,
     items: items.filter((item) => item.category === cat),
@@ -87,6 +87,7 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
                     )}
                     <div>
                       <h3 style={{ fontSize: 16 }}>{item.name} {item.isVeg ? '🌱' : ''}</h3>
+                      {item.description && <p className="muted" style={{ color: '#8a8378', fontSize: 13, margin: '2px 0' }}>{item.description}</p>}
                       <p className="muted" style={{ color: '#6b6156' }}>₹{Number(item.price).toFixed(0)}</p>
                     </div>
                   </div>

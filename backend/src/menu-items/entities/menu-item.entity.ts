@@ -2,7 +2,10 @@ import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn } f
 import { Restaurant } from '../../restaurants/entities/restaurant.entity';
 
 export enum MenuCategory {
+  BREAKFAST = 'breakfast',
   STARTER = 'starter',
+  LUNCH = 'lunch',
+  DINNER = 'dinner',
   MAIN = 'main',
   DESSERT = 'dessert',
   BEVERAGE = 'beverage',

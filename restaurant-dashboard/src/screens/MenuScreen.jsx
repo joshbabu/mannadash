@@ -10,6 +10,7 @@ export default function MenuScreen({ restaurant }) {
   const [price, setPrice] = useState('');
   const [isVeg, setIsVeg] = useState(true);
   const [category, setCategory] = useState('main');
+  const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploadingId, setUploadingId] = useState(null);
 
@@ -31,9 +32,10 @@ export default function MenuScreen({ restaurant }) {
     setSaving(true);
     setError('');
     try {
-      await api.createMenuItem({ restaurantId: restaurant.id, name, price: Number(price), isVeg, category });
+      await api.createMenuItem({ restaurantId: restaurant.id, name, price: Number(price), isVeg, category, description: description || undefined });
       setName('');
       setPrice('');
+      setDescription('');
       setShowForm(false);
       load();
     } catch (err) {
@@ -98,11 +100,21 @@ export default function MenuScreen({ restaurant }) {
           <input placeholder="Item name" value={name} onChange={(e) => setName(e.target.value)} required />
           <input placeholder="Price (₹)" type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} required />
           <select value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="breakfast">Breakfast</option>
             <option value="starter">Starter</option>
+            <option value="lunch">Lunch</option>
+            <option value="dinner">Dinner</option>
             <option value="main">Main</option>
             <option value="dessert">Dessert</option>
             <option value="beverage">Beverage</option>
           </select>
+          <textarea
+            placeholder="Description (optional)"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={2}
+            style={{ width: '100%' }}
+          />
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
             <input type="checkbox" checked={isVeg} onChange={(e) => setIsVeg(e.target.checked)} style={{ width: 'auto' }} />
             Vegetarian
@@ -128,6 +140,7 @@ export default function MenuScreen({ restaurant }) {
                 )}
                 <div>
                   <h3 style={{ fontSize: 15 }}>{item.name} {item.isVeg ? '🌱' : ''}</h3>
+                  {item.description && <p className="muted" style={{ fontSize: 13, marginTop: 2 }}>{item.description}</p>}
                   <p className="muted">₹{Number(item.price).toFixed(0)}</p>
                 </div>
               </div>
