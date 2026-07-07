@@ -29,6 +29,8 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
   const [ratingError, setRatingError] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState('');
 
   useEffect(() => {
     let socket;
@@ -84,6 +86,20 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
     }
   }
 
+  async function cancelOrder() {
+    if (!window.confirm('Cancel this order? This cannot be undone.')) return;
+    setCancelling(true);
+    setCancelError('');
+    try {
+      const updated = await api.cancelOrder(orderId);
+      setOrder(updated);
+    } catch (err) {
+      setCancelError(err.message);
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   return (
     <div className="screen">
       <button className="btn-secondary" onClick={onBack} style={{ marginTop: 12, marginBottom: 12 }}>
@@ -96,6 +112,16 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
           Estimated delivery by{' '}
           {new Date(order.estimatedDeliveryAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
         </p>
+      )}
+
+      {order.status === 'placed' && (
+        <div style={{ marginBottom: 16 }}>
+          {cancelError && <div className="error-banner">{cancelError}</div>}
+          <button className="btn-secondary" style={{ color: 'var(--chili-dark)', borderColor: 'var(--chili)' }} onClick={cancelOrder} disabled={cancelling}>
+            {cancelling ? 'Cancelling…' : 'Cancel order'}
+          </button>
+          <p className="muted" style={{ marginTop: 6, fontSize: 13 }}>You can cancel free of charge until the restaurant accepts it.</p>
+        </div>
       )}
 
       {isCancelled ? (

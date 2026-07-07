@@ -44,6 +44,7 @@ export const api = {
   placeOrder: (body) => request('/orders', { method: 'POST', body, auth: true }),
   getMyOrders: () => request('/orders', { auth: true }),
   getOrder: (id) => request(`/orders/${id}`, { auth: true }),
+  cancelOrder: (id) => request(`/orders/${id}/status`, { method: 'PATCH', body: { status: 'cancelled' }, auth: true }),
   createPayment: (orderId) => request(`/orders/${orderId}/create-payment`, { method: 'POST', auth: true }),
   rateOrder: (orderId, body) => request(`/orders/${orderId}/rating`, { method: 'POST', body, auth: true }),
   getSavedAddresses: () => request('/customers/me/addresses', { auth: true }),
