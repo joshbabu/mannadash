@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { api, SOCKET_URL } from '../api';
+import { enablePushNotifications, isPushSupported } from '../utils/pushNotifications';
 
 // What each status can move to next — mirrors the backend's allowed transitions.
 // Note: picked_up/delivered are intentionally absent here — only the assigned rider can set those
@@ -41,6 +42,8 @@ export default function OrdersScreen({ restaurant }) {
   const [actionError, setActionError] = useState('');
   const [restaurantLocation, setRestaurantLocation] = useState(null);
   const [busyHourNudge, setBusyHourNudge] = useState(null);
+  const [pushStatus, setPushStatus] = useState('idle');
+  const [pushError, setPushError] = useState('');
   const [riderPickerOrderId, setRiderPickerOrderId] = useState(null);
   const [availableRiders, setAvailableRiders] = useState([]);
   const [loadingRiders, setLoadingRiders] = useState(false);
@@ -145,6 +148,18 @@ export default function OrdersScreen({ restaurant }) {
     });
   }, [orders]);
 
+  async function handleEnablePush() {
+    setPushStatus('enabling');
+    setPushError('');
+    try {
+      await enablePushNotifications();
+      setPushStatus('enabled');
+    } catch (err) {
+      setPushStatus('error');
+      setPushError(err.message);
+    }
+  }
+
   function load() {
     setLoading(true);
     api
@@ -215,6 +230,17 @@ export default function OrdersScreen({ restaurant }) {
       {actionError && <div className="error-banner">{actionError}</div>}
       {loading && <p className="muted">Loading orders…</p>}
       {!loading && orders.length === 0 && <p className="muted">No orders yet.</p>}
+
+      {isPushSupported() && pushStatus === 'idle' && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="row">
+            <span>🔔 Get notified of new orders even when this tab is closed.</span>
+            <button className="btn-secondary" onClick={handleEnablePush}>Enable notifications</button>
+          </div>
+        </div>
+      )}
+      {pushStatus === 'enabling' && <p className="muted" style={{ marginBottom: 16 }}>Enabling notifications…</p>}
+      {pushStatus === 'error' && <p className="muted" style={{ marginBottom: 16, color: 'var(--chili)' }}>Couldn't enable notifications: {pushError}</p>}
 
       {busyHourNudge && (
         <div className="card" style={{ background: '#fff2d6', border: '1px solid var(--turmeric)', marginBottom: 16 }}>

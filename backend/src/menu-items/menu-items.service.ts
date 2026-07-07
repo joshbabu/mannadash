@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MenuItem } from './entities/menu-item.entity';
 import { Restaurant } from '../restaurants/entities/restaurant.entity';
+import { fetchStockPhoto } from './stock-photo.util';
 import { CreateMenuItemDto } from './dto/create-menu-item.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
 import { ListMenuItemsQueryDto } from './dto/list-menu-items-query.dto';
@@ -24,7 +25,11 @@ export class MenuItemsService {
       throw new NotFoundException(`Restaurant ${restaurantId} not found`);
     }
 
-    const menuItem = this.menuItemRepo.create({ ...rest, restaurant });
+    // Default to a real, relevant photo automatically rather than a blank generic icon —
+    // the restaurant can still override this any time via the manual upload endpoint.
+    const imageUrl = rest.imageUrl || (await fetchStockPhoto(rest.name)) || undefined;
+
+    const menuItem = this.menuItemRepo.create({ ...rest, imageUrl, restaurant });
     return this.menuItemRepo.save(menuItem);
   }
 
