@@ -6,6 +6,9 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
   const [cart, setCart] = useState({}); // menuItemId -> quantity
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [vegOnly, setVegOnly] = useState(false);
+  const [expandedDescriptions, setExpandedDescriptions] = useState(new Set());
+  const [collapsedCategories, setCollapsedCategories] = useState(new Set());
 
   useEffect(() => {
     api
@@ -42,10 +45,29 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
 
   const CATEGORY_LABELS = { breakfast: 'Breakfast', starter: 'Starters', lunch: 'Lunch', dinner: 'Dinner', main: 'Mains', dessert: 'Desserts', beverage: 'Beverages' };
   const CATEGORY_ORDER = ['breakfast', 'starter', 'lunch', 'dinner', 'main', 'dessert', 'beverage'];
+  const visibleItems = vegOnly ? items.filter((item) => item.isVeg) : items;
   const groupedItems = CATEGORY_ORDER.map((cat) => ({
     category: cat,
-    items: items.filter((item) => item.category === cat),
+    items: visibleItems.filter((item) => item.category === cat),
   })).filter((group) => group.items.length > 0);
+
+  function toggleDescription(itemId) {
+    setExpandedDescriptions((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  }
+
+  function toggleCategory(category) {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  }
 
   function goToCheckout() {
     const orderItems = Object.entries(cart).map(([menuItemId, quantity]) => ({ menuItemId, quantity }));
@@ -63,6 +85,11 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
         {restaurant.cuisineType}
       </p>
 
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 8, marginBottom: 4, fontSize: 14 }}>
+        <input type="checkbox" checked={vegOnly} onChange={(e) => setVegOnly(e.target.checked)} />
+        🌱 Veg only
+      </label>
+
       {error && <div className="error-banner">{error}</div>}
       {loading && <p className="muted">Loading menu…</p>}
       {!loading && !error && items.length === 0 && (
@@ -71,12 +98,33 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
           <p className="muted" style={{ color: '#6b6156', marginTop: 4 }}>Check back once the restaurant adds its menu.</p>
         </div>
       )}
+      {!loading && !error && items.length > 0 && visibleItems.length === 0 && (
+        <div className="card" style={{ textAlign: 'center', marginTop: 16 }}>
+          <p style={{ margin: 0 }}>No veg items on this menu.</p>
+        </div>
+      )}
 
-      {groupedItems.map((group) => (
+      {groupedItems.map((group) => {
+        const isCollapsed = collapsedCategories.has(group.category);
+        return (
         <div key={group.category} style={{ marginTop: 20 }}>
-          <h2 style={{ fontSize: 18, color: 'var(--turmeric)', marginBottom: 10 }}>{CATEGORY_LABELS[group.category]}</h2>
+          <h2
+            style={{ fontSize: 18, color: 'var(--turmeric)', marginBottom: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+            onClick={() => toggleCategory(group.category)}
+          >
+            {CATEGORY_LABELS[group.category]} ({group.items.length})
+            <span style={{ fontSize: 14, transform: isCollapsed ? 'rotate(-90deg)' : 'none', display: 'inline-block' }}>▾</span>
+          </h2>
+          {!isCollapsed && (
           <div className="stack">
-            {group.items.map((item) => (
+            {group.items.map((item) => {
+              const hasDiscount = item.originalPrice && Number(item.originalPrice) > Number(item.price);
+              const isLongDescription = item.description && item.description.length > 80;
+              const isExpanded = expandedDescriptions.has(item.id);
+              const shownDescription = isLongDescription && !isExpanded
+                ? item.description.slice(0, 80) + '…'
+                : item.description;
+              return (
               <div key={item.id} className="card">
                 <div className="row">
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -86,9 +134,33 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
                       <div style={{ width: 56, height: 56, borderRadius: 10, background: 'var(--paper-dim, #f3ecdc)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🍽️</div>
                     )}
                     <div>
+                      {item.isBestseller && (
+                        <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 600, color: 'var(--chili-dark)', background: '#fdeee8', borderRadius: 4, padding: '1px 6px', marginBottom: 3 }}>
+                          ⭐ Bestseller
+                        </span>
+                      )}
                       <h3 style={{ fontSize: 16 }}>{item.name} {item.isVeg ? '🌱' : ''}</h3>
-                      {item.description && <p className="muted" style={{ color: '#8a8378', fontSize: 13, margin: '2px 0' }}>{item.description}</p>}
-                      <p className="muted" style={{ color: '#6b6156' }}>₹{Number(item.price).toFixed(0)}</p>
+                      {item.description && (
+                        <p className="muted" style={{ color: '#8a8378', fontSize: 13, margin: '2px 0' }}>
+                          {shownDescription}
+                          {isLongDescription && (
+                            <span
+                              onClick={() => toggleDescription(item.id)}
+                              style={{ color: 'var(--chili-dark)', cursor: 'pointer', fontWeight: 600, marginLeft: 4 }}
+                            >
+                              {isExpanded ? 'less' : 'more'}
+                            </span>
+                          )}
+                        </p>
+                      )}
+                      {hasDiscount ? (
+                        <p className="muted" style={{ margin: 0 }}>
+                          <span style={{ textDecoration: 'line-through', color: '#a89e8f', marginRight: 6 }}>₹{Number(item.originalPrice).toFixed(0)}</span>
+                          <span style={{ background: '#fff3c4', color: '#6b5400', fontWeight: 600, padding: '1px 6px', borderRadius: 4 }}>₹{Number(item.price).toFixed(0)}</span>
+                        </p>
+                      ) : (
+                        <p className="muted" style={{ color: '#6b6156' }}>₹{Number(item.price).toFixed(0)}</p>
+                      )}
                     </div>
                   </div>
                   {!item.isAvailable ? (
@@ -106,10 +178,13 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
+          )}
         </div>
-      ))}
+        );
+      })}
 
       {cartCount > 0 && (
         <div style={{ position: 'fixed', bottom: 20, left: 20, right: 20, maxWidth: 440, margin: '0 auto' }}>

@@ -28,6 +28,11 @@ export class MenuItem {
   @Column({ type: 'decimal', precision: 8, scale: 2 })
   price: number;
 
+  // Optional "was" price to show a discount (e.g. ₹299 struck through, ₹199 highlighted).
+  // Purely for display — the actual amount charged always comes from `price` above.
+  @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true })
+  originalPrice: number | null;
+
   @Column({ type: 'enum', enum: MenuCategory, default: MenuCategory.MAIN })
   category: MenuCategory;
 

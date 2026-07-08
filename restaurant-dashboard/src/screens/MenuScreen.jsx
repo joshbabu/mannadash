@@ -8,6 +8,7 @@ export default function MenuScreen({ restaurant }) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
+  const [originalPrice, setOriginalPrice] = useState('');
   const [isVeg, setIsVeg] = useState(true);
   const [category, setCategory] = useState('main');
   const [description, setDescription] = useState('');
@@ -32,9 +33,10 @@ export default function MenuScreen({ restaurant }) {
     setSaving(true);
     setError('');
     try {
-      await api.createMenuItem({ restaurantId: restaurant.id, name, price: Number(price), isVeg, category, description: description || undefined });
+      await api.createMenuItem({ restaurantId: restaurant.id, name, price: Number(price), originalPrice: originalPrice ? Number(originalPrice) : undefined, isVeg, category, description: description || undefined });
       setName('');
       setPrice('');
+      setOriginalPrice('');
       setDescription('');
       setShowForm(false);
       load();
@@ -99,6 +101,7 @@ export default function MenuScreen({ restaurant }) {
         <form onSubmit={addItem} className="card stack">
           <input placeholder="Item name" value={name} onChange={(e) => setName(e.target.value)} required />
           <input placeholder="Price (₹)" type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} required />
+          <input placeholder="Original price (optional — shows a discount)" type="number" min="0" value={originalPrice} onChange={(e) => setOriginalPrice(e.target.value)} />
           <select value={category} onChange={(e) => setCategory(e.target.value)}>
             <option value="breakfast">Breakfast</option>
             <option value="starter">Starter</option>

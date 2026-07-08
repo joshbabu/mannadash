@@ -33,14 +33,36 @@ export class MenuItemsService {
     return this.menuItemRepo.save(menuItem);
   }
 
-  async findAll(query: ListMenuItemsQueryDto): Promise<MenuItem[]> {
+  async findAll(query: ListMenuItemsQueryDto): Promise<(MenuItem & { isBestseller?: boolean })[]> {
     const qb = this.menuItemRepo.createQueryBuilder('menuItem').leftJoinAndSelect('menuItem.restaurant', 'restaurant');
 
     if (query.restaurantId) {
       qb.where('restaurant.id = :restaurantId', { restaurantId: query.restaurantId });
     }
 
-    return qb.getMany();
+    const items = await qb.getMany();
+
+    // Only worth computing when scoped to one restaurant — a real "top 3 by units sold" signal,
+    // not a fabricated badge. Skipped for unscoped/global lists to avoid unnecessary cost.
+    if (query.restaurantId) {
+      const bestsellerIds = await this.getBestsellerIds(query.restaurantId);
+      return items.map((item) => ({ ...item, isBestseller: bestsellerIds.has(item.id) }));
+    }
+    return items;
+  }
+
+  private async getBestsellerIds(restaurantId: string): Promise<Set<string>> {
+    const rows = await this.menuItemRepo.manager.query(
+      `SELECT oi."menuItemId", SUM(oi.quantity) as total_sold
+       FROM order_items oi
+       JOIN orders o ON o.id = oi."orderId"
+       WHERE o."restaurantId" = $1 AND o.status = 'delivered'
+       GROUP BY oi."menuItemId"
+       ORDER BY total_sold DESC
+       LIMIT 3`,
+      [restaurantId],
+    );
+    return new Set(rows.map((r: any) => r.menuItemId));
   }
 
   async findOne(id: string): Promise<MenuItem> {
