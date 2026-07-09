@@ -78,7 +78,7 @@ export default function OrderHistoryScreen() {
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
         <SummaryCard icon="✅" value={summary?.delivered} label="Delivered" />
         <SummaryCard icon="❌" value={summary?.cancelled} label="Cancelled" />
-        <SummaryCard icon="₹" value={summary ? `₹${Number(summary.revenue).toLocaleString('en-IN')}` : undefined} label="Revenue" />
+        <SummaryCard icon="💰" value={summary ? `₹${Number(summary.revenue).toLocaleString('en-IN')}` : undefined} label="Revenue" />
       </div>
 
       {/* Search + filters */}
