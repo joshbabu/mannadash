@@ -27,7 +27,7 @@ test('restaurant onboarding wizard: register through all three steps', async ({ 
     await page.getByPlaceholder('Your name').fill('E2E Wizard Owner');
     await page.getByPlaceholder('Restaurant name').fill(restaurantName);
     await page.getByPlaceholder('Cuisine type (e.g. Biryani)').fill('Hyderabadi');
-    await page.getByPlaceholder('Address').fill('Road No 1, Banjara Hills, Hyderabad');
+    await page.getByPlaceholder('Address', { exact: true }).fill('Road No 1, Banjara Hills, Hyderabad');
     await page.getByPlaceholder('Phone number').fill(phone);
     await page.getByPlaceholder('Email address').fill('wizard-owner@example.com');
     // Leave "WhatsApp same as phone" checked — the payload should reuse the phone number
