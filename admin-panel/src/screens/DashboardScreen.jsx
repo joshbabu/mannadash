@@ -118,14 +118,14 @@ export default function DashboardScreen({ onLogout }) {
                     </div>
                     <p className="muted" style={{ marginBottom: 10 }}>{r.ownerName} · {r.cuisineType} · {r.address} · {r.phone}</p>
                     {kycById[r.id] && kycById[r.id] !== 'loading' && (
-                      <div style={{ background: 'var(--paper-dim, #f6f1e4)', borderRadius: 8, padding: '10px 12px', marginBottom: 10, fontSize: 13 }}>
+                      <div style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '10px 12px', marginBottom: 10, fontSize: 13 }}>
                         {(() => {
                           const kyc = kycById[r.id];
                           const warning = fssaiWarning(kyc.fssaiExpiry);
                           const row = (label, value) => (
                             <div className="row" style={{ marginBottom: 3 }}>
                               <span className="muted">{label}</span>
-                              <span style={{ fontWeight: value ? 600 : 400, color: value ? 'inherit' : '#b0a696' }}>{value || 'not provided'}</span>
+                              <span style={{ fontWeight: value ? 600 : 400, color: value ? 'inherit' : 'var(--text-dim, #9a917f)' }}>{value || 'not provided'}</span>
                             </div>
                           );
                           return (
@@ -133,7 +133,7 @@ export default function DashboardScreen({ onLogout }) {
                               {row('Email', kyc.ownerEmail)}
                               {row('WhatsApp', kyc.whatsappNumber)}
                               {row('FSSAI', kyc.fssaiNumber && `${kyc.fssaiNumber} (valid till ${kyc.fssaiExpiry})`)}
-                              {warning && <div style={{ color: '#b3261e', fontWeight: 700, margin: '2px 0' }}>⚠ {warning}</div>}
+                              {warning && <div style={{ color: '#ff8a7a', fontWeight: 700, margin: '2px 0' }}>⚠ {warning}</div>}
                               {row('PAN', kyc.pan)}
                               {row('GSTIN', kyc.gstin)}
                               {row('Bank', kyc.bankIfsc && `${kyc.bankIfsc} · a/c ${kyc.bankAccountNumber}`)}
