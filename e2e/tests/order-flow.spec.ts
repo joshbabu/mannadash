@@ -146,6 +146,11 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
 
   await test.step('Restaurant sees the delivered order in Order History', async () => {
     await restaurantPage.getByRole('button', { name: 'Order History' }).click();
+    // Summary cards render with real numbers — and exactly ONE rupee symbol on Revenue
+    // (regression: the card once rendered "₹ ₹2,390" because both the icon and the
+    // formatted value carried the symbol)
+    await expect(restaurantPage.getByText(/💰\s*₹[\d,]+/)).toBeVisible();
+    await expect(restaurantPage.getByText(/₹\s*₹/)).toHaveCount(0);
     // Summary card and the order row itself, with the customer who placed it
     await expect(restaurantPage.getByText('E2E Test Customer')).toBeVisible();
     await expect(restaurantPage.locator('.pill.status-delivered').first()).toBeVisible();
