@@ -49,6 +49,9 @@ export default function OrdersScreen({ restaurant }) {
   const [loadingRiders, setLoadingRiders] = useState(false);
   const [newOrderAlert, setNewOrderAlert] = useState(null);
   const [now, setNow] = useState(Date.now()); // ticks forward so urgency badges age live, no refresh needed
+  // null until the fresh value loads — the restaurant prop from login/storage can be stale
+  const [isOpen, setIsOpen] = useState(null);
+  const [togglingOpen, setTogglingOpen] = useState(false);
   const socketRef = useRef(null);
   const subscribedIds = useRef(new Set());
   const alertIntervalRef = useRef(null);
@@ -172,6 +175,27 @@ export default function OrdersScreen({ restaurant }) {
       .then(setOrders)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+    // Fetched fresh rather than trusted from login storage — the toggle must show the truth
+    api
+      .getRestaurant(restaurant.id)
+      .then((r) => setIsOpen(r.isOpen))
+      .catch(() => {}); // non-fatal: the toggle just stays hidden until it loads
+  }
+
+  async function toggleOnline() {
+    if (isOpen === null || togglingOpen) return;
+    const next = !isOpen;
+    setTogglingOpen(true);
+    setActionError('');
+    setIsOpen(next); // optimistic — revert below if the server disagrees
+    try {
+      await api.updateRestaurant(restaurant.id, { isOpen: next });
+    } catch (err) {
+      setIsOpen(!next);
+      setActionError(err.message);
+    } finally {
+      setTogglingOpen(false);
+    }
   }
 
   async function advance(order, status) {
@@ -226,9 +250,52 @@ export default function OrdersScreen({ restaurant }) {
 
   return (
     <div>
-      <div className="row" style={{ marginBottom: 16 }}>
+      <div className="row" style={{ marginBottom: 12 }}>
         <h2 style={{ fontSize: 20 }}>Orders</h2>
-        <button className="btn-secondary" onClick={load}>Refresh</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {isOpen !== null && (
+            <button
+              onClick={toggleOnline}
+              disabled={togglingOpen}
+              aria-label={isOpen ? 'Go offline' : 'Go online'}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 20,
+                border: '1px solid', cursor: 'pointer', fontWeight: 700, fontSize: 13,
+                background: isOpen ? '#e3edd8' : '#f0e5e5',
+                borderColor: isOpen ? 'var(--curry)' : '#c9a8a8',
+                color: isOpen ? 'var(--curry)' : '#8a3a3a',
+              }}
+            >
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: isOpen ? 'var(--curry)' : '#b3564e' }} />
+              {isOpen ? 'Online' : 'Offline'}
+            </button>
+          )}
+          <button className="btn-secondary" onClick={load}>Refresh</button>
+        </div>
+      </div>
+
+      {isOpen === false && (
+        <div className="error-banner" style={{ background: '#fff2d6', borderColor: 'var(--turmeric)', color: '#8a5a00' }}>
+          <strong>You're offline.</strong> New orders are blocked until you go back online — existing orders below still need handling.
+        </div>
+      )}
+
+      {/* Live status counts — triage at a glance, matching the competitor boards used as reference */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+        {[
+          { label: 'Pending', emoji: '🕐', statuses: ['placed'] },
+          { label: 'Preparing', emoji: '👨\u200d🍳', statuses: ['accepted', 'preparing'] },
+          { label: 'Ready', emoji: '✅', statuses: ['ready_for_pickup'] },
+          { label: 'Dispatched', emoji: '🛵', statuses: ['picked_up'] },
+        ].map(({ label, emoji, statuses }) => (
+          <div key={label} data-testid={`status-card-${label.toLowerCase()}`} className="card" style={{ flex: '1 1 100px', textAlign: 'center', padding: '10px 6px' }}>
+            <div style={{ fontSize: 20, fontWeight: 700 }}>
+              <span style={{ marginRight: 6 }}>{emoji}</span>
+              {orders.filter((o) => statuses.includes(o.status)).length}
+            </div>
+            <p className="muted" style={{ margin: '2px 0 0', fontSize: 12 }}>{label}</p>
+          </div>
+        ))}
       </div>
 
       {error && <div className="error-banner">{error}</div>}

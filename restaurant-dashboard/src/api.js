@@ -33,6 +33,7 @@ export const api = {
   claimRestaurant: (body) => request('/restaurants/signup', { method: 'POST', body }),
   login: (body) => request('/restaurants/login', { method: 'POST', body }),
   getRestaurant: (id) => request(`/restaurants/${id}`),
+  updateRestaurant: (id, body) => request(`/restaurants/${id}`, { method: 'PATCH', body, auth: true }),
 
   // Menu
   getMenuItems: (restaurantId) => request(`/menu-items?restaurantId=${restaurantId}`),

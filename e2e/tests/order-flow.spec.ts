@@ -91,6 +91,8 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await restaurantPage.getByPlaceholder('Password').fill('testpass123');
     await restaurantPage.locator('button[type="submit"]').click();
     await expect(restaurantPage.getByText('Orders')).toBeVisible();
+    // Phase 3: the online/offline toggle loads with the restaurant's real state
+    await expect(restaurantPage.getByRole('button', { name: 'Go offline' })).toBeVisible();
   });
 
   await test.step('Rider logs in and goes online', async () => {
@@ -124,9 +126,18 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
   await test.step('Restaurant receives the order live and prepares it', async () => {
     // This is the exact bug we fixed earlier — the order must appear with no page refresh
     await expect(restaurantPage.getByText('E2E Test Delivery Address')).toBeVisible({ timeout: 15_000 });
+    // Phase 3 status cards: located by testid, since card labels like "Ready" also appear
+    // in order-card text ("Ready for pickup — waiting for the rider") and would collide
+    const cardFor = (key: string) => restaurantPage.getByTestId(`status-card-${key}`);
+    await expect(cardFor('pending')).toContainText('1');
     await restaurantPage.getByRole('button', { name: 'Accept order' }).click();
+    // …moves to Preparing once accepted…
+    await expect(cardFor('preparing')).toContainText('1');
+    await expect(cardFor('pending')).toContainText('0');
     await restaurantPage.getByRole('button', { name: 'Start preparing' }).click();
     await restaurantPage.getByRole('button', { name: 'Mark food ready' }).click();
+    // …and lands in Ready once the kitchen is done
+    await expect(cardFor('ready')).toContainText('1');
 
     const assignButton = restaurantPage.getByRole('button', { name: 'Auto-assign nearest' });
     if (await assignButton.isVisible()) {
