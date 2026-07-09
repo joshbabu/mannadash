@@ -26,6 +26,9 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
         phone: restaurantPhone,
         latitude: 17.44,
         longitude: 78.38,
+        // Phase 4: captured at onboarding, rendered on the customer's restaurant card
+        isVegOnly: true,
+        costForTwo: 500,
       },
     });
     expect(created.ok()).toBeTruthy();
@@ -114,6 +117,9 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await customerPage.locator('button[type="submit"]').click();
 
     await customerPage.getByPlaceholder('Search by name or cuisine…').fill(restaurantName);
+    // Phase 4: the card surfaces what onboarding captured — veg-only badge and cost for two
+    await expect(customerPage.getByText('🌱 Pure Veg')).toBeVisible();
+    await expect(customerPage.getByText('₹500 for two')).toBeVisible();
     await customerPage.getByText(restaurantName).click();
     await customerPage.getByText('E2E Test Dish').waitFor();
     await customerPage.getByRole('button', { name: 'Add' }).first().click();

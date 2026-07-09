@@ -90,12 +90,22 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
             onClick={() => onSelectRestaurant(r)}
           >
             <div className="row">
-              <h3 style={{ fontSize: 17 }}>{r.name}</h3>
+              <h3 style={{ fontSize: 17 }}>
+                {r.name}
+                {r.isVegOnly && (
+                  <span
+                    style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#2e6b34', background: '#e3edd8', padding: '2px 8px', borderRadius: 10, verticalAlign: 'middle' }}
+                  >
+                    🌱 Pure Veg
+                  </span>
+                )}
+              </h3>
               <span className="pill">{(r.distanceMeters / 1000).toFixed(1)} km</span>
             </div>
             <p className="muted" style={{ color: '#6b6156' }}>
               {Number(r.ratingAvg) > 0 && <>★ {Number(r.ratingAvg).toFixed(1)} ({r.ratingCount}) · </>}
               {r.cuisineType} · {r.avgPrepTimeMins} min prep
+              {r.costForTwo && <> · ₹{r.costForTwo} for two</>}
             </p>
           </button>
         ))}

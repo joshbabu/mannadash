@@ -128,11 +128,16 @@ export class RestaurantsService {
       .orderBy('"distanceMeters"', 'ASC')
       .getRawAndEntities();
 
-    // Merge the computed distance onto each entity for the API response
-    return results.entities.map((entity, i) => ({
-      ...entity,
-      distanceMeters: Math.round(parseFloat(results.raw[i].distanceMeters)),
-    }));
+    // Merge the computed distance ONTO the entity instance (Object.assign) rather than
+    // spreading into a plain object. This distinction is security-critical: the global
+    // ClassSerializerInterceptor only strips @Exclude fields (passwordHash, pan, bank
+    // details) from class instances — a spread copy is a plain object and leaked all of
+    // them from this public endpoint until it was caught in Phase 4.
+    return results.entities.map((entity, i) =>
+      Object.assign(entity, {
+        distanceMeters: Math.round(parseFloat(results.raw[i].distanceMeters)),
+      }),
+    );
   }
 
   /**

@@ -86,6 +86,22 @@ describe('Restaurant onboarding (e2e)', () => {
       expect(one.body).not.toHaveProperty(field);
       expect(inList).not.toHaveProperty(field);
     }
+
+    // The nearby endpoint too — it builds its response differently (distance merged onto each
+    // entity) and once leaked every one of these fields, password hashes included, because a
+    // spread copy bypassed @Exclude serialization. Approve the restaurant so nearby returns it.
+    const adminToken = await adminLogin(app);
+    await request(app.getHttpServer())
+      .patch(`/restaurants/${created.body.id}/status`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'approved' })
+      .expect(200);
+    const nearby = await request(app.getHttpServer()).get('/restaurants/nearby?lat=17.44&lng=78.38').expect(200);
+    const inNearby = nearby.body.find((r: any) => r.id === created.body.id);
+    expect(inNearby).toBeDefined();
+    for (const field of SENSITIVE_FIELDS) {
+      expect(inNearby).not.toHaveProperty(field);
+    }
   });
 
   describe('validation', () => {
