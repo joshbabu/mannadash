@@ -6,7 +6,7 @@ import { OrderItem } from './entities/order-item.entity';
 import { Rating } from './entities/rating.entity';
 import { Payout } from '../delivery-partners/entities/payout.entity';
 import { Restaurant, RestaurantStatus } from '../restaurants/entities/restaurant.entity';
-import { isWithinOperatingHours } from '../restaurants/operating-hours.util';
+import { isWithinRestaurantHours, WEEK_DAYS } from '../restaurants/operating-hours.util';
 import { MenuItem } from '../menu-items/entities/menu-item.entity';
 import { Customer } from '../customers/entities/customer.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -66,10 +66,16 @@ export class OrdersService {
     if (restaurant.status !== RestaurantStatus.APPROVED || !restaurant.isOpen) {
       throw new BadRequestException('This restaurant is not currently accepting orders');
     }
-    if (!isWithinOperatingHours(restaurant.openTime, restaurant.closeTime)) {
-      throw new BadRequestException(
-        `This restaurant is currently closed — hours are ${restaurant.openTime}–${restaurant.closeTime}`,
-      );
+    if (!isWithinRestaurantHours(restaurant)) {
+      // Craft the message from whichever hours scheme this restaurant uses — per-day (new
+      // onboarding wizard) or the legacy single daily window
+      const todayHours = restaurant.weeklyHours?.[WEEK_DAYS[new Date().getDay()]];
+      const hoursText = restaurant.weeklyHours
+        ? todayHours
+          ? `today's hours are ${todayHours.open}\u2013${todayHours.close}`
+          : 'it is closed today'
+        : `hours are ${restaurant.openTime}\u2013${restaurant.closeTime}`;
+      throw new BadRequestException(`This restaurant is currently closed \u2014 ${hoursText}`);
     }
 
     const menuItemIds = dto.items.map((i) => i.menuItemId);

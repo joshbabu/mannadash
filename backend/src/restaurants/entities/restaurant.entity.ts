@@ -1,6 +1,7 @@
 import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { MenuItem } from '../../menu-items/entities/menu-item.entity';
+import { WeeklyHours } from '../operating-hours.util';
 
 export enum RestaurantStatus {
   PENDING = 'pending',
@@ -49,6 +50,53 @@ export class Restaurant {
 
   @Column({ type: 'varchar', length: 5, nullable: true })
   closeTime: string | null;
+
+  // === Onboarding wizard fields (all optional — pre-wizard restaurants have them null) ===
+
+  // Owner contact — for payment updates, complaints, order issues (mirrors Swiggy's owner block)
+  @Column({ type: 'varchar', nullable: true })
+  ownerEmail: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  whatsappNumber: string | null;
+
+  // Per-day hours: { monday: { open: 'HH:MM', close: 'HH:MM' } | null, ... }. Null day = closed.
+  // When set, takes precedence over the single openTime/closeTime window above — see
+  // isWithinRestaurantHours in operating-hours.util.ts.
+  @Column({ type: 'jsonb', nullable: true })
+  weeklyHours: WeeklyHours | null;
+
+  // KYC documents, reviewed by the admin before approval. FSSAI is a legal requirement for
+  // food businesses in India and is displayed publicly by convention; GSTIN is public record.
+  @Column({ type: 'varchar', nullable: true })
+  fssaiNumber: string | null;
+
+  @Column({ type: 'date', nullable: true })
+  fssaiExpiry: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  gstin: string | null;
+
+  // PAN and bank details are sensitive — excluded from every serialized API response.
+  // Admins (and the owner themselves) read them via the dedicated GET /restaurants/:id/kyc.
+  @Exclude()
+  @Column({ type: 'varchar', nullable: true })
+  pan: string | null;
+
+  @Exclude()
+  @Column({ type: 'varchar', nullable: true })
+  bankIfsc: string | null;
+
+  @Exclude()
+  @Column({ type: 'varchar', nullable: true })
+  bankAccountNumber: string | null;
+
+  // Menu basics captured at onboarding — the customer app renders both on restaurant cards
+  @Column({ default: false })
+  isVegOnly: boolean;
+
+  @Column({ type: 'int', nullable: true })
+  costForTwo: number | null;
 
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 20.0 })
   commissionRate: number;

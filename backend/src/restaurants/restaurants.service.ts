@@ -35,7 +35,10 @@ export class RestaurantsService {
       .returning('*')
       .execute();
 
-    return insertResult.raw[0];
+    // Re-fetch as a real Restaurant instance: raw[0] is a plain object, and the global
+    // ClassSerializerInterceptor only strips @Exclude fields (pan, bank details, passwordHash)
+    // from class instances — returning raw[0] directly would leak them in the create response.
+    return this.findOne(insertResult.raw[0].id);
   }
 
   async findAll(): Promise<Restaurant[]> {
@@ -48,6 +51,24 @@ export class RestaurantsService {
       throw new NotFoundException(`Restaurant ${id} not found`);
     }
     return restaurant;
+  }
+
+  // Explicit plain object (not the entity) so the @Exclude decorators on pan/bank fields don't
+  // strip the very values this admin/owner-only endpoint exists to return.
+  async getKyc(id: string) {
+    const r = await this.findOne(id);
+    return {
+      restaurantId: r.id,
+      ownerName: r.ownerName,
+      ownerEmail: r.ownerEmail,
+      whatsappNumber: r.whatsappNumber,
+      fssaiNumber: r.fssaiNumber,
+      fssaiExpiry: r.fssaiExpiry,
+      pan: r.pan,
+      gstin: r.gstin,
+      bankIfsc: r.bankIfsc,
+      bankAccountNumber: r.bankAccountNumber,
+    };
   }
 
   async update(id: string, dto: UpdateRestaurantDto): Promise<Restaurant> {

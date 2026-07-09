@@ -32,6 +32,7 @@ export const api = {
 
   getRestaurants: () => request('/restaurants'),
   setRestaurantStatus: (id, status) => request(`/restaurants/${id}/status`, { method: 'PATCH', body: { status }, auth: true }),
+  getRestaurantKyc: (id) => request(`/restaurants/${id}/kyc`, { auth: true }),
 
   getRiders: () => request('/delivery-partners'),
   verifyRider: (id) => request(`/delivery-partners/${id}/verify`, { method: 'PATCH', auth: true }),

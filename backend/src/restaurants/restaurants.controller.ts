@@ -58,6 +58,19 @@ export class RestaurantsController {
     return this.restaurantsService.findOne(id);
   }
 
+  // The ONLY route that returns PAN and bank details (they're @Exclude'd everywhere else).
+  // Admins need it to review KYC before approving; the owner can view their own submission.
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/kyc')
+  async getKyc(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    const isAdmin = req.user.role === 'admin';
+    const isSelf = req.user.userId === id;
+    if (!isAdmin && !isSelf) {
+      throw new ForbiddenException('Only an admin or the restaurant owner can view KYC details');
+    }
+    return this.restaurantsService.getKyc(id);
+  }
+
   // Owner-only — the JWT's subject must match the restaurant being updated
   @UseGuards(JwtAuthGuard)
   @Patch(':id')

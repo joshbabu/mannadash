@@ -40,6 +40,22 @@ insights dashboard (revenue, repeat customers, cancellation rate, peak hours, to
 - Menu polish: discount pricing display, veg-only filter, bestseller badges (real sales data),
   truncated descriptions, collapsible categories with counts
 
+**Restaurant improvement plan — Phase 1 (onboarding wizard) DONE**:
+- 3-step registration wizard in the restaurant dashboard (Restaurant Info → Documents → Hours & Menu),
+  modeled on Swiggy's partner onboarding
+- New restaurant fields: owner email + WhatsApp, per-day weekly hours (jsonb, overnight-safe,
+  takes precedence over the legacy single window), FSSAI number + expiry, PAN, GSTIN, bank
+  IFSC + account, veg-only flag, cost-for-two
+- PAN and bank details are @Exclude'd from every public response; the only way to read them is
+  the admin/owner-guarded `GET /restaurants/:id/kyc`
+- Admin panel: "Review KYC" panel on pending applications, with a red warning when the FSSAI
+  licence is expired or expires within 30 days
+- Order placement enforces per-day hours (closed days, per-day windows, overnight spillover)
+- Tests: 19 new backend tests (weekly-hours logic + onboarding API + KYC access control) and a
+  Playwright spec driving the full wizard in a real browser
+- Remaining phases: 2) Order History page, 3) Live Orders board + online/offline toggle,
+  4) customer app surfacing of veg-only / cost-for-two
+
 **CI/CD**: `.github/workflows/test-and-deploy.yml` — one consolidated pipeline. `test` (backend
 Jest, 22 tests) and `e2e` (Playwright, full cross-app flow) run first; `deploy-backend` and
 `deploy-frontends` (all 4 apps) only run if both pass. Cloudflare's own auto-deploy is disabled on

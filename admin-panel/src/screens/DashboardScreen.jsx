@@ -8,6 +8,40 @@ export default function DashboardScreen({ onLogout }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
+  // restaurantId -> KYC object (or 'loading') for the expandable review panel on pending cards
+  const [kycById, setKycById] = useState({});
+
+  async function toggleKyc(restaurantId) {
+    if (kycById[restaurantId]) {
+      setKycById((prev) => {
+        const next = { ...prev };
+        delete next[restaurantId];
+        return next;
+      });
+      return;
+    }
+    setKycById((prev) => ({ ...prev, [restaurantId]: 'loading' }));
+    try {
+      const kyc = await api.getRestaurantKyc(restaurantId);
+      setKycById((prev) => ({ ...prev, [restaurantId]: kyc }));
+    } catch (err) {
+      setActionError(err.message);
+      setKycById((prev) => {
+        const next = { ...prev };
+        delete next[restaurantId];
+        return next;
+      });
+    }
+  }
+
+  // Swiggy-style FSSAI freshness rule: warn when the licence expires within 30 days (or already has)
+  function fssaiWarning(expiry) {
+    if (!expiry) return null;
+    const days = Math.floor((new Date(expiry) - new Date()) / 86400000);
+    if (days < 0) return 'FSSAI licence has EXPIRED';
+    if (days <= 30) return `FSSAI licence expires in ${days} day${days === 1 ? '' : 's'}`;
+    return null;
+  }
 
   useEffect(() => {
     load();
@@ -83,7 +117,35 @@ export default function DashboardScreen({ onLogout }) {
                       <span className="pill pending">pending</span>
                     </div>
                     <p className="muted" style={{ marginBottom: 10 }}>{r.ownerName} · {r.cuisineType} · {r.address} · {r.phone}</p>
+                    {kycById[r.id] && kycById[r.id] !== 'loading' && (
+                      <div style={{ background: 'var(--paper-dim, #f6f1e4)', borderRadius: 8, padding: '10px 12px', marginBottom: 10, fontSize: 13 }}>
+                        {(() => {
+                          const kyc = kycById[r.id];
+                          const warning = fssaiWarning(kyc.fssaiExpiry);
+                          const row = (label, value) => (
+                            <div className="row" style={{ marginBottom: 3 }}>
+                              <span className="muted">{label}</span>
+                              <span style={{ fontWeight: value ? 600 : 400, color: value ? 'inherit' : '#b0a696' }}>{value || 'not provided'}</span>
+                            </div>
+                          );
+                          return (
+                            <>
+                              {row('Email', kyc.ownerEmail)}
+                              {row('WhatsApp', kyc.whatsappNumber)}
+                              {row('FSSAI', kyc.fssaiNumber && `${kyc.fssaiNumber} (valid till ${kyc.fssaiExpiry})`)}
+                              {warning && <div style={{ color: '#b3261e', fontWeight: 700, margin: '2px 0' }}>⚠ {warning}</div>}
+                              {row('PAN', kyc.pan)}
+                              {row('GSTIN', kyc.gstin)}
+                              {row('Bank', kyc.bankIfsc && `${kyc.bankIfsc} · a/c ${kyc.bankAccountNumber}`)}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
                     <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn-secondary" onClick={() => toggleKyc(r.id)}>
+                        {kycById[r.id] === 'loading' ? 'Loading…' : kycById[r.id] ? 'Hide KYC' : 'Review KYC'}
+                      </button>
                       <button className="btn-approve" onClick={() => setRestaurantStatus(r, 'approved')}>Approve</button>
                       <button className="btn-suspend" onClick={() => setRestaurantStatus(r, 'suspended')}>Reject</button>
                     </div>
