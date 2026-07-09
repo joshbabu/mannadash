@@ -1,5 +1,6 @@
-import { Body, Controller, ForbiddenException, Get, Param, ParseUUIDPipe, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { OrdersService } from './orders.service';
+import { RestaurantHistoryQueryDto } from './dto/restaurant-history-query.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
@@ -26,6 +27,14 @@ export class OrdersController {
   @Get('restaurant/mine')
   findMyRestaurantOrders(@Req() req: any) {
     return this.ordersService.findAllForRestaurant(req.user.userId);
+  }
+
+  // Order History page — terminal orders with search/status/date filters and summary cards.
+  // Same auth pattern as restaurant/mine: the JWT subject IS the restaurant id.
+  @UseGuards(JwtAuthGuard)
+  @Get('restaurant/history')
+  getMyRestaurantOrderHistory(@Req() req: any, @Query() query: RestaurantHistoryQueryDto) {
+    return this.ordersService.getRestaurantOrderHistory(req.user.userId, query);
   }
 
   @UseGuards(JwtAuthGuard)

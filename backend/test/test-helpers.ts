@@ -32,13 +32,13 @@ function uniquePhone(): string {
   return `9${raw}`;
 }
 
-export async function signUpCustomer(app: INestApplication) {
+export async function signUpCustomer(app: INestApplication, name = 'Test Customer') {
   const phone = uniquePhone();
   const res = await request(app.getHttpServer())
     .post('/auth/signup')
-    .send({ name: 'Test Customer', phone, password: 'testpass123' })
+    .send({ name, phone, password: 'testpass123' })
     .expect(201);
-  return { token: res.body.accessToken, phone };
+  return { token: res.body.accessToken, phone, name };
 }
 
 export async function signUpRestaurant(app: INestApplication, overrides: Record<string, any> = {}) {

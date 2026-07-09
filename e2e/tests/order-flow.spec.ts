@@ -144,6 +144,16 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await expect(customerPage.getByText('Delivered')).toBeVisible({ timeout: 15_000 });
   });
 
+  await test.step('Restaurant sees the delivered order in Order History', async () => {
+    await restaurantPage.getByRole('button', { name: 'Order History' }).click();
+    // Summary card and the order row itself, with the customer who placed it
+    await expect(restaurantPage.getByText('E2E Test Customer')).toBeVisible();
+    await expect(restaurantPage.locator('.pill.status-delivered').first()).toBeVisible();
+    // Expanding the row shows what was ordered
+    await restaurantPage.getByText('E2E Test Customer').click();
+    await expect(restaurantPage.getByText(/E2E Test Dish × 1/)).toBeVisible();
+  });
+
   await customerContext.close();
   await restaurantContext.close();
   await riderContext.close();

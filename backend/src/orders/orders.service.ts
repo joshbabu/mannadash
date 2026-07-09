@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Repository } from 'typeorm';
+import { In, IsNull, Repository, SelectQueryBuilder } from 'typeorm';
 import { Order, OrderStatus, PaymentStatus, RefundStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Rating } from './entities/rating.entity';
@@ -9,6 +9,7 @@ import { Restaurant, RestaurantStatus } from '../restaurants/entities/restaurant
 import { isWithinRestaurantHours, WEEK_DAYS } from '../restaurants/operating-hours.util';
 import { MenuItem } from '../menu-items/entities/menu-item.entity';
 import { Customer } from '../customers/entities/customer.entity';
+import { RestaurantHistoryQueryDto } from './dto/restaurant-history-query.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { CreateRatingDto } from './dto/create-rating.dto';
 import { DeliveryPartnersService } from '../delivery-partners/delivery-partners.service';
@@ -189,6 +190,70 @@ export class OrdersService {
       relations: { customer: { user: true }, items: { menuItem: true }, deliveryPartner: true },
       order: { placedAt: 'DESC' },
     });
+  }
+
+  /**
+   * The Order History page: terminal orders (delivered/cancelled) with search, status and
+   * date-range filters, plus summary cards computed over the SAME search + date filters —
+   * so "last 7 days" + a customer search shows that slice's delivered/cancelled/revenue,
+   * not all-time numbers next to a filtered list. Revenue counts delivered orders only.
+   */
+  async getRestaurantOrderHistory(restaurantId: string, query: RestaurantHistoryQueryDto) {
+    const applyCommonFilters = <T extends SelectQueryBuilder<Order>>(qb: T): T => {
+      qb.where('order.restaurantId = :restaurantId', { restaurantId });
+      if (query.search) {
+        qb.andWhere('(user.name ILIKE :search OR user.phone ILIKE :search OR CAST(order.id AS TEXT) ILIKE :search)', {
+          search: `%${query.search}%`,
+        });
+      }
+      if (query.from) qb.andWhere('order.placedAt >= :from', { from: query.from });
+      if (query.to) qb.andWhere('order.placedAt <= :to', { to: query.to });
+      return qb;
+    };
+
+    const listQb = applyCommonFilters(
+      this.orderRepo
+        .createQueryBuilder('order')
+        .leftJoinAndSelect('order.customer', 'customer')
+        .leftJoinAndSelect('customer.user', 'user')
+        .leftJoinAndSelect('order.items', 'items')
+        .leftJoinAndSelect('items.menuItem', 'menuItem'),
+    )
+      .andWhere('order.status IN (:...statuses)', {
+        statuses: query.status ? [query.status] : [OrderStatus.DELIVERED, OrderStatus.CANCELLED],
+      })
+      .orderBy('order.placedAt', 'DESC')
+      .take(query.limit ?? 50)
+      .skip(query.offset ?? 0);
+
+    // Summary spans BOTH terminal states regardless of the status filter — the cards are the
+    // fixed reference point ("9 delivered, 0 cancelled, ₹4,612") while the list narrows.
+    const summaryQb = applyCommonFilters(
+      this.orderRepo
+        .createQueryBuilder('order')
+        .leftJoin('order.customer', 'customer')
+        .leftJoin('customer.user', 'user'),
+    ).select([
+      `COUNT(*) FILTER (WHERE order.status = 'delivered') AS delivered`,
+      `COUNT(*) FILTER (WHERE order.status = 'cancelled') AS cancelled`,
+      `COALESCE(SUM(order.total) FILTER (WHERE order.status = 'delivered'), 0) AS revenue`,
+    ]);
+
+    const [orders, totalMatching, rawSummary] = await Promise.all([
+      listQb.getMany(),
+      listQb.getCount(),
+      summaryQb.getRawOne(),
+    ]);
+
+    return {
+      summary: {
+        delivered: Number(rawSummary.delivered),
+        cancelled: Number(rawSummary.cancelled),
+        revenue: Number(rawSummary.revenue),
+      },
+      total: totalMatching,
+      orders,
+    };
   }
 
   // Rider facing — lists orders currently assigned to this rider

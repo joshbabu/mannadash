@@ -45,6 +45,10 @@ export const api = {
 
   // Orders
   getMyOrders: () => request('/orders/restaurant/mine', { auth: true }),
+  getOrderHistory: (params = {}) => {
+    const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== '' && v != null)).toString();
+    return request(`/orders/restaurant/history${qs ? `?${qs}` : ''}`, { auth: true });
+  },
   getMyInsights: () => request('/orders/restaurant/insights', { auth: true }),
   updateOrderStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PATCH', body: { status }, auth: true }),
   getVapidPublicKey: () => request('/push/vapid-public-key'),
