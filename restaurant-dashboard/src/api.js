@@ -34,6 +34,7 @@ export const api = {
   login: (body) => request('/restaurants/login', { method: 'POST', body }),
   getRestaurant: (id) => request(`/restaurants/${id}`),
   updateRestaurant: (id, body) => request(`/restaurants/${id}`, { method: 'PATCH', body, auth: true }),
+  getRestaurantKyc: (id) => request(`/restaurants/${id}/kyc`, { auth: true }),
 
   // Menu
   getMenuItems: (restaurantId) => request(`/menu-items?restaurantId=${restaurantId}`),

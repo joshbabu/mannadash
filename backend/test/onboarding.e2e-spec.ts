@@ -180,6 +180,52 @@ describe('Restaurant onboarding (e2e)', () => {
         .expect(403);
       await request(app.getHttpServer()).get(`/restaurants/${restaurant.id}/kyc`).expect(401);
     });
+
+    it('lets an owner add bank details AFTER signup — the wizard\'s "skip for now" promise', async () => {
+      // Registered without any documents (the wizard allows skipping all of step 2)
+      const restaurant = await signUpRestaurant(app);
+      const adminToken = await adminLogin(app);
+      const before = await request(app.getHttpServer())
+        .get(`/restaurants/${restaurant.id}/kyc`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+      expect(before.body.bankIfsc).toBeNull();
+
+      // Later, via the Settings screen, the owner adds what payouts need
+      await request(app.getHttpServer())
+        .patch(`/restaurants/${restaurant.id}`)
+        .set('Authorization', `Bearer ${restaurant.token}`)
+        .send({ bankIfsc: 'ICIC0004321', bankAccountNumber: '987654321098', pan: 'FGHIJ5678K' })
+        .expect(200);
+
+      const after = await request(app.getHttpServer())
+        .get(`/restaurants/${restaurant.id}/kyc`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+      expect(after.body.bankIfsc).toBe('ICIC0004321');
+      expect(after.body.bankAccountNumber).toBe('987654321098');
+      expect(after.body.pan).toBe('FGHIJ5678K');
+
+      // Still never public, even after being set via PATCH
+      const pub = await request(app.getHttpServer()).get(`/restaurants/${restaurant.id}`).expect(200);
+      expect(pub.body).not.toHaveProperty('pan');
+      expect(pub.body).not.toHaveProperty('bankAccountNumber');
+    });
+
+    it('clears an optional field when the owner saves it as null (Settings "removed means removed")', async () => {
+      const restaurant = await signUpRestaurant(app, fullOnboarding);
+      await request(app.getHttpServer())
+        .patch(`/restaurants/${restaurant.id}`)
+        .set('Authorization', `Bearer ${restaurant.token}`)
+        .send({ gstin: null })
+        .expect(200);
+      const adminToken = await adminLogin(app);
+      const kyc = await request(app.getHttpServer())
+        .get(`/restaurants/${restaurant.id}/kyc`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+      expect(kyc.body.gstin).toBeNull();
+    });
   });
 
   describe('per-day hours gate order placement', () => {

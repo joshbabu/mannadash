@@ -58,6 +58,19 @@ test('restaurant onboarding wizard: register through all three steps', async ({ 
     await expect(page.getByText('Awaiting approval.')).toBeVisible();
   });
 
+  await test.step('Settings screen: wizard data prefilled, edits persist', async () => {
+    await page.getByRole('button', { name: 'Settings' }).click();
+    // Prefill proves the round trip — including PAN, which only the owner-guarded KYC
+    // endpoint can supply (it's excluded from every public response)
+    await expect(page.getByPlaceholder('Email address')).toHaveValue('wizard-owner@example.com');
+    await expect(page.getByPlaceholder('Business / owner PAN')).toHaveValue('AAMCR7443M');
+    await expect(page.getByPlaceholder('Cost for two (₹, approximate)')).toHaveValue('400');
+
+    await page.getByPlaceholder('Cost for two (₹, approximate)').fill('450');
+    await page.getByRole('button', { name: 'Save settings' }).click();
+    await expect(page.getByText('✓ Saved')).toBeVisible();
+  });
+
   await test.step('Everything the wizard collected reached the backend correctly', async () => {
     const list = await (await api.get('/restaurants')).json();
     const restaurant = list.find((r: any) => r.name === restaurantName);
@@ -67,7 +80,7 @@ test('restaurant onboarding wizard: register through all three steps', async ({ 
     expect(restaurant.ownerEmail).toBe('wizard-owner@example.com');
     expect(restaurant.whatsappNumber).toBe(phone); // "same as phone" checkbox
     expect(restaurant.isVegOnly).toBe(true);
-    expect(restaurant.costForTwo).toBe(400);
+    expect(restaurant.costForTwo).toBe(450); // edited on the Settings screen after the wizard
     expect(restaurant.weeklyHours.sunday).toBeNull();
     expect(restaurant.weeklyHours.monday).toEqual({ open: '09:00', close: '22:00' });
 
