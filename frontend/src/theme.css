@@ -254,3 +254,11 @@ button:focus-visible {
 }
 
 
+
+
+/* The receipt card is light (cream) inside a dark-themed app, so the global .muted —
+   a light gray tuned for dark backgrounds — was invisible inside it. Scope a dark
+   muted tone to everything in the receipt. */
+#order-receipt .muted {
+  color: #6b6156;
+}

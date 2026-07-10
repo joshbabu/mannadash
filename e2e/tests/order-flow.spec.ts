@@ -173,6 +173,9 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await expect(customerPage.getByText(/by E2E Test Rider/)).toBeVisible();
     await expect(customerPage.getByText(/Picked up from .*Test Address/)).toBeVisible();
     await expect(customerPage.getByText('💵 Cash on delivery')).toBeVisible();
+    // Regression: receipt labels use .muted, which is light-on-dark globally — inside the
+    // cream receipt card they must resolve to the dark muted tone or they're invisible
+    await expect(customerPage.getByText('Item total')).toHaveCSS('color', 'rgb(107, 97, 86)');
     await expect(customerPage.getByRole('button', { name: /Print \/ save as PDF/ })).toBeVisible();
   });
 
