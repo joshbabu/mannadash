@@ -61,6 +61,23 @@ Jest, 22 tests) and `e2e` (Playwright, full cross-app flow) run first; `deploy-b
 `deploy-frontends` (all 4 apps) only run if both pass. Cloudflare's own auto-deploy is disabled on
 all 4 projects — GitHub Actions is now the only thing that can actually deploy.
 
+## Launch-readiness roadmap (gap analysis vs Zomato/Swiggy feature anatomy)
+
+- **Phase A — Cash on Delivery: DONE.** Customers choose COD at checkout (default until Razorpay
+  is live), rider app shows "Collect ₹X in cash", delivery flips the order to paid, cancelling an
+  unpaid COD order flags no refund, and the Razorpay path refuses COD orders. Real paid orders
+  are now possible with no gateway.
+- **Phase B — Password reset** (decide: SMS-OTP via provider vs admin-assisted reset)
+- **Phase C — Order acceptance timeout** (auto-cancel orders no restaurant touches)
+- **Phase D — ~~Saved addresses~~ already built** (checkout has save/pick with labels)
+- **Phase E — Delivery fee & minimum order review** (currently flat ₹30, no minimum)
+- **Phase F — No-rider-available handling**
+- **Phase G — Customer push notifications** (restaurant + rider already have push)
+- **Phase H — Dish-level search** (find restaurants BY dish, not just name/cuisine)
+- **Phase I — Launch checklist**: packaging charges, coupons/first-order offers, receipts,
+  terms & privacy pages
+- **Non-code**: domain purchase, Razorpay activation (phone number), Telugu localization (later)
+
 ## Known gaps / not yet done
 
 - **Menu photos for restaurant dashboard's own polish** — customer app has all 5 new UI features;

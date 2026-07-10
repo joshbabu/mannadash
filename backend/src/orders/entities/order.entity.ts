@@ -15,6 +15,11 @@ export enum OrderStatus {
   CANCELLED = 'cancelled',
 }
 
+export enum PaymentMethod {
+  ONLINE = 'online',
+  COD = 'cod', // cash on delivery — the rider collects at the door
+}
+
 export enum PaymentStatus {
   PENDING = 'pending',
   PAID = 'paid',
@@ -69,6 +74,11 @@ export class Order {
 
   @Column({ type: 'enum', enum: PaymentStatus, default: PaymentStatus.PENDING })
   paymentStatus: PaymentStatus;
+
+  // How the customer chose to pay. COD needs no gateway: the order stays payment-pending
+  // until the rider hands it over, at which point delivery flips it to paid (cash at door).
+  @Column({ type: 'varchar', default: PaymentMethod.ONLINE })
+  paymentMethod: PaymentMethod;
 
   // Set when create-payment is called, before the customer actually pays
   @Column({ nullable: true })

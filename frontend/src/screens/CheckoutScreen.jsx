@@ -13,6 +13,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
   const [error, setError] = useState('');
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [saveThisAddress, setSaveThisAddress] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('cod'); // COD until Razorpay goes live
   const [newLabel, setNewLabel] = useState('');
 
   useEffect(() => {
@@ -49,6 +50,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
         deliveryAddress: address,
         latitude,
         longitude,
+        paymentMethod,
       });
       onOrderPlaced(order);
     } catch (err) {
@@ -121,6 +123,18 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
       </div>
 
       {error && <div className="error-banner">{error}</div>}
+      <div className="card" style={{ marginBottom: 14 }}>
+        <p style={{ fontWeight: 700, margin: '0 0 8px' }}>Payment</p>
+        <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 15, marginBottom: 6 }}>
+          <input type="radio" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} style={{ width: 'auto' }} />
+          💵 Cash on delivery
+        </label>
+        <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 15, color: '#9a917f' }}>
+          <input type="radio" disabled style={{ width: 'auto' }} />
+          💳 Pay online <span style={{ fontSize: 12 }}>(coming soon)</span>
+        </label>
+      </div>
+
 
       <button className="btn-primary" onClick={placeOrder} disabled={loading}>
         {loading ? 'Placing order…' : 'Place order'}

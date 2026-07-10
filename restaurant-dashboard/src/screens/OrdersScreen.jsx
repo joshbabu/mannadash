@@ -361,7 +361,12 @@ export default function OrdersScreen({ restaurant }) {
             </div>
 
             <p className="muted" style={{ marginBottom: 4 }}>Deliver to: {order.deliveryAddress}</p>
-            <p style={{ fontWeight: 600, marginBottom: 12 }}>Total ₹{Number(order.total).toFixed(0)}</p>
+            <p style={{ fontWeight: 600, marginBottom: 12 }}>
+              Total ₹{Number(order.total).toFixed(0)}
+              {order.paymentMethod === 'cod' && (
+                <span className="pill" style={{ background: '#fff2d6', color: '#8a5a00', marginLeft: 8 }}>💵 COD</span>
+              )}
+            </p>
 
             {order.deliveryPartner && (
               <p className="muted" style={{ marginBottom: 12 }}>

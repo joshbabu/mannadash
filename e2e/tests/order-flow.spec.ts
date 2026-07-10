@@ -125,6 +125,8 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await customerPage.getByRole('button', { name: 'Add' }).first().click();
     await customerPage.getByText(/View cart/).click();
     await customerPage.getByPlaceholder('Flat / house number, street, landmark').fill('E2E Test Delivery Address');
+    // COD is the default payment method (Razorpay is gated on real keys)
+    await expect(customerPage.getByText('💵 Cash on delivery')).toBeVisible();
     await customerPage.getByRole('button', { name: 'Place order' }).click();
     await expect(customerPage.getByText(restaurantName)).toBeVisible();
   });
@@ -153,6 +155,8 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
 
   await test.step('Rider receives the assignment live and delivers it', async () => {
     await expect(riderPage.getByText('E2E Test Delivery Address')).toBeVisible({ timeout: 15_000 });
+    // COD order: the rider is told exactly how much cash to collect at the door
+    await expect(riderPage.getByText(/💵 Collect ₹\d+ in cash/)).toBeVisible();
     await riderPage.getByRole('button', { name: 'Mark picked up' }).click();
     await riderPage.getByRole('button', { name: 'Mark delivered' }).click();
   });
@@ -171,6 +175,9 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // Summary card and the order row itself, with the customer who placed it
     await expect(restaurantPage.getByText('E2E Test Customer')).toBeVisible();
     await expect(restaurantPage.locator('.pill.status-delivered').first()).toBeVisible();
+    // COD + delivered = paid, and the row is marked as a cash order
+    await expect(restaurantPage.getByText('💵 COD').first()).toBeVisible();
+    await expect(restaurantPage.locator('.pill').filter({ hasText: /^paid$/ }).first()).toBeVisible();
     // Expanding the row shows what was ordered
     await restaurantPage.getByText('E2E Test Customer').click();
     await expect(restaurantPage.getByText(/E2E Test Dish × 1/)).toBeVisible();

@@ -131,6 +131,9 @@ export default function OrderHistoryScreen() {
                 <div style={{ textAlign: 'right' }}>
                   <strong>₹{Number(order.total).toFixed(0)}</strong>
                   <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', marginTop: 4 }}>
+                    {order.paymentMethod === 'cod' && (
+                      <span className="pill" style={{ background: '#fff2d6', color: '#8a5a00' }}>💵 COD</span>
+                    )}
                     <span className={`pill status-${order.status}`}>{order.status}</span>
                     <span className="pill" style={{ background: order.paymentStatus === 'paid' ? '#e3edd8' : '#f0e5e5', color: order.paymentStatus === 'paid' ? 'var(--curry)' : '#8a3a3a' }}>
                       {order.paymentStatus}

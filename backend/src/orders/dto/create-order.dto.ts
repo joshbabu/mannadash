@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsNumber, IsString, IsUUID, Max, Min, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsNumber, IsString, IsUUID, Max, Min, ValidateNested, IsIn, IsOptional } from 'class-validator';
 import { OrderItemInputDto } from './order-item-input.dto';
 
 export class CreateOrderDto {
@@ -24,4 +24,9 @@ export class CreateOrderDto {
   @Min(-180)
   @Max(180)
   longitude: number;
+
+  // 'cod' (cash on delivery) or 'online' — omitted means online, matching pre-COD behavior
+  @IsOptional()
+  @IsIn(['online', 'cod'])
+  paymentMethod?: 'online' | 'cod';
 }

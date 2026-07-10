@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository, SelectQueryBuilder } from 'typeorm';
-import { Order, OrderStatus, PaymentStatus, RefundStatus } from './entities/order.entity';
+import { Order, OrderStatus, PaymentMethod, PaymentStatus, RefundStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Rating } from './entities/rating.entity';
 import { Payout } from '../delivery-partners/entities/payout.entity';
@@ -139,6 +139,7 @@ export class OrdersService {
         customer,
         restaurant,
         status: OrderStatus.PLACED,
+        paymentMethod: dto.paymentMethod === 'cod' ? PaymentMethod.COD : PaymentMethod.ONLINE,
         deliveryAddress: dto.deliveryAddress,
         deliveryLocation: () => `ST_SetSRID(ST_MakePoint(${dto.longitude}, ${dto.latitude}), 4326)`,
         subtotal,
@@ -299,7 +300,14 @@ export class OrdersService {
     if (newStatus === OrderStatus.ACCEPTED) order.acceptedAt = new Date();
     if (newStatus === OrderStatus.READY_FOR_PICKUP) order.readyAt = new Date();
     if (newStatus === OrderStatus.PICKED_UP) order.pickedUpAt = new Date();
-    if (newStatus === OrderStatus.DELIVERED) order.deliveredAt = new Date();
+    if (newStatus === OrderStatus.DELIVERED) {
+      order.deliveredAt = new Date();
+      // Cash on delivery: handing the order over IS the payment moment — the rider collects
+      // at the door, so delivery flips a pending COD order to paid
+      if (order.paymentMethod === PaymentMethod.COD && order.paymentStatus === PaymentStatus.PENDING) {
+        order.paymentStatus = PaymentStatus.PAID;
+      }
+    }
     if (newStatus === OrderStatus.CANCELLED && order.paymentStatus === PaymentStatus.PAID) {
       order.refundStatus = RefundStatus.PENDING;
       order.refundAmount = order.total;
@@ -396,6 +404,9 @@ export class OrdersService {
 
     if (order.paymentStatus === PaymentStatus.PAID) {
       throw new BadRequestException('This order has already been paid for');
+    }
+    if (order.paymentMethod === PaymentMethod.COD) {
+      throw new BadRequestException('This is a cash-on-delivery order — pay the rider at the door');
     }
 
     let razorpayOrder;

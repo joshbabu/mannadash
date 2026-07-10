@@ -107,6 +107,11 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
       </button>
       <h1 style={{ fontSize: 22 }}>{order.restaurant.name}</h1>
       <p className="muted">Order total ₹{Number(order.total).toFixed(0)}</p>
+      {order.paymentMethod === 'cod' && order.paymentStatus === 'pending' && (
+        <p style={{ background: '#fff2d6', color: '#8a5a00', padding: '8px 12px', borderRadius: 8, fontSize: 14, fontWeight: 600 }}>
+          💵 Pay ₹{Number(order.total).toFixed(0)} in cash when your order arrives
+        </p>
+      )}
       {!isCancelled && order.status !== 'delivered' && order.estimatedDeliveryAt && (
         <p className="muted">
           Estimated delivery by{' '}
