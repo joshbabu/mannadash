@@ -14,6 +14,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
   let restaurantId: string, restaurantToken: string, restaurantPhone: string, restaurantName: string;
   let riderId: string, riderToken: string, riderPhone: string;
   let customerPhone: string;
+  let menuItemId: string;
 
   await test.step('Set up: a real restaurant, rider, and admin approval', async () => {
     restaurantPhone = uniquePhone(1);
@@ -72,6 +73,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
       data: { restaurantId, name: 'E2E Test Dish', price: 199, category: 'main' },
     });
     expect(menuItemRes.ok()).toBeTruthy();
+    menuItemId = (await menuItemRes.json()).id;
   });
 
   // Three simultaneous real browser sessions, exactly like our manual multi-tab testing
@@ -169,6 +171,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await expect(customerPage.getByText('E2E Test Dish × 1')).toBeVisible();
     await expect(customerPage.getByText('Delivery fee')).toBeVisible();
     await expect(customerPage.getByText(/by E2E Test Rider/)).toBeVisible();
+    await expect(customerPage.getByText(/Picked up from .*Test Address/)).toBeVisible();
     await expect(customerPage.getByText('💵 Cash on delivery')).toBeVisible();
     await expect(customerPage.getByRole('button', { name: /Print \/ save as PDF/ })).toBeVisible();
   });
@@ -194,6 +197,35 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await customerPage.getByRole('button', { name: new RegExp(restaurantName) }).click();
     await expect(customerPage.getByText('Thanks for rating your order!')).toBeVisible();
     await expect(customerPage.getByText('How was your order?')).toHaveCount(0);
+  });
+
+  await test.step('History warns about closed restaurants and unavailable items', async () => {
+    // Restaurant goes offline (the Phase 3 toggle) and the dish sells out
+    const offline = await api.patch(`/restaurants/${restaurantId}`, {
+      headers: { Authorization: `Bearer ${restaurantToken}` },
+      data: { isOpen: false },
+    });
+    expect(offline.ok()).toBeTruthy();
+    const soldOut = await api.patch(`/menu-items/${menuItemId}`, {
+      headers: { Authorization: `Bearer ${restaurantToken}` },
+      data: { isAvailable: false },
+    });
+    expect(soldOut.ok()).toBeTruthy();
+
+    // The customer's history row says so upfront
+    await customerPage.reload();
+    await customerPage.getByRole('button', { name: '📋 Orders' }).click();
+    await expect(customerPage.getByText('Closed now')).toBeVisible();
+
+    // "View menu" browses the restaurant without force-filling a cart
+    await customerPage.getByRole('button', { name: 'View menu', exact: true }).first().click();
+    await expect(customerPage.getByText('E2E Test Dish')).toBeVisible();
+
+    // Reorder is honest about what it couldn't re-add
+    await customerPage.getByRole('button', { name: '← Back' }).click();
+    await customerPage.getByRole('button', { name: '📋 Orders' }).click();
+    await customerPage.getByRole('button', { name: /🔁 Reorder/ }).first().click();
+    await expect(customerPage.getByText(/no\s*longer available/)).toBeVisible();
   });
 
   await test.step('Restaurant sees the delivered order in Order History', async () => {

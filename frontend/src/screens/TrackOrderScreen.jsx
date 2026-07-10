@@ -46,7 +46,7 @@ function printReceipt(order) {
   <p class="muted">Receipt #${esc(order.id.slice(0, 8))} · ${esc(new Date(order.placedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }))}</p>
   <p><strong>${esc(order.restaurant?.name)}</strong><br/>
   <span class="muted">Placed ${time(order.placedAt)}${order.deliveredAt ? ` · Delivered ${time(order.deliveredAt)}` : ''}${order.deliveryPartner ? ` by ${esc(order.deliveryPartner.name)}` : ''}</span></p>
-  <p class="muted">Delivered to: ${esc(order.deliveryAddress)}</p>
+  <p class="muted">Picked up from: ${esc(order.restaurant?.address || order.restaurant?.name)}<br/>Delivered to: ${esc(order.deliveryAddress)}</p>
   <table>
     ${itemRows}
     <tr class="rule"><td class="muted">Item total</td><td class="r">₹${Number(order.subtotal).toFixed(0)}</td></tr>
@@ -240,7 +240,7 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
             </p>
             {order.pickedUpAt && (
               <p style={{ margin: '0 0 2px' }}>
-                <span className="muted">Picked up from {order.restaurant?.name}</span>{' '}
+                <span className="muted">Picked up from {order.restaurant?.name}{order.restaurant?.address ? `, ${order.restaurant.address}` : ''}</span>{' '}
                 {new Date(order.pickedUpAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
               </p>
             )}

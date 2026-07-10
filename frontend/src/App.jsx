@@ -83,7 +83,16 @@ export default function App() {
       />
     );
   } else if (tab === 'orders') {
-    content = <OrderHistoryScreen onSelectOrder={setTrackingOrderId} onReorder={handleReorder} />;
+    content = (
+      <OrderHistoryScreen
+        onSelectOrder={setTrackingOrderId}
+        onReorder={handleReorder}
+        onViewRestaurant={(restaurant) => {
+          setReorderCart(null); // browsing fresh — no pre-filled cart
+          setSelectedRestaurant(restaurant);
+        }}
+      />
+    );
   } else {
     content = <RestaurantListScreen onSelectRestaurant={setSelectedRestaurant} />;
   }

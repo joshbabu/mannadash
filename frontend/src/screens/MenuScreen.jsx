@@ -9,6 +9,7 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
   const [vegOnly, setVegOnly] = useState(false);
   const [expandedDescriptions, setExpandedDescriptions] = useState(new Set());
   const [collapsedCategories, setCollapsedCategories] = useState(new Set());
+  const [droppedFromReorder, setDroppedFromReorder] = useState(0);
 
   useEffect(() => {
     api
@@ -19,11 +20,15 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
         // a restaurant may have removed or sold out an item since the original order
         if (initialCart) {
           const validCart = {};
+          let dropped = 0;
           for (const [menuItemId, qty] of Object.entries(initialCart)) {
             const stillExists = fetched.find((i) => i.id === menuItemId && i.isAvailable);
             if (stillExists) validCart[menuItemId] = qty;
+            else dropped += 1; // removed from the menu or sold out since the original order
           }
           setCart(validCart);
+          // Correct-but-silent is confusing: tell the customer WHY their cart is smaller
+          setDroppedFromReorder(dropped);
         }
       })
       .catch((err) => setError(err.message))
@@ -91,6 +96,12 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
       </label>
 
       {error && <div className="error-banner">{error}</div>}
+      {droppedFromReorder > 0 && (
+        <div className="error-banner" style={{ background: '#fff2d6', borderColor: 'var(--turmeric)', color: '#8a5a00' }}>
+          {droppedFromReorder} item{droppedFromReorder === 1 ? ' from your previous order is' : 's from your previous order are'} no
+          longer available — the rest {droppedFromReorder === 1 ? 'is' : 'are'} in your cart.
+        </div>
+      )}
       {loading && <p className="muted">Loading menu…</p>}
       {!loading && !error && items.length === 0 && (
         <div className="card" style={{ textAlign: 'center', marginTop: 16 }}>
