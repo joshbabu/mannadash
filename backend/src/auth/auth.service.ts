@@ -69,4 +69,14 @@ export class AuthService {
       },
     };
   }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('Account not found');
+    const matches = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!matches) throw new UnauthorizedException('Current password is incorrect');
+    user.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await this.userRepo.save(user);
+    return { changed: true };
+  }
 }

@@ -34,6 +34,26 @@ export default function DashboardScreen({ onLogout }) {
     }
   }
 
+  // Password reset: admin relays the temp password to the user over call/WhatsApp
+  const [resetRole, setResetRole] = useState('customer');
+  const [resetPhone, setResetPhone] = useState('');
+  const [resetResult, setResetResult] = useState(null);
+  const [resetting, setResetting] = useState(false);
+
+  async function handleResetPassword() {
+    setActionError('');
+    setResetResult(null);
+    setResetting(true);
+    try {
+      const result = await api.resetPassword(resetRole, resetPhone);
+      setResetResult(result);
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setResetting(false);
+    }
+  }
+
   // Swiggy-style FSSAI freshness rule: warn when the licence expires within 30 days (or already has)
   function fssaiWarning(expiry) {
     if (!expiry) return null;
@@ -108,6 +128,29 @@ export default function DashboardScreen({ onLogout }) {
         <div>
           {pendingRestaurants.length > 0 && (
             <>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <p style={{ fontWeight: 700, margin: '0 0 2px' }}>Reset a password</p>
+        <p className="muted" style={{ fontSize: 13, margin: '0 0 10px' }}>Generates a temporary password — share it with the user over call or WhatsApp; they should change it from their app</p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <select value={resetRole} onChange={(e) => setResetRole(e.target.value)} aria-label="Account type">
+            <option value="customer">Customer</option>
+            <option value="restaurant">Restaurant</option>
+            <option value="rider">Rider</option>
+          </select>
+          <input placeholder="Phone number" value={resetPhone} onChange={(e) => setResetPhone(e.target.value.replace(/\D/g, ''))} maxLength={10} style={{ flex: 1, minWidth: 140 }} />
+          <button className="btn-approve" onClick={handleResetPassword} disabled={resetting || resetPhone.length !== 10}>
+            {resetting ? 'Resetting…' : 'Reset'}
+          </button>
+        </div>
+        {resetResult && (
+          <p style={{ marginTop: 10, marginBottom: 0 }}>
+            Temporary password for <strong>{resetResult.name}</strong> ({resetResult.role}):{' '}
+            <code style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: 6, fontSize: 15, letterSpacing: 1 }}>{resetResult.tempPassword}</code>
+          </p>
+        )}
+      </div>
+
               <h2 style={{ fontSize: 16, marginBottom: 10 }}>Awaiting approval</h2>
               <div className="stack" style={{ marginBottom: 24 }}>
                 {pendingRestaurants.map((r) => (

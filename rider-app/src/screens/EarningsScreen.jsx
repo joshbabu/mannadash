@@ -3,6 +3,28 @@ import { api } from '../api';
 
 export default function EarningsScreen() {
   const [earnings, setEarnings] = useState(null);
+
+  const [currentPw, setCurrentPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [pwError, setPwError] = useState('');
+  const [pwChanged, setPwChanged] = useState(false);
+  const [changingPw, setChangingPw] = useState(false);
+
+  async function changePassword() {
+    setPwError('');
+    setChangingPw(true);
+    try {
+      await api.changePassword({ currentPassword: currentPw, newPassword: newPw });
+      setCurrentPw('');
+      setNewPw('');
+      setPwChanged(true);
+      setTimeout(() => setPwChanged(false), 3000);
+    } catch (err) {
+      setPwError(err.message);
+    } finally {
+      setChangingPw(false);
+    }
+  }
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -48,6 +70,21 @@ export default function EarningsScreen() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        <p style={{ fontWeight: 700, margin: '0 0 8px' }}>Change password</p>
+        {pwError && <div className="error-banner">{pwError}</div>}
+        <div className="stack">
+          <input placeholder="Current password" type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} />
+          <input placeholder="New password (min 6 characters)" type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <button className="btn-secondary" onClick={changePassword} disabled={changingPw || !currentPw || newPw.length < 6}>
+              {changingPw ? 'Changing…' : 'Change password'}
+            </button>
+            {pwChanged && <span style={{ color: 'var(--curry)', fontWeight: 600, fontSize: 14 }}>✓ Changed</span>}
+          </div>
+        </div>
       </div>
     </div>
   );

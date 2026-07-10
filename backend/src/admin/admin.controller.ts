@@ -1,6 +1,8 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Post, Req, UseGuards } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('admin')
 export class AdminController {
@@ -9,5 +11,14 @@ export class AdminController {
   @Post('login')
   login(@Body() dto: AdminLoginDto) {
     return this.adminService.login(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('reset-password')
+  resetPassword(@Req() req: any, @Body() dto: ResetPasswordDto) {
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Only admins can reset passwords');
+    }
+    return this.adminService.resetPassword(dto);
   }
 }

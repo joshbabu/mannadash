@@ -30,6 +30,7 @@ async function request(path, { method = 'GET', body, auth = false } = {}) {
 export const api = {
   signup: (body) => request('/delivery-partners/signup', { method: 'POST', body }),
   login: (body) => request('/delivery-partners/login', { method: 'POST', body }),
+  changePassword: (body) => request('/delivery-partners/me/change-password', { method: 'POST', body, auth: true }),
   getRider: (id) => request(`/delivery-partners/${id}`),
 
   setAvailability: (isAvailable) =>

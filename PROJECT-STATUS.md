@@ -67,7 +67,13 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
   is live), rider app shows "Collect ₹X in cash", delivery flips the order to paid, cancelling an
   unpaid COD order flags no refund, and the Razorpay path refuses COD orders. Real paid orders
   are now possible with no gateway.
-- **Phase B — Password reset** (decide: SMS-OTP via provider vs admin-assisted reset)
+- **Phase B — Password reset: DONE (admin-assisted).** Admin panel has a "Reset a password"
+  card (role + phone → temp password to relay over call/WhatsApp); all three apps have a
+  Change Password UI backed by role-locked endpoints. SMS-OTP was deliberately deferred:
+  SMS to Indian numbers requires DLT registration (Indian entity documents) — same root
+  blocker as Razorpay. The self-service upgrade path when ready is **WhatsApp OTP via
+  Meta's Cloud API** (works from a non-Indian business number; users' WhatsApp numbers are
+  already captured at onboarding); the admin reset stays as the support fallback.
 - **Phase C — Order acceptance timeout** (auto-cancel orders no restaurant touches)
 - **Phase D — ~~Saved addresses~~ already built** (checkout has save/pick with labels)
 - **Phase E — Delivery fee & minimum order review** (currently flat ₹30, no minimum)

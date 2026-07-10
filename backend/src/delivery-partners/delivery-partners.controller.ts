@@ -7,6 +7,7 @@ import { DeliveryPartnerLoginDto } from './dto/login.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { SetAvailabilityDto } from './dto/set-availability.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ChangePasswordDto } from '../auth/dto/change-password.dto';
 
 class AvailableNearbyQueryDto {
   @Type(() => Number)
@@ -34,6 +35,15 @@ export class DeliveryPartnersController {
   @Post('login')
   login(@Body() dto: DeliveryPartnerLoginDto) {
     return this.deliveryPartnersService.login(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me/change-password')
+  changePassword(@Req() req: any, @Body() dto: ChangePasswordDto) {
+    if (req.user.role !== 'rider') {
+      throw new ForbiddenException('Only rider accounts can use this endpoint');
+    }
+    return this.deliveryPartnersService.changePassword(req.user.userId, dto.currentPassword, dto.newPassword);
   }
 
   @UseGuards(JwtAuthGuard)

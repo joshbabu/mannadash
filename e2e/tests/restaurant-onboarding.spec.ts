@@ -71,6 +71,20 @@ test('restaurant onboarding wizard: register through all three steps', async ({ 
     await expect(page.getByText('✓ Saved')).toBeVisible();
   });
 
+  await test.step('Owner changes their password and logs back in with it', async () => {
+    await page.getByPlaceholder('Current password').fill('testpass123');
+    await page.getByPlaceholder('New password (min 6 characters)').fill('wizardpass99');
+    await page.getByRole('button', { name: 'Change password', exact: true }).click();
+    await expect(page.getByText('✓ Changed')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Log out' }).click();
+    await page.getByPlaceholder('Phone number').fill(phone);
+    await page.getByPlaceholder('Password').fill('wizardpass99');
+    await page.locator('button[type="submit"]').click();
+    // Back in the dashboard, still pending — the new credential is live
+    await expect(page.getByText('Awaiting approval.')).toBeVisible();
+  });
+
   await test.step('Everything the wizard collected reached the backend correctly', async () => {
     const list = await (await api.get('/restaurants')).json();
     const restaurant = list.find((r: any) => r.name === restaurantName);

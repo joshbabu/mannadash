@@ -154,4 +154,14 @@ export class DeliveryPartnersService {
       distanceMeters: Math.round(parseFloat(results.raw[i].distanceMeters)),
     }));
   }
+
+  async changePassword(id: string, currentPassword: string, newPassword: string) {
+    const account = await this.riderRepo.findOne({ where: { id } });
+    if (!account || !account.passwordHash) throw new UnauthorizedException('Account not found or not yet claimed');
+    const matches = await bcrypt.compare(currentPassword, account.passwordHash);
+    if (!matches) throw new UnauthorizedException('Current password is incorrect');
+    account.passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.riderRepo.save(account);
+    return { changed: true };
+  }
 }

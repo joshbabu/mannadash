@@ -20,6 +20,7 @@ import { RestaurantSignupDto } from './dto/restaurant-signup.dto';
 import { RestaurantLoginDto } from './dto/restaurant-login.dto';
 import { SetRestaurantStatusDto } from './dto/set-status.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ChangePasswordDto } from '../auth/dto/change-password.dto';
 
 @Controller('restaurants')
 export class RestaurantsController {
@@ -51,6 +52,15 @@ export class RestaurantsController {
   @Get('nearby')
   findNearby(@Query() query: NearbyQueryDto) {
     return this.restaurantsService.findNearby(query);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me/change-password')
+  changePassword(@Req() req: any, @Body() dto: ChangePasswordDto) {
+    if (req.user.role !== 'restaurant') {
+      throw new ForbiddenException('Only restaurant accounts can use this endpoint');
+    }
+    return this.restaurantsService.changePassword(req.user.userId, dto.currentPassword, dto.newPassword);
   }
 
   @Get(':id')
