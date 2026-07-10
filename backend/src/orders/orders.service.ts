@@ -472,6 +472,15 @@ export class OrdersService {
    * customer who placed it. Updates both the restaurant's and (if assigned) the rider's running
    * average immediately after.
    */
+  // Lets the customer app show "Thanks for rating!" instead of the form after a reload —
+  // rating state lived only in React state before, so revisiting a rated order re-asked
+  // for a rating and resubmission hit the duplicate-rating 400.
+  async getOrderRating(orderId: string, userId: string) {
+    await this.findOne(orderId, userId); // enforces ownership
+    const rating = await this.ratingRepo.findOne({ where: { order: { id: orderId } } });
+    return { rated: Boolean(rating), rating };
+  }
+
   async rateOrder(orderId: string, userId: string, dto: CreateRatingDto): Promise<Rating> {
     const order = await this.findOne(orderId, userId); // enforces ownership, throws 403/404 as needed
 

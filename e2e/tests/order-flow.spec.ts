@@ -13,6 +13,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
 
   let restaurantId: string, restaurantToken: string, restaurantPhone: string, restaurantName: string;
   let riderId: string, riderToken: string, riderPhone: string;
+  let customerPhone: string;
 
   await test.step('Set up: a real restaurant, rider, and admin approval', async () => {
     restaurantPhone = uniquePhone(1);
@@ -108,7 +109,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
   });
 
   await test.step('Customer signs up and places an order', async () => {
-    const customerPhone = uniquePhone(3);
+    customerPhone = uniquePhone(3);
     await customerPage.goto('http://localhost:5173');
     await customerPage.getByText('Create an account').click();
     await customerPage.getByPlaceholder('Full name').fill('E2E Test Customer');
@@ -170,6 +171,29 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await expect(customerPage.getByText(/by E2E Test Rider/)).toBeVisible();
     await expect(customerPage.getByText('💵 Cash on delivery')).toBeVisible();
     await expect(customerPage.getByRole('button', { name: /Print \/ save as PDF/ })).toBeVisible();
+  });
+
+  await test.step('A rating survives a page reload — the app never re-asks', async () => {
+    // The rating form is showing (order just delivered, not yet rated)
+    await expect(customerPage.getByText('How was your order?')).toBeVisible();
+    // Rate via the API as this customer (star-clicking is covered by backend tests;
+    // what the browser must prove is the reload persistence, which was the bug)
+    const login = await api.post('/auth/login', { data: { phone: customerPhone, password: 'testpass123' } });
+    const { accessToken } = await login.json();
+    const myOrders = await (await api.get('/orders', { headers: { Authorization: `Bearer ${accessToken}` } })).json();
+    const rate = await api.post(`/orders/${myOrders[0].id}/rating`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      data: { restaurantRating: 5, deliveryRating: 5 },
+    });
+    expect(rate.ok()).toBeTruthy();
+
+    // A reload drops the SPA back on Browse — navigate to the order the way a real
+    // customer would: Orders tab, tap the order row
+    await customerPage.reload();
+    await customerPage.getByRole('button', { name: '📋 Orders' }).click();
+    await customerPage.getByRole('button', { name: new RegExp(restaurantName) }).click();
+    await expect(customerPage.getByText('Thanks for rating your order!')).toBeVisible();
+    await expect(customerPage.getByText('How was your order?')).toHaveCount(0);
   });
 
   await test.step('Restaurant sees the delivered order in Order History', async () => {

@@ -155,6 +155,12 @@ export class OrdersController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get(':id/rating')
+  getOrderRating(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.ordersService.getOrderRating(id, req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post(':id/rating')
   rateOrder(@Req() req: any, @Param('id', ParseUUIDPipe) id: string, @Body() dto: CreateRatingDto) {
     return this.ordersService.rateOrder(id, req.user.userId, dto);

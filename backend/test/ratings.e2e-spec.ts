@@ -86,8 +86,15 @@ describe('Ratings (e2e)', () => {
       .expect(400);
   });
 
-  it('accepts a rating after delivery and blocks a duplicate rating', async () => {
+  it('accepts a rating after delivery, blocks a duplicate, and reports rated-state to the app', async () => {
     const { customer, orderId } = await deliverAFreshOrder();
+
+    // Before rating: the app's "should I show the form?" check says not rated yet
+    const before = await request(app.getHttpServer())
+      .get(`/orders/${orderId}/rating`)
+      .set('Authorization', `Bearer ${customer.token}`)
+      .expect(200);
+    expect(before.body.rated).toBe(false);
 
     await request(app.getHttpServer())
       .post(`/orders/${orderId}/rating`)
@@ -100,6 +107,15 @@ describe('Ratings (e2e)', () => {
       .set('Authorization', `Bearer ${customer.token}`)
       .send({ restaurantRating: 1, deliveryRating: 1 })
       .expect(400);
+
+    // After rating: rated-state persists across app reloads — this is what stops the
+    // customer app from re-asking for a rating on every revisit
+    const after = await request(app.getHttpServer())
+      .get(`/orders/${orderId}/rating`)
+      .set('Authorization', `Bearer ${customer.token}`)
+      .expect(200);
+    expect(after.body.rated).toBe(true);
+    expect(after.body.rating.restaurantRating).toBe(5);
   });
 
   it('correctly averages two ratings for the same restaurant', async () => {

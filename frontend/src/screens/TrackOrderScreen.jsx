@@ -19,6 +19,47 @@ function parseGeoPoint(geo) {
   return { lng: geo.coordinates[0], lat: geo.coordinates[1] };
 }
 
+// Prints (or saves as PDF) a clean, branded, single-page receipt. A dedicated window is
+// used instead of printing the app page: printing the SPA directly captured the dark app
+// background and paginated hidden content into a blank second page.
+function printReceipt(order) {
+  const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const time = (d) => new Date(d).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+  const itemRows = (order.items || [])
+    .map((i) => `<tr><td>${esc(i.menuItem?.name)} × ${i.quantity}</td><td class="r">₹${(Number(i.priceAtOrder) * i.quantity).toFixed(0)}</td></tr>`)
+    .join('');
+  const w = window.open('', '_blank', 'width=420,height=640');
+  if (!w) return; // popup blocked — nothing to do
+  w.document.write(`<!doctype html><html><head><title>MannaDash receipt #${esc(order.id.slice(0, 8))}</title>
+<style>
+  body { font-family: Georgia, 'Times New Roman', serif; color: #1f1b16; margin: 24px; }
+  h1 { font-size: 22px; color: #b3421f; margin: 0; }
+  .muted { color: #6b6156; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  td { padding: 3px 0; }
+  .r { text-align: right; }
+  .rule td { border-top: 1px solid #d8cdb8; padding-top: 6px; }
+  .total td { font-weight: 700; font-size: 15px; }
+  .footer { margin-top: 18px; font-size: 12px; color: #6b6156; text-align: center; }
+</style></head><body>
+  <h1>MannaDash</h1>
+  <p class="muted">Receipt #${esc(order.id.slice(0, 8))} · ${esc(new Date(order.placedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }))}</p>
+  <p><strong>${esc(order.restaurant?.name)}</strong><br/>
+  <span class="muted">Placed ${time(order.placedAt)}${order.deliveredAt ? ` · Delivered ${time(order.deliveredAt)}` : ''}${order.deliveryPartner ? ` by ${esc(order.deliveryPartner.name)}` : ''}</span></p>
+  <p class="muted">Delivered to: ${esc(order.deliveryAddress)}</p>
+  <table>
+    ${itemRows}
+    <tr class="rule"><td class="muted">Item total</td><td class="r">₹${Number(order.subtotal).toFixed(0)}</td></tr>
+    <tr><td class="muted">Delivery fee</td><td class="r">₹${Number(order.deliveryFee).toFixed(0)}</td></tr>
+    <tr class="total"><td>Total</td><td class="r">₹${Number(order.total).toFixed(0)}</td></tr>
+    <tr><td class="muted">${order.paymentMethod === 'cod' ? 'Cash on delivery' : 'Online payment'}</td><td class="r">${esc(order.paymentStatus)}</td></tr>
+  </table>
+  <p class="footer">Thanks for ordering with MannaDash 🍛</p>
+<script>window.onload = () => { window.print(); };</script>
+</body></html>`);
+  w.document.close();
+}
+
 export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
   const [order, setOrder] = useState(null);
   const [error, setError] = useState('');
@@ -31,6 +72,16 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
   const [submittingRating, setSubmittingRating] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState('');
+
+  // The server is the source of truth for "already rated" — local state alone re-asked
+  // for a rating on every page reload (and resubmitting hit the duplicate-rating error)
+  useEffect(() => {
+    if (order?.status === 'delivered') {
+      api.getOrderRating(order.id).then((res) => {
+        if (res.rated) setRatingSubmitted(true);
+      }).catch(() => {});
+    }
+  }, [order?.status, order?.id]);
 
   useEffect(() => {
     let socket;
@@ -177,6 +228,9 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
             <h3 style={{ fontSize: 16, margin: 0 }}>Receipt</h3>
             <span className="muted" style={{ fontSize: 13 }}>#{order.id.slice(0, 8)}</span>
           </div>
+          <p className="muted" style={{ margin: '0 0 8px', fontSize: 13 }}>
+            {order.restaurant?.name} · {new Date(order.placedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </p>
 
           {/* Delivery timeline — mirrors what the customer actually experienced */}
           <div style={{ fontSize: 14, marginBottom: 10 }}>
@@ -225,7 +279,7 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
             </div>
           </div>
 
-          <button className="btn-secondary no-print" style={{ marginBottom: 14 }} onClick={() => window.print()}>
+          <button className="btn-secondary" style={{ marginBottom: 14 }} onClick={() => printReceipt(order)}>
             🖨 Print / save as PDF
           </button>
 
@@ -256,7 +310,7 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
         </div>
       )}
 
-      {order.paymentStatus === 'pending' && (
+      {order.paymentStatus === 'pending' && order.paymentMethod !== 'cod' && (
         <button className="btn-primary" onClick={() => onPayNow(order)}>
           Pay ₹{Number(order.total).toFixed(0)}
         </button>
