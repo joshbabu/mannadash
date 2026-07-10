@@ -252,3 +252,12 @@ button:focus-visible {
   background: var(--line);
   margin-bottom: -2px;
 }
+
+
+/* Print = the receipt and nothing else (the browser's print dialog doubles as Save-as-PDF) */
+@media print {
+  body * { visibility: hidden; }
+  #order-receipt, #order-receipt * { visibility: visible; }
+  #order-receipt { position: absolute; top: 0; left: 0; width: 100%; box-shadow: none; }
+  #order-receipt .no-print, #order-receipt textarea, #order-receipt button { display: none !important; }
+}

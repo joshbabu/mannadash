@@ -172,7 +172,63 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
       )}
 
       {order.status === 'delivered' && (
-        <div className="card">
+        <div className="card" id="order-receipt">
+          <div className="row" style={{ marginBottom: 8 }}>
+            <h3 style={{ fontSize: 16, margin: 0 }}>Receipt</h3>
+            <span className="muted" style={{ fontSize: 13 }}>#{order.id.slice(0, 8)}</span>
+          </div>
+
+          {/* Delivery timeline — mirrors what the customer actually experienced */}
+          <div style={{ fontSize: 14, marginBottom: 10 }}>
+            <p style={{ margin: '0 0 2px' }}>
+              <span className="muted">Placed</span>{' '}
+              {new Date(order.placedAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
+            </p>
+            {order.pickedUpAt && (
+              <p style={{ margin: '0 0 2px' }}>
+                <span className="muted">Picked up from {order.restaurant?.name}</span>{' '}
+                {new Date(order.pickedUpAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
+              </p>
+            )}
+            {order.deliveredAt && (
+              <p style={{ margin: 0 }}>
+                <span className="muted">Delivered</span>{' '}
+                {new Date(order.deliveredAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
+                {order.deliveryPartner && <> · by {order.deliveryPartner.name}</>}
+              </p>
+            )}
+          </div>
+
+          {/* Itemized breakdown */}
+          <div style={{ borderTop: '1px solid #eee4d4', paddingTop: 8, marginBottom: 8, fontSize: 14 }}>
+            {order.items?.map((item) => (
+              <div key={item.id} className="row" style={{ marginBottom: 2 }}>
+                <span>{item.menuItem?.name} × {item.quantity}</span>
+                <span>₹{(Number(item.priceAtOrder) * item.quantity).toFixed(0)}</span>
+              </div>
+            ))}
+            <div className="row" style={{ marginTop: 6 }}>
+              <span className="muted">Item total</span>
+              <span>₹{Number(order.subtotal).toFixed(0)}</span>
+            </div>
+            <div className="row">
+              <span className="muted">Delivery fee</span>
+              <span>₹{Number(order.deliveryFee).toFixed(0)}</span>
+            </div>
+            <div className="row" style={{ fontWeight: 700, marginTop: 4 }}>
+              <span>Total</span>
+              <span>₹{Number(order.total).toFixed(0)}</span>
+            </div>
+            <div className="row" style={{ marginTop: 4, fontSize: 13 }}>
+              <span className="muted">{order.paymentMethod === 'cod' ? '💵 Cash on delivery' : '💳 Online'}</span>
+              <span style={{ color: order.paymentStatus === 'paid' ? 'var(--curry)' : '#8a5a00', fontWeight: 600 }}>{order.paymentStatus}</span>
+            </div>
+          </div>
+
+          <button className="btn-secondary no-print" style={{ marginBottom: 14 }} onClick={() => window.print()}>
+            🖨 Print / save as PDF
+          </button>
+
           {ratingSubmitted ? (
             <p style={{ margin: 0, fontWeight: 600, color: 'var(--curry)' }}>Thanks for rating your order!</p>
           ) : (

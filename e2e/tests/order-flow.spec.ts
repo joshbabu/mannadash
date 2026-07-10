@@ -161,8 +161,15 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await riderPage.getByRole('button', { name: 'Mark delivered' }).click();
   });
 
-  await test.step('Customer sees the delivery confirmed live', async () => {
+  await test.step('Customer sees the delivery confirmed live, with a full receipt', async () => {
     await expect(customerPage.getByText('Delivered')).toBeVisible({ timeout: 15_000 });
+    // The receipt: itemized lines, fee breakdown, delivery timeline, and who delivered it
+    await expect(customerPage.getByText('Receipt')).toBeVisible();
+    await expect(customerPage.getByText('E2E Test Dish × 1')).toBeVisible();
+    await expect(customerPage.getByText('Delivery fee')).toBeVisible();
+    await expect(customerPage.getByText(/by E2E Test Rider/)).toBeVisible();
+    await expect(customerPage.getByText('💵 Cash on delivery')).toBeVisible();
+    await expect(customerPage.getByRole('button', { name: /Print \/ save as PDF/ })).toBeVisible();
   });
 
   await test.step('Restaurant sees the delivered order in Order History', async () => {
