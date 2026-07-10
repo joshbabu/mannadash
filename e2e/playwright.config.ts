@@ -14,7 +14,11 @@ export default defineConfig({
   retries: 0,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    trace: 'retain-on-failure',
+    // 'on' = record the full trace for every run, pass or fail — so the CI report always
+    // has the step-by-step drill-down (each assertion, with DOM snapshots) without needing
+    // a local Playwright setup to inspect what actually ran. Costs a few MB per run in
+    // artifact size and a small slowdown; worth it for a suite this small.
+    trace: 'on',
   },
   webServer: [
     {
