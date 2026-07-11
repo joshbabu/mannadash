@@ -304,12 +304,12 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     });
     expect(groupRes.ok()).toBeTruthy();
 
-    // The previous step ended still inside the restaurant's menu (from its Reorder click),
-    // where the bottom "Browse" tab is hidden (App.jsx: showBottomNav is false whenever a
-    // restaurant is selected) — go back to the restaurant list first, which re-shows the
-    // tab bar, THEN search back in. This also forces a fresh MenuScreen mount, so the
-    // dish+variant group just created via the API actually gets fetched.
+    // The previous step reached this restaurant via the Orders tab (its Reorder click),
+    // and MenuScreen's onBack only clears selectedRestaurant — it doesn't reset which tab
+    // is active. So Back alone lands on Order History again, not the search screen; the
+    // Browse tab has to be clicked explicitly once the bottom nav reappears.
     await customerPage.getByRole('button', { name: '← Back' }).click();
+    await customerPage.getByRole('button', { name: '🍲 Browse' }).click();
     await customerPage.getByPlaceholder('Search by name or cuisine…').fill(restaurantName);
     await customerPage.getByText(restaurantName).click();
     await customerPage.getByText('E2E Variant Dish').waitFor();
