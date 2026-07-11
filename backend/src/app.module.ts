@@ -15,11 +15,14 @@ import { PushModule } from './push/push.module';
 
 import { Restaurant } from './restaurants/entities/restaurant.entity';
 import { MenuItem } from './menu-items/entities/menu-item.entity';
+import { MenuItemVariantGroup } from './menu-items/entities/menu-item-variant-group.entity';
+import { MenuItemVariantOption } from './menu-items/entities/menu-item-variant-option.entity';
 import { User } from './customers/entities/user.entity';
 import { Customer } from './customers/entities/customer.entity';
 import { DeliveryPartner } from './delivery-partners/entities/delivery-partner.entity';
 import { Order } from './orders/entities/order.entity';
 import { OrderItem } from './orders/entities/order-item.entity';
+import { OrderItemOption } from './orders/entities/order-item-option.entity';
 import { Rating } from './orders/entities/rating.entity';
 import { Payout } from './delivery-partners/entities/payout.entity';
 import { PushSubscription } from './push/entities/push-subscription.entity';
@@ -38,7 +41,21 @@ import { PushSubscription } from './push/entities/push-subscription.entity';
         username: config.get('DB_USERNAME', 'app'),
         password: config.get('DB_PASSWORD', 'app_local_dev_password'),
         database: config.get('DB_NAME', 'hyd_food_delivery'),
-        entities: [Restaurant, MenuItem, User, Customer, DeliveryPartner, Order, OrderItem, Rating, Payout, PushSubscription],
+        entities: [
+          Restaurant,
+          MenuItem,
+          MenuItemVariantGroup,
+          MenuItemVariantOption,
+          User,
+          Customer,
+          DeliveryPartner,
+          Order,
+          OrderItem,
+          OrderItemOption,
+          Rating,
+          Payout,
+          PushSubscription,
+        ],
         // synchronize is fine for early MVP dev; switch to migrations before production
         synchronize: true,
         logging: false,

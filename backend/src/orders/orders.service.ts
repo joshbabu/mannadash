@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, LessThan, Repository, SelectQueryBuilder } from 'typeorm';
 import { Order, OrderStatus, PaymentMethod, PaymentStatus, RefundStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
+import { OrderItemOption } from './entities/order-item-option.entity';
 import { Rating } from './entities/rating.entity';
 import { Payout } from '../delivery-partners/entities/payout.entity';
 import { Restaurant, RestaurantStatus } from '../restaurants/entities/restaurant.entity';
@@ -83,7 +84,7 @@ export class OrdersService {
     const menuItemIds = dto.items.map((i) => i.menuItemId);
     const menuItems = await this.menuItemRepo.find({
       where: { id: In(menuItemIds) },
-      relations: { restaurant: true },
+      relations: { restaurant: true, variantGroups: { options: true } },
     });
 
     // Validate every requested item exists, belongs to this restaurant, and is currently available.
@@ -103,14 +104,15 @@ export class OrdersService {
         throw new BadRequestException(`${menuItem.name} is currently unavailable`);
       }
 
-      const priceAtOrder = Number(menuItem.price);
-      subtotal += priceAtOrder * requested.quantity;
+      const priceAtOrder = this.resolveOrderItemPrice(menuItem, requested.selectedOptionIds ?? []);
+      subtotal += priceAtOrder.total * requested.quantity;
 
       const orderItem = new OrderItem();
       orderItem.menuItem = menuItem;
       orderItem.quantity = requested.quantity;
-      orderItem.priceAtOrder = priceAtOrder;
+      orderItem.priceAtOrder = priceAtOrder.total;
       orderItem.notes = requested.notes ?? null;
+      orderItem.selectedOptions = priceAtOrder.selectedOptions;
       orderItems.push(orderItem);
     }
 
@@ -183,6 +185,72 @@ export class OrdersService {
     return created;
   }
 
+  /**
+   * Validates the customer's variant selections against this menu item's actual variant
+   * groups and computes the true per-unit price — never trusting client-sent prices, same
+   * principle as the base-price lookup above. Rules, matching how Zomato-style pickers work:
+   *  - every selected option id must genuinely belong to THIS menu item (not some other
+   *    dish or restaurant's option — the obvious spoofing attempt to guard against)
+   *  - a 'single' group (radio) must have exactly one option selected FROM THAT GROUP if
+   *    required, and at most one if optional
+   *  - a 'multiple' group (checkboxes) must have at least one selected if required, any
+   *    number (including zero) if optional
+   *  - final price = base menu item price + sum of every selected option's priceDelta
+   */
+  private resolveOrderItemPrice(
+    menuItem: MenuItem,
+    selectedOptionIds: string[],
+  ): { total: number; selectedOptions: OrderItemOption[] } {
+    const allOptionsById = new Map<string, { option: any; group: any }>();
+    for (const group of menuItem.variantGroups ?? []) {
+      for (const option of group.options ?? []) {
+        allOptionsById.set(option.id, { option, group });
+      }
+    }
+
+    // Security: reject any id that isn't genuinely one of this item's own options
+    for (const id of selectedOptionIds) {
+      if (!allOptionsById.has(id)) {
+        throw new BadRequestException(`${menuItem.name}: an invalid customization was selected`);
+      }
+    }
+
+    // Group the customer's selections by which variant group they belong to, so we can
+    // check each group's own required/selectionType rule independently
+    const selectedByGroupId = new Map<string, string[]>();
+    for (const id of selectedOptionIds) {
+      const { group } = allOptionsById.get(id)!;
+      const list = selectedByGroupId.get(group.id) ?? [];
+      list.push(id);
+      selectedByGroupId.set(group.id, list);
+    }
+
+    for (const group of menuItem.variantGroups ?? []) {
+      const chosen = selectedByGroupId.get(group.id) ?? [];
+      if (group.required && chosen.length === 0) {
+        throw new BadRequestException(`${menuItem.name}: please choose a "${group.name}" option`);
+      }
+      if (group.selectionType === 'single' && chosen.length > 1) {
+        throw new BadRequestException(`${menuItem.name}: only one "${group.name}" option can be chosen`);
+      }
+    }
+
+    let total = Number(menuItem.price);
+    const selectedOptions: OrderItemOption[] = [];
+    for (const id of selectedOptionIds) {
+      const { option, group } = allOptionsById.get(id)!;
+      total += Number(option.priceDelta);
+      const snapshot = new OrderItemOption();
+      snapshot.variantOption = option;
+      snapshot.groupName = group.name;
+      snapshot.optionLabel = option.label;
+      snapshot.priceDeltaAtOrder = Number(option.priceDelta);
+      selectedOptions.push(snapshot);
+    }
+
+    return { total, selectedOptions };
+  }
+
   async findAllForCustomer(userId: string): Promise<Order[]> {
     const customer = await this.customerRepo.findOne({ where: { user: { id: userId } } });
     if (!customer) {
@@ -191,7 +259,7 @@ export class OrdersService {
 
     return this.orderRepo.find({
       where: { customer: { id: customer.id } },
-      relations: { restaurant: true, items: { menuItem: true } },
+      relations: { restaurant: true, items: { menuItem: true, selectedOptions: true } },
       order: { placedAt: 'DESC' },
     });
   }
@@ -200,7 +268,7 @@ export class OrdersService {
   async findAllForRestaurant(restaurantId: string): Promise<Order[]> {
     return this.orderRepo.find({
       where: { restaurant: { id: restaurantId } },
-      relations: { customer: { user: true }, items: { menuItem: true }, deliveryPartner: true },
+      relations: { customer: { user: true }, items: { menuItem: true, selectedOptions: true }, deliveryPartner: true },
       order: { placedAt: 'DESC' },
     });
   }
@@ -273,7 +341,7 @@ export class OrdersService {
   async findAllForRider(riderId: string): Promise<Order[]> {
     return this.orderRepo.find({
       where: { deliveryPartner: { id: riderId } },
-      relations: { restaurant: true, customer: { user: true }, items: { menuItem: true } },
+      relations: { restaurant: true, customer: { user: true }, items: { menuItem: true, selectedOptions: true } },
       order: { placedAt: 'DESC' },
     });
   }
@@ -281,7 +349,12 @@ export class OrdersService {
   async findOne(id: string, requestingUserId?: string): Promise<Order> {
     const order = await this.orderRepo.findOne({
       where: { id },
-      relations: { restaurant: true, customer: { user: true }, items: { menuItem: true }, deliveryPartner: true },
+      relations: {
+        restaurant: true,
+        customer: { user: true },
+        items: { menuItem: true, selectedOptions: true },
+        deliveryPartner: true,
+      },
     });
     if (!order) {
       throw new NotFoundException(`Order ${id} not found`);

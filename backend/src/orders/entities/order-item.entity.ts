@@ -1,6 +1,7 @@
-import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Order } from './order.entity';
 import { MenuItem } from '../../menu-items/entities/menu-item.entity';
+import { OrderItemOption } from './order-item-option.entity';
 
 @Entity('order_items')
 export class OrderItem {
@@ -22,4 +23,9 @@ export class OrderItem {
 
   @Column({ type: 'text', nullable: true })
   notes: string | null;
+
+  // "Size: Large", "Spice: Extra hot" — see order-item-option.entity.ts for why these are
+  // snapshotted rather than a live join
+  @OneToMany(() => OrderItemOption, (opt) => opt.orderItem, { cascade: true })
+  selectedOptions: OrderItemOption[];
 }

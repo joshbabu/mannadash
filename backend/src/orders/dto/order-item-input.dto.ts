@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsArray, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 
 export class OrderItemInputDto {
   @IsUUID()
@@ -11,4 +11,11 @@ export class OrderItemInputDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  // Which MenuItemVariantOption ids were chosen for this line — e.g. ["<Large id>",
+  // "<ExtraHot id>"]. Omitted or empty is fine for a dish with no required variant groups.
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  selectedOptionIds?: string[];
 }

@@ -18,6 +18,8 @@ import { CreateMenuItemDto } from './dto/create-menu-item.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
 import { ListMenuItemsQueryDto } from './dto/list-menu-items-query.dto';
 import { UploadImageDto } from './dto/upload-image.dto';
+import { CreateVariantGroupDto } from './dto/create-variant-group.dto';
+import { UpdateVariantGroupDto } from './dto/update-variant-group.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UploadsService } from '../uploads/uploads.service';
 
@@ -93,5 +95,36 @@ export class MenuItemsController {
       throw new ForbiddenException('You can only delete your own restaurant\'s menu items');
     }
     return this.menuItemsService.remove(id);
+  }
+
+  // Variant groups (Size, Spice Level, Add-ons) — owner-guarded through the parent dish
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/variant-groups')
+  async createVariantGroup(@Req() req: any, @Param('id', ParseUUIDPipe) id: string, @Body() dto: CreateVariantGroupDto) {
+    const item = await this.menuItemsService.findOne(id);
+    if (item.restaurant.id !== req.user.userId) {
+      throw new ForbiddenException('You can only add variants to your own restaurant\'s menu items');
+    }
+    return this.menuItemsService.createVariantGroup(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('variant-groups/:groupId')
+  async updateVariantGroup(@Req() req: any, @Param('groupId', ParseUUIDPipe) groupId: string, @Body() dto: UpdateVariantGroupDto) {
+    const group = await this.menuItemsService.findVariantGroup(groupId);
+    if (group.menuItem.restaurant.id !== req.user.userId) {
+      throw new ForbiddenException('You can only edit your own restaurant\'s menu variants');
+    }
+    return this.menuItemsService.updateVariantGroup(groupId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('variant-groups/:groupId')
+  async removeVariantGroup(@Req() req: any, @Param('groupId', ParseUUIDPipe) groupId: string) {
+    const group = await this.menuItemsService.findVariantGroup(groupId);
+    if (group.menuItem.restaurant.id !== req.user.userId) {
+      throw new ForbiddenException('You can only delete your own restaurant\'s menu variants');
+    }
+    return this.menuItemsService.removeVariantGroup(groupId);
   }
 }

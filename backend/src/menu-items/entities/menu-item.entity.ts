@@ -1,5 +1,6 @@
-import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Restaurant } from '../../restaurants/entities/restaurant.entity';
+import { MenuItemVariantGroup } from './menu-item-variant-group.entity';
 
 export enum MenuCategory {
   BREAKFAST = 'breakfast',
@@ -48,4 +49,8 @@ export class MenuItem {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  // Size, Spice Level, Add-ons, etc. — see menu-item-variant-group.entity.ts
+  @OneToMany(() => MenuItemVariantGroup, (group) => group.menuItem, { cascade: true })
+  variantGroups: MenuItemVariantGroup[];
 }
