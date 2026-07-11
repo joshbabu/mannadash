@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import VariantGroupEditor from '../components/VariantGroupEditor';
 
 export default function MenuScreen({ restaurant }) {
   const [items, setItems] = useState([]);
@@ -164,6 +165,7 @@ export default function MenuScreen({ restaurant }) {
                 <button className="btn-ghost" onClick={() => removeItem(item)}>Remove</button>
               </div>
             </div>
+            <VariantGroupEditor menuItem={item} onChange={load} />
           </div>
         ))}
       </div>

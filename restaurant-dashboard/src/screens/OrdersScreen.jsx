@@ -423,6 +423,9 @@ export default function OrdersScreen({ restaurant }) {
               {order.items.map((line) => (
                 <p key={line.id} className="muted" style={{ margin: '2px 0' }}>
                   {line.quantity} × {line.menuItem.name}
+                  {line.selectedOptions?.length > 0 && (
+                    <span> ({line.selectedOptions.map((o) => o.optionLabel).join(', ')})</span>
+                  )}
                 </p>
               ))}
             </div>

@@ -111,15 +111,23 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
 - **Phase I — Launch checklist**: packaging charges, coupons/first-order offers, receipts,
   terms & privacy pages, **GST line** (platform is liable for 5% GST on restaurant orders under
   section 9(5) — touches order math, receipts, and payouts; needs its own careful session)
-- **Phase J — Item variants & add-ons** (from the Zomato "Litti Chokha — Small/Medium/Large"
-  reference). The real complexity isn't the UI, it's the data model: a `MenuItemVariantGroup`
-  (name, `required`, `selectionType: 'single' | 'multiple'`) owning `MenuItemVariantOption`
-  rows (label, priceDelta), and `OrderItem` needs to snapshot which options were picked *and*
-  their price at order time — same pattern as `priceAtOrder`, extended. Cart state in the
-  customer app goes from `{menuItemId: qty}` to keying on a composite of item + selected
-  options, since "Litti Chokha, Large" and "Litti Chokha, Small" are different cart lines.
-  Kitchen card and receipt both need to render the selected options per line. Sizeable —
-  touches menu creation, cart, checkout, order entity, kitchen display, and receipts.
+- **Phase J — Item variants & add-ons: DONE.** `MenuItemVariantGroup` (name, `required`,
+  `selectionType: 'single' | 'multiple'`) owns `MenuItemVariantOption` rows (label,
+  priceDelta); a dish can have several groups (Size AND Spice Level independently).
+  `OrderItemOption` snapshots what was actually picked and its price at order time — proven
+  by an e2e test that deletes the variant group after ordering and confirms the historical
+  order is untouched. Price is always computed server-side (base + every selected delta),
+  with an explicit test for the spoofing case (pointing at another restaurant's option id).
+  Restaurant dashboard: a "Variants" panel per menu item (add/edit/delete groups, sync
+  options on edit — upsert by id, drop what's removed). Customer app: cart state changed
+  from `{menuItemId: qty}` to keying on item + selected options, so "Litti Chokha, Large"
+  and "Litti Chokha, Small" are separate lines; a picker modal opens on Add for any dish
+  with variant groups, disables "Add to cart" until required groups are satisfied, and
+  shows the live running price. Kitchen card, restaurant order history, and the customer
+  receipt (on-screen and printed) all show the selected options per line. Backend: 98
+  tests, all passing, including the security case; Playwright: one self-contained step
+  (a second dish, so it doesn't disturb the primary flow's existing price assertions)
+  driving the full picker → cart → checkout journey in a real browser.
 - **Phase K — Nutritional info per serving** (FSSAI-referenced in the reference screenshots:
   weight, protein, carbs, fat, fibre, calories — with calorie count derivable as
   `4×protein + 4×carbs + 9×fat` rather than manually entered, to keep the numbers honest).

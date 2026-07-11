@@ -26,7 +26,10 @@ function printReceipt(order) {
   const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const time = (d) => new Date(d).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
   const itemRows = (order.items || [])
-    .map((i) => `<tr><td>${esc(i.menuItem?.name)} × ${i.quantity}</td><td class="r">₹${(Number(i.priceAtOrder) * i.quantity).toFixed(0)}</td></tr>`)
+    .map(
+      (i) =>
+        `<tr><td>${esc(i.menuItem?.name)} × ${i.quantity}${i.selectedOptions?.length ? ` <span style="color:#6b6156">(${esc(i.selectedOptions.map((o) => o.optionLabel).join(', '))})</span>` : ''}</td><td class="r">₹${(Number(i.priceAtOrder) * i.quantity).toFixed(0)}</td></tr>`,
+    )
     .join('');
   const w = window.open('', '_blank', 'width=420,height=640');
   if (!w) return; // popup blocked — nothing to do
@@ -263,7 +266,12 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
           <div style={{ borderTop: '1px solid #eee4d4', paddingTop: 8, marginBottom: 8, fontSize: 14 }}>
             {order.items?.map((item) => (
               <div key={item.id} className="row" style={{ marginBottom: 2 }}>
-                <span>{item.menuItem?.name} × {item.quantity}</span>
+                <span>
+                  {item.menuItem?.name} × {item.quantity}
+                  {item.selectedOptions?.length > 0 && (
+                    <span className="muted"> ({item.selectedOptions.map((o) => o.optionLabel).join(', ')})</span>
+                  )}
+                </span>
                 <span>₹{(Number(item.priceAtOrder) * item.quantity).toFixed(0)}</span>
               </div>
             ))}

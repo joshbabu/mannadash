@@ -145,7 +145,12 @@ export default function OrderHistoryScreen() {
                 <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #eee4d4', fontSize: 14 }}>
                   {order.items?.map((item) => (
                     <div key={item.id} className="row" style={{ marginBottom: 2 }}>
-                      <span>{item.menuItem?.name || 'Item'} × {item.quantity}</span>
+                      <span>
+                        {item.menuItem?.name || 'Item'} × {item.quantity}
+                        {item.selectedOptions?.length > 0 && (
+                          <span className="muted"> ({item.selectedOptions.map((o) => o.optionLabel).join(', ')})</span>
+                        )}
+                      </span>
                       <span>₹{(Number(item.priceAtOrder ?? item.price ?? 0) * item.quantity).toFixed(0)}</span>
                     </div>
                   ))}

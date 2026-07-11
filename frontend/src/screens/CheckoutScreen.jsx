@@ -30,7 +30,17 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
 
   const lines = orderItems.map((oi) => {
     const item = menuItems.find((m) => m.id === oi.menuItemId);
-    return { ...oi, name: item?.name, price: Number(item?.price || 0) };
+    const selectedOptions = (oi.selectedOptionIds || [])
+      .map((optId) => {
+        for (const group of item?.variantGroups || []) {
+          const opt = group.options.find((o) => o.id === optId);
+          if (opt) return { label: opt.label, priceDelta: Number(opt.priceDelta) };
+        }
+        return null;
+      })
+      .filter(Boolean);
+    const unitPrice = Number(item?.price || 0) + selectedOptions.reduce((s, o) => s + o.priceDelta, 0);
+    return { ...oi, name: item?.name, price: unitPrice, selectedOptions };
   });
   const subtotal = lines.reduce((sum, l) => sum + l.price * l.quantity, 0);
 
@@ -70,9 +80,14 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
       <h1 style={{ fontSize: 24, marginBottom: 16 }}>Your order</h1>
 
       <div className="card">
-        {lines.map((l) => (
-          <div className="row" key={l.menuItemId} style={{ marginBottom: 8 }}>
-            <span>{l.quantity} × {l.name}</span>
+        {lines.map((l, i) => (
+          <div className="row" key={`${l.menuItemId}-${i}`} style={{ marginBottom: 8 }}>
+            <span>
+              {l.quantity} × {l.name}
+              {l.selectedOptions?.length > 0 && (
+                <span className="muted"> ({l.selectedOptions.map((o) => o.label).join(', ')})</span>
+              )}
+            </span>
             <span>₹{(l.price * l.quantity).toFixed(0)}</span>
           </div>
         ))}

@@ -41,6 +41,9 @@ export const api = {
   getMenuItems: (restaurantId) => request(`/menu-items?restaurantId=${restaurantId}`),
   createMenuItem: (body) => request('/menu-items', { method: 'POST', body, auth: true }),
   updateMenuItem: (id, body) => request(`/menu-items/${id}`, { method: 'PATCH', body, auth: true }),
+  createVariantGroup: (menuItemId, body) => request(`/menu-items/${menuItemId}/variant-groups`, { method: 'POST', body, auth: true }),
+  updateVariantGroup: (groupId, body) => request(`/menu-items/variant-groups/${groupId}`, { method: 'PATCH', body, auth: true }),
+  deleteVariantGroup: (groupId) => request(`/menu-items/variant-groups/${groupId}`, { method: 'DELETE', auth: true }),
   setMenuItemAvailability: (id, isAvailable) =>
     request(`/menu-items/${id}/availability`, { method: 'PATCH', body: { isAvailable }, auth: true }),
   deleteMenuItem: (id) => request(`/menu-items/${id}`, { method: 'DELETE', auth: true }),

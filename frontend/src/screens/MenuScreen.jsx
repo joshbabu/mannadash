@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import VariantPicker from '../components/VariantPicker';
 
 // "Open today: 09:00–22:00" / "Closed today" from whichever hours scheme is configured
 function todayHoursLabel(restaurant) {
@@ -15,7 +16,13 @@ function todayHoursLabel(restaurant) {
 
 export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart }) {
   const [items, setItems] = useState([]);
-  const [cart, setCart] = useState({}); // menuItemId -> quantity
+  // lineKey -> { menuItemId, quantity, selectedOptionIds }. lineKey is the plain menuItemId
+  // for a dish with no variant groups (unchanged from before), or `${menuItemId}::${sorted
+  // option ids}` for a specific variant combination — so "Litti Chokha, Large" and "Litti
+  // Chokha, Small" are separate lines with independent quantities, while a dish with no
+  // variants behaves exactly as it always has.
+  const [cart, setCart] = useState({});
+  const [pickerItem, setPickerItem] = useState(null); // menu item currently showing its variant picker
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [vegOnly, setVegOnly] = useState(false);
@@ -32,18 +39,23 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
       .getMenuItems(restaurant.id)
       .then((fetched) => {
         setItems(fetched);
-        // Seed the cart from a past order, but only for items that still exist and are available —
-        // a restaurant may have removed or sold out an item since the original order
+        // Seed the cart from a past order, but only for items that still exist, are
+        // available, AND have no variant groups — a dish that now has required
+        // customizations (or didn't before) can't be safely auto-filled, since we don't
+        // know which size/spice-level the customer would pick today. Same "tell them why"
+        // treatment as an unavailable item.
         if (initialCart) {
-          const validCart = {};
+          const nextCart = {};
           let dropped = 0;
           for (const [menuItemId, qty] of Object.entries(initialCart)) {
             const stillExists = fetched.find((i) => i.id === menuItemId && i.isAvailable);
-            if (stillExists) validCart[menuItemId] = qty;
-            else dropped += 1; // removed from the menu or sold out since the original order
+            if (stillExists && !(stillExists.variantGroups?.length > 0)) {
+              nextCart[menuItemId] = { menuItemId, quantity: qty, selectedOptionIds: [] };
+            } else {
+              dropped += 1;
+            }
           }
-          setCart(validCart);
-          // Correct-but-silent is confusing: tell the customer WHY their cart is smaller
+          setCart(nextCart);
           setDroppedFromReorder(dropped);
         }
       })
@@ -51,18 +63,61 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
       .finally(() => setLoading(false));
   }, [restaurant.id]);
 
-  function changeQty(itemId, delta) {
+  function lineKeyFor(menuItemId, selectedOptionIds) {
+    if (!selectedOptionIds || selectedOptionIds.length === 0) return menuItemId;
+    return `${menuItemId}::${[...selectedOptionIds].sort().join(',')}`;
+  }
+
+  function changeQty(lineKey, delta, menuItemId, selectedOptionIds = []) {
     setCart((prev) => {
       const next = { ...prev };
-      const newQty = (next[itemId] || 0) + delta;
-      if (newQty <= 0) delete next[itemId];
-      else next[itemId] = newQty;
+      const existing = next[lineKey];
+      const newQty = (existing?.quantity || 0) + delta;
+      if (newQty <= 0) {
+        delete next[lineKey];
+      } else {
+        next[lineKey] = { menuItemId, quantity: newQty, selectedOptionIds };
+      }
       return next;
     });
   }
 
-  const cartCount = Object.values(cart).reduce((a, b) => a + b, 0);
-  const cartTotal = items.reduce((sum, item) => sum + (cart[item.id] || 0) * Number(item.price), 0);
+  // Called from the variant picker once the customer confirms their choices
+  function addCartLine(menuItemId, selectedOptionIds) {
+    const key = lineKeyFor(menuItemId, selectedOptionIds);
+    changeQty(key, 1, menuItemId, selectedOptionIds);
+    setPickerItem(null);
+  }
+
+  // Base price + every selected option's delta, for one unit of this line
+  function lineUnitPrice(line) {
+    const item = items.find((i) => i.id === line.menuItemId);
+    if (!item) return 0;
+    let price = Number(item.price);
+    for (const optId of line.selectedOptionIds || []) {
+      for (const group of item.variantGroups || []) {
+        const opt = group.options.find((o) => o.id === optId);
+        if (opt) price += Number(opt.priceDelta);
+      }
+    }
+    return price;
+  }
+
+  function lineLabel(line) {
+    const item = items.find((i) => i.id === line.menuItemId);
+    const labels = [];
+    for (const optId of line.selectedOptionIds || []) {
+      for (const group of item?.variantGroups || []) {
+        const opt = group.options.find((o) => o.id === optId);
+        if (opt) labels.push(opt.label);
+      }
+    }
+    return labels.join(', ');
+  }
+
+  const cartLines = Object.entries(cart).map(([lineKey, line]) => ({ lineKey, ...line }));
+  const cartCount = cartLines.reduce((a, l) => a + l.quantity, 0);
+  const cartTotal = cartLines.reduce((sum, l) => sum + lineUnitPrice(l) * l.quantity, 0);
 
   const CATEGORY_LABELS = { breakfast: 'Breakfast', starter: 'Starters', lunch: 'Lunch', dinner: 'Dinner', main: 'Mains', dessert: 'Desserts', beverage: 'Beverages' };
   const CATEGORY_ORDER = ['breakfast', 'starter', 'lunch', 'dinner', 'main', 'dessert', 'beverage'];
@@ -98,7 +153,11 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
   }
 
   function goToCheckout() {
-    const orderItems = Object.entries(cart).map(([menuItemId, quantity]) => ({ menuItemId, quantity }));
+    const orderItems = cartLines.map((l) => ({
+      menuItemId: l.menuItemId,
+      quantity: l.quantity,
+      ...(l.selectedOptionIds?.length ? { selectedOptionIds: l.selectedOptionIds } : {}),
+    }));
     onCheckout(restaurant, orderItems, items);
   }
 
@@ -217,18 +276,41 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
                   </div>
                   {!item.isAvailable ? (
                     <span className="muted" style={{ color: '#8a8378' }}>Sold out</span>
+                  ) : item.variantGroups?.length > 0 ? (
+                    <button
+                      className="btn-secondary"
+                      style={{ color: 'var(--chili-dark)', borderColor: 'var(--chili)' }}
+                      onClick={() => setPickerItem(item)}
+                    >
+                      {cartLines.some((l) => l.menuItemId === item.id) ? 'Add another' : 'Add'}
+                    </button>
                   ) : cart[item.id] ? (
                     <div className="qty-control">
-                      <button onClick={() => changeQty(item.id, -1)}>−</button>
-                      <span style={{ minWidth: 16, textAlign: 'center' }}>{cart[item.id]}</span>
-                      <button onClick={() => changeQty(item.id, 1)}>+</button>
+                      <button onClick={() => changeQty(item.id, -1, item.id, [])}>−</button>
+                      <span style={{ minWidth: 16, textAlign: 'center' }}>{cart[item.id].quantity}</span>
+                      <button onClick={() => changeQty(item.id, 1, item.id, [])}>+</button>
                     </div>
                   ) : (
-                    <button className="btn-secondary" style={{ color: 'var(--chili-dark)', borderColor: 'var(--chili)' }} onClick={() => changeQty(item.id, 1)}>
+                    <button className="btn-secondary" style={{ color: 'var(--chili-dark)', borderColor: 'var(--chili)' }} onClick={() => changeQty(item.id, 1, item.id, [])}>
                       Add
                     </button>
                   )}
                 </div>
+
+                {/* Lines already in the cart for this specific dish — each variant
+                    combination gets its own row with an independent quantity stepper */}
+                {cartLines
+                  .filter((l) => l.menuItemId === item.id && l.selectedOptionIds?.length > 0)
+                  .map((line) => (
+                    <div key={line.lineKey} className="row" style={{ marginTop: 6, paddingLeft: 12, fontSize: 13 }}>
+                      <span className="muted">{lineLabel(line)} · ₹{lineUnitPrice(line).toFixed(0)}</span>
+                      <div className="qty-control">
+                        <button onClick={() => changeQty(line.lineKey, -1, line.menuItemId, line.selectedOptionIds)}>−</button>
+                        <span style={{ minWidth: 16, textAlign: 'center' }}>{line.quantity}</span>
+                        <button onClick={() => changeQty(line.lineKey, 1, line.menuItemId, line.selectedOptionIds)}>+</button>
+                      </div>
+                    </div>
+                  ))}
               </div>
               );
             })}
@@ -303,6 +385,14 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
             </button>
           )}
         </div>
+      )}
+
+      {pickerItem && (
+        <VariantPicker
+          item={pickerItem}
+          onCancel={() => setPickerItem(null)}
+          onConfirm={(selectedOptionIds) => addCartLine(pickerItem.id, selectedOptionIds)}
+        />
       )}
     </div>
   );

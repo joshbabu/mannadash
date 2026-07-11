@@ -282,6 +282,60 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await expect(restaurantPage.getByText(/E2E Test Dish × 1/)).toBeVisible();
   });
 
+  await test.step('Phase J: a dish with a required variant group prices and orders correctly through the picker', async () => {
+    // A second dish on the same restaurant, kept separate from E2E Test Dish so this
+    // doesn't disturb any of the existing price/label assertions built around that one
+    const variantDishRes = await api.post('/menu-items', {
+      headers: { Authorization: `Bearer ${restaurantToken}` },
+      data: { restaurantId, name: 'E2E Variant Dish', price: 150, category: 'main' },
+    });
+    const variantDishId = (await variantDishRes.json()).id;
+    const groupRes = await api.post(`/menu-items/${variantDishId}/variant-groups`, {
+      headers: { Authorization: `Bearer ${restaurantToken}` },
+      data: {
+        name: 'Size',
+        required: true,
+        selectionType: 'single',
+        options: [
+          { label: 'Small', priceDelta: 0 },
+          { label: 'Large', priceDelta: 50 },
+        ],
+      },
+    });
+    expect(groupRes.ok()).toBeTruthy();
+
+    // Back to Browse, into the restaurant fresh
+    await customerPage.getByRole('button', { name: '🍲 Browse' }).click();
+    await customerPage.getByPlaceholder('Search by name or cuisine…').fill(restaurantName);
+    await customerPage.getByText(restaurantName).click();
+    await customerPage.getByText('E2E Variant Dish').waitFor();
+
+    // "Add" on a variant dish opens the picker rather than adding directly
+    const dishCard = customerPage.locator('.card', { hasText: 'E2E Variant Dish' });
+    await dishCard.getByRole('button', { name: 'Add' }).click();
+    await expect(customerPage.getByText('Size')).toBeVisible();
+
+    // "Add to cart" is disabled until the required group has a selection
+    await expect(customerPage.getByRole('button', { name: /Add to cart/ })).toBeDisabled();
+    // exact:true — the option row's price badge ("+₹50") is a sibling, but the label
+    // wraps both, so a substring match on 'Large' would ambiguously hit both the row's
+    // own text and the option-name span nested inside it
+    await customerPage.getByText('Large', { exact: true }).click();
+    // Price updates live as the option is picked: base 150 + delta 50 = 200
+    await expect(customerPage.getByRole('button', { name: 'Add to cart · ₹200' })).toBeEnabled();
+    await customerPage.getByRole('button', { name: 'Add to cart · ₹200' }).click();
+
+    // The cart line under the dish shows the chosen variant and its price
+    await expect(customerPage.getByText('Large · ₹200')).toBeVisible();
+    await expect(customerPage.getByRole('button', { name: /View cart · 1 item · ₹200/ })).toBeVisible();
+
+    // Checkout carries the selection through, correctly priced — one combined regex
+    // targeting the line's own text, since a substring check for just "(Large)" would
+    // ambiguously match both the line and its nested variant-label span
+    await customerPage.getByRole('button', { name: /View cart/ }).click();
+    await expect(customerPage.getByText(/E2E Variant Dish.*\(Large\)/)).toBeVisible();
+  });
+
   await customerContext.close();
   await restaurantContext.close();
   await riderContext.close();
