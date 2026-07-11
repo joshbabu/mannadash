@@ -78,6 +78,15 @@ test('restaurant onboarding wizard: register through all three steps', async ({ 
     await expect(page.getByText('✓ Changed')).toBeVisible();
 
     await page.getByRole('button', { name: 'Log out' }).click();
+    // Regression: logout previously cleared the auth token but left the cached restaurant
+    // object in localStorage, so a refresh right after logging out re-hydrated the
+    // dashboard from stale data with no valid token underneath — "Unauthorized" errors on
+    // every API call while the UI still looked logged in. A refresh here must land back
+    // on the login form, not the dashboard.
+    await page.reload();
+    await expect(page.getByPlaceholder('Phone number')).toBeVisible();
+    await expect(page.getByText('Unauthorized')).toHaveCount(0);
+
     await page.getByPlaceholder('Phone number').fill(phone);
     await page.getByPlaceholder('Password').fill('wizardpass99');
     await page.locator('button[type="submit"]').click();

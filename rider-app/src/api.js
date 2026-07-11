@@ -47,6 +47,7 @@ export const api = {
   getToken,
   setToken: (token) => localStorage.setItem('dabba_rider_token', token),
   clearToken: () => localStorage.removeItem('dabba_rider_token'),
+  clearStoredRider: () => localStorage.removeItem('dabba_rider'),
   getStoredRider: () => {
     const raw = localStorage.getItem('dabba_rider');
     return raw ? JSON.parse(raw) : null;

@@ -57,6 +57,7 @@ export const api = {
   getToken,
   setToken: (token) => localStorage.setItem('dabba_token', token),
   clearToken: () => localStorage.removeItem('dabba_token'),
+  clearStoredUser: () => localStorage.removeItem('dabba_user'),
   getStoredUser: () => {
     const raw = localStorage.getItem('dabba_user');
     return raw ? JSON.parse(raw) : null;

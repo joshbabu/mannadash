@@ -65,6 +65,7 @@ export const api = {
   getToken,
   setToken: (token) => localStorage.setItem('dabba_restaurant_token', token),
   clearToken: () => localStorage.removeItem('dabba_restaurant_token'),
+  clearStoredRestaurant: () => localStorage.removeItem('dabba_restaurant'),
   getStoredRestaurant: () => {
     const raw = localStorage.getItem('dabba_restaurant');
     return raw ? JSON.parse(raw) : null;

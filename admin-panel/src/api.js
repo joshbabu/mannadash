@@ -42,6 +42,7 @@ export const api = {
   getToken,
   setToken: (token) => localStorage.setItem('mannadash_admin_token', token),
   clearToken: () => localStorage.removeItem('mannadash_admin_token'),
+  clearStoredAdmin: () => localStorage.removeItem('mannadash_admin'),
   getStoredAdmin: () => {
     const raw = localStorage.getItem('mannadash_admin');
     return raw ? JSON.parse(raw) : null;

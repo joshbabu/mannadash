@@ -11,7 +11,11 @@ export default function App() {
   }
 
   function logout() {
+    // Same fix applied across all four apps: clearing only the token left the cached
+    // admin object behind, so a refresh after logout re-hydrated from stale localStorage
+    // with no valid token underneath.
     api.clearToken();
+    api.clearStoredAdmin();
     setAdmin(null);
   }
 

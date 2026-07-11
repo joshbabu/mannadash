@@ -27,7 +27,11 @@ export default function App() {
   }
 
   function logout() {
+    // Same fix as the rider app: clearing only the token left the cached restaurant
+    // object behind, so a refresh after logout re-hydrated from stale localStorage
+    // with no valid token underneath.
     api.clearToken();
+    api.clearStoredRestaurant();
     setRestaurant(null);
     setFreshStatus(null);
   }
