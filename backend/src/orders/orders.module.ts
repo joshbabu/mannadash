@@ -17,6 +17,7 @@ import { DeliveryPartnersModule } from '../delivery-partners/delivery-partners.m
 import { PaymentsModule } from '../payments/payments.module';
 import { RestaurantsModule } from '../restaurants/restaurants.module';
 import { PushModule } from '../push/push.module';
+import { OffersModule } from '../offers/offers.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { PushModule } from '../push/push.module';
     PaymentsModule, // provides RazorpayService for create/verify payment
     RestaurantsModule, // provides RestaurantsService.setRatingAvg()
     PushModule, // provides PushService for real push notifications alongside sockets
+    OffersModule, // provides OffersService.resolveOffer()/recordRedemption() for L1
   ],
   providers: [OrdersService, OrdersGateway],
   controllers: [OrdersController],

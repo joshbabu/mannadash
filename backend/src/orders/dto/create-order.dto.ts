@@ -34,4 +34,12 @@ export class CreateOrderDto {
   @IsString()
   @MaxLength(300)
   instructions?: string;
+
+  // L1: a customer-typed code always takes precedence over whatever automatic offer would
+  // otherwise apply. Case-insensitive — normalized (uppercased/trimmed) in the service,
+  // same as how the code was normalized when the restaurant created the offer.
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  promoCode?: string;
 }

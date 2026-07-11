@@ -26,6 +26,9 @@ import { OrderItemOption } from './orders/entities/order-item-option.entity';
 import { Rating } from './orders/entities/rating.entity';
 import { Payout } from './delivery-partners/entities/payout.entity';
 import { PushSubscription } from './push/entities/push-subscription.entity';
+import { Offer } from './offers/entities/offer.entity';
+import { OfferRedemption } from './offers/entities/offer-redemption.entity';
+import { OffersModule } from './offers/offers.module';
 
 @Module({
   imports: [
@@ -55,6 +58,8 @@ import { PushSubscription } from './push/entities/push-subscription.entity';
           Rating,
           Payout,
           PushSubscription,
+          Offer,
+          OfferRedemption,
         ],
         // synchronize is fine for early MVP dev; switch to migrations before production
         synchronize: true,
@@ -65,6 +70,7 @@ import { PushSubscription } from './push/entities/push-subscription.entity';
     MenuItemsModule,
     CustomersModule,
     DeliveryPartnersModule,
+    OffersModule,
     OrdersModule,
     AuthModule,
     AdminModule,

@@ -20,6 +20,7 @@ import { RestaurantsService } from '../restaurants/restaurants.service';
 import { PushService } from '../push/push.service';
 import { OrdersGateway } from './orders.gateway';
 import { RazorpayService } from '../payments/razorpay.service';
+import { OffersService } from '../offers/offers.service';
 
 // Flat delivery fee for MVP — replace with distance-based calculation once rider assignment exists
 
@@ -54,6 +55,7 @@ export class OrdersService {
     private readonly pushService: PushService,
     private readonly ordersGateway: OrdersGateway,
     private readonly razorpayService: RazorpayService,
+    private readonly offersService: OffersService,
   ) {}
 
   async create(userId: string, dto: CreateOrderDto): Promise<Order> {
@@ -131,8 +133,21 @@ export class OrdersService {
     const distanceMeters = parseFloat(distanceRow[0].dist);
     const deliveryFee = calculateDeliveryFee(distanceMeters);
 
+    // L1: a customer-typed code always wins outright; otherwise the best eligible
+    // automatic offer applies itself silently. Resolved AFTER delivery fee is known,
+    // since a free_delivery offer's discount amount IS the delivery fee.
+    const resolvedOffer = await this.offersService.resolveOffer(
+      restaurant.id,
+      customer.id,
+      subtotal,
+      deliveryFee,
+      dto.promoCode,
+    );
+    const discountAmount = resolvedOffer?.discountAmount ?? 0;
+    const appliedOfferName = resolvedOffer?.offer.name ?? null;
+
     const commissionAmount = Math.round(subtotal * (Number(restaurant.commissionRate) / 100) * 100) / 100;
-    const total = subtotal + deliveryFee;
+    const total = Math.max(0, subtotal + deliveryFee - discountAmount);
 
     // Rough ETA: restaurant's stated prep time + a distance-based travel estimate.
     // Assumes ~20km/h average city delivery speed — doesn't account for real traffic,
@@ -160,6 +175,8 @@ export class OrdersService {
         deliveryFee,
         commissionAmount,
         total,
+        discountAmount: discountAmount || null,
+        appliedOfferName,
         estimatedDeliveryAt,
       } as any)
       .returning('*')
@@ -172,6 +189,10 @@ export class OrdersService {
       item.order = { id: savedOrderId } as Order;
     }
     await this.orderRepo.manager.getRepository(OrderItem).save(orderItems);
+
+    if (resolvedOffer) {
+      await this.offersService.recordRedemption(resolvedOffer.offer, savedOrderId, customer.id, discountAmount);
+    }
 
     const created = await this.findOne(savedOrderId);
     // Push directly to the restaurant's personal channel — this is what actually notifies them

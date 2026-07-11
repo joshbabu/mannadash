@@ -90,6 +90,14 @@ export class Order {
   @Column({ type: 'varchar', nullable: true })
   cancelReason: 'customer' | 'restaurant' | 'acceptance_timeout' | null;
 
+  // Snapshot of an applied offer (L1) — name/amount survive the offer being edited or
+  // deleted later, same principle as priceAtOrder. Null when no offer applied.
+  @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true })
+  discountAmount: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  appliedOfferName: string | null;
+
   // Set the moment the halfway-to-timeout nudge fires, so the cron sends it exactly once
   // per order rather than every time it sweeps
   @Column({ type: 'timestamptz', nullable: true })
