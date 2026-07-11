@@ -79,7 +79,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
       </button>
       <h1 style={{ fontSize: 24, marginBottom: 16 }}>Your order</h1>
 
-      <div className="card">
+      <div id="checkout-cart-summary" className="card">
         {lines.map((l, i) => (
           <div className="row" key={`${l.menuItemId}-${i}`} style={{ marginBottom: 8 }}>
             <span>

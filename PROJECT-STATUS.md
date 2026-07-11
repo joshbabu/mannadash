@@ -206,6 +206,18 @@ time, not just today.
    Found by manual testing, not by a test — a reminder that "log out, then refresh" is a real
    user path worth checking by hand even when the happy path is covered. Now regression-locked
    in `e2e/tests/auth-logout.spec.ts` for all four apps.
+6. **The light-card-in-dark-theme contrast bug is now a confirmed pattern, not a one-off** —
+   third occurrence (admin KYC panel, the receipt, and now the Phase J variant picker + its
+   checkout summary). Root cause every time: the customer app is dark-themed globally, but
+   `.card` uses a light "paper" background as an intentional light-mode island — and `.muted`
+   defaults to a light gray tuned for the dark background, so it's invisible (not missing,
+   genuinely rendered, just unreadable) on any card. First fix on this attempt was WRONG —
+   assumed a stale browser tab rather than checking the actual CSS, and told Joshua so before
+   verifying. Correct process going forward: any new light `.card` surface in the customer
+   app needs `#that-card-id .muted { color: #6b6156 }` added in `theme.css` from the start,
+   not discovered after a user reports invisible text. Both the picker and checkout summary
+   are now regression-locked with `toHaveCSS('color', ...)` assertions (not just `toBeVisible`,
+   which passes even when text is genuinely unreadable).
 
 ## For the new chat
 

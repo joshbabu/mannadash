@@ -330,6 +330,14 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
 
     // "Add to cart" is disabled until the required group has a selection
     await expect(customerPage.getByRole('button', { name: /Add to cart/ })).toBeDisabled();
+    // Regression: the option's price badge ("+₹50") uses .muted, which is light-on-dark
+    // globally — inside the picker's light "paper" card it was rendering but invisible,
+    // same bug class as the receipt labels earlier. Assert the actual computed color,
+    // not just presence, since "in the DOM but unreadable" is exactly what slipped through.
+    // exact:true — same nested-label ambiguity as the 'Large' click below: the row's own
+    // combined text ("Large +₹50") would also substring-match, since the price badge is a
+    // sibling span inside that same label
+    await expect(customerPage.getByText('+₹50', { exact: true })).toHaveCSS('color', 'rgb(107, 97, 86)');
     // exact:true — the option row's price badge ("+₹50") is a sibling, but the label
     // wraps both, so a substring match on 'Large' would ambiguously hit both the row's
     // own text and the option-name span nested inside it
@@ -347,6 +355,10 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // ambiguously match both the line and its nested variant-label span
     await customerPage.getByRole('button', { name: /View cart/ }).click();
     await expect(customerPage.getByText(/E2E Variant Dish.*\(Large\)/)).toBeVisible();
+    // Regression: same contrast bug as the picker's price badge — checkout's variant
+    // label also uses .muted inside a light card and was genuinely invisible, not (as
+    // first assumed from a screenshot) a stale-tab caching artifact
+    await expect(customerPage.locator('#checkout-cart-summary .muted').first()).toHaveCSS('color', 'rgb(107, 97, 86)');
   });
 
   await customerContext.close();

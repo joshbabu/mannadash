@@ -262,3 +262,15 @@ button:focus-visible {
 #order-receipt .muted {
   color: #6b6156;
 }
+
+/* Same bug, same fix, third occurrence this session (also hit the admin panel's KYC
+   panel): any light "paper" card dropped into this dark-themed app needs its .muted text
+   re-scoped, or it's invisible — light-on-light. The variant picker's price badges
+   ("+₹50" next to each option) were rendering correctly, just unreadably faint. */
+#variant-picker .muted {
+  color: #6b6156;
+}
+
+#checkout-cart-summary .muted {
+  color: #6b6156;
+}

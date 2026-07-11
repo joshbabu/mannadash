@@ -45,6 +45,7 @@ export default function VariantPicker({ item, onConfirm, onCancel }) {
       onClick={onCancel}
     >
       <div
+        id="variant-picker"
         className="card"
         style={{ width: '100%', maxWidth: 440, maxHeight: '80vh', overflowY: 'auto', margin: 0, borderRadius: '16px 16px 0 0' }}
         onClick={(e) => e.stopPropagation()}
