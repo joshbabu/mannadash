@@ -328,10 +328,12 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     });
     expect(soldOut.ok()).toBeTruthy();
 
-    // The customer's history row says so upfront
+    // The customer's history row says so upfront — scoped to .first() since this
+    // restaurant now has two delivered orders in history (the original, and the Phase L1
+    // offer-test order added later in this same test), both correctly showing the pill
     await customerPage.reload();
     await customerPage.getByRole('button', { name: '📋 Orders' }).click();
-    await expect(customerPage.getByText('Closed now')).toBeVisible();
+    await expect(customerPage.getByText('Closed now').first()).toBeVisible();
 
     // "View menu" browses the restaurant without force-filling a cart
     await customerPage.getByRole('button', { name: 'View menu', exact: true }).first().click();
@@ -358,15 +360,17 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // formatted value carried the symbol)
     await expect(restaurantPage.getByText(/💰\s*₹[\d,]+/)).toBeVisible();
     await expect(restaurantPage.getByText(/₹\s*₹/)).toHaveCount(0);
-    // Summary card and the order row itself, with the customer who placed it
-    await expect(restaurantPage.getByText('E2E Test Customer')).toBeVisible();
+    // Summary card and the order row itself, with the customer who placed it — scoped to
+    // .first() since the same test customer now has two delivered orders here (the
+    // original, and the Phase L1 offer-test order)
+    await expect(restaurantPage.getByText('E2E Test Customer').first()).toBeVisible();
     await expect(restaurantPage.locator('.pill.status-delivered').first()).toBeVisible();
     // COD + delivered = paid, and the row is marked as a cash order
     await expect(restaurantPage.getByText('💵 COD').first()).toBeVisible();
     await expect(restaurantPage.locator('.pill').filter({ hasText: /^paid$/ }).first()).toBeVisible();
     // Expanding the row shows what was ordered
-    await restaurantPage.getByText('E2E Test Customer').click();
-    await expect(restaurantPage.getByText(/E2E Test Dish × 1/)).toBeVisible();
+    await restaurantPage.getByText('E2E Test Customer').first().click();
+    await expect(restaurantPage.getByText(/E2E Test Dish × 1/).first()).toBeVisible();
   });
 
   await test.step('Phase J: a dish with a required variant group prices and orders correctly through the picker', async () => {
