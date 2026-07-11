@@ -69,6 +69,13 @@ export class OrdersGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`order:${orderId}`).emit('orderUpdate', payload);
   }
 
+  // Halfway-to-timeout nudge for the restaurant's live dashboard — a distinct event from
+  // orderUpdate so the UI can distinguish "still just placed, but hurry" from an actual
+  // status change
+  emitOrderExpiringSoon(restaurantId: string, payload: { orderId: string; secondsRemaining: number }) {
+    this.server.to(`restaurant:${restaurantId}`).emit('orderExpiringSoon', payload);
+  }
+
   // Called when a rider pings their location — lets the customer's live map update without polling
   emitRiderLocation(orderId: string, lat: number, lng: number) {
     this.server.to(`order:${orderId}`).emit('riderLocation', { lat, lng });

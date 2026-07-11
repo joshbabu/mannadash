@@ -56,7 +56,13 @@ export default function OrderHistoryScreen({ onSelectOrder, onReorder, onViewRes
                     <span className="pill" style={{ background: '#f0e5e5', color: '#8a3a3a', marginLeft: 8, fontSize: 11 }}>Closed now</span>
                   )}
                 </h3>
-                <span className="pill">{o.status.replaceAll('_', ' ')}</span>
+                <span
+                  className="pill"
+                  title={o.status === 'cancelled' && o.cancelReason === 'acceptance_timeout' ? "The restaurant didn't respond in time" : undefined}
+                >
+                  {o.status.replaceAll('_', ' ')}
+                  {o.status === 'cancelled' && o.cancelReason === 'acceptance_timeout' ? ' ⏰' : ''}
+                </span>
               </div>
               <p className="muted" style={{ color: '#6b6156' }}>₹{Number(o.total).toFixed(0)} · {new Date(o.placedAt).toLocaleDateString()}</p>
               {o.items?.length > 0 && (

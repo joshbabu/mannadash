@@ -108,6 +108,7 @@ export class OrdersController {
           'Only the restaurant can cancel after acceptance — you can cancel your own order only before it\'s accepted',
         );
       }
+      return this.ordersService.updateStatus(id, dto.status, isRestaurant ? 'restaurant' : 'customer');
     } else if (restaurantOnlyStatuses.includes(dto.status)) {
       if (order.restaurant.id !== req.user.userId) {
         throw new ForbiddenException('Only the restaurant can accept, prepare, or mark this order ready');

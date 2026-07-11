@@ -181,7 +181,13 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
       )}
 
       {isCancelled ? (
-        <div className="error-banner" style={{ marginTop: 20 }}>This order was cancelled.</div>
+        <div className="error-banner" style={{ marginTop: 20 }}>
+          {order.cancelReason === 'acceptance_timeout'
+            ? "The restaurant didn't respond in time, so this order was automatically cancelled."
+            : order.cancelReason === 'restaurant'
+            ? 'The restaurant cancelled this order.'
+            : 'You cancelled this order.'}
+        </div>
       ) : (
         <div className="tiffin-stack">
           {[...STAGES].reverse().map((stage, i) => {

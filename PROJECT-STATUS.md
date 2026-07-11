@@ -74,7 +74,16 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
   blocker as Razorpay. The self-service upgrade path when ready is **WhatsApp OTP via
   Meta's Cloud API** (works from a non-Indian business number; users' WhatsApp numbers are
   already captured at onboarding); the admin reset stays as the support fallback.
-- **Phase C — Order acceptance timeout** (auto-cancel orders no restaurant touches)
+- **Phase C — Order acceptance timeout: DONE.** A restaurant has 7 minutes to accept a placed
+  order (mirrors Zomato/Swiggy's short accept-countdown convention); a cron sweep (every 30s)
+  nudges the restaurant's live dashboard once at the halfway mark (3.5 min) and auto-cancels
+  at the full timeout, reusing the same `updateStatus` path as a manual cancellation so
+  refund-flagging and rider-release can't drift between the two. Auto-cancelled orders are
+  tagged `cancelReason: 'acceptance_timeout'` (vs `'customer'` / `'restaurant'` for manual
+  cancels), and both customer and restaurant apps show the honest reason rather than a bare
+  "cancelled" pill. `ACCEPT_TIMEOUT_MINUTES = 7` lives on `OrdersService`; the restaurant
+  dashboard mirrors it as `ACCEPT_TIMEOUT_SECONDS` for its live countdown UI — keep both in
+  sync if this ever changes.
 - **Phase D — ~~Saved addresses~~ already built** (checkout has save/pick with labels)
 - **Phase E — Delivery fee & minimum order review** (currently flat ₹30, no minimum)
 - **Phase F — No-rider-available handling**

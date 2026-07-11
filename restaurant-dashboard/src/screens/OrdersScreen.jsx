@@ -27,6 +27,20 @@ const AWARENESS_MESSAGE = {
 // a live-aging urgency indicator so a restaurant juggling several orders can triage at a
 // glance instead of treating every order as equally pressing.
 const ACTIVE_STATUSES = ['placed', 'accepted', 'preparing', 'ready_for_pickup'];
+
+// Mirrors OrdersService.ACCEPT_TIMEOUT_MINUTES on the backend — keep in sync if that changes.
+const ACCEPT_TIMEOUT_SECONDS = 7 * 60;
+const NUDGE_AT_SECONDS = ACCEPT_TIMEOUT_SECONDS / 2;
+
+// Countdown to auto-cancel for a still-PLACED order, or null once accepted/decided
+function getAcceptCountdown(order, now) {
+  if (order.status !== 'placed') return null;
+  const secondsElapsed = Math.floor((now - new Date(order.placedAt).getTime()) / 1000);
+  const secondsLeft = Math.max(0, ACCEPT_TIMEOUT_SECONDS - secondsElapsed);
+  const mm = Math.floor(secondsLeft / 60);
+  const ss = String(secondsLeft % 60).padStart(2, '0');
+  return { label: `Accept within ${mm}:${ss}`, urgent: secondsElapsed >= NUDGE_AT_SECONDS };
+}
 function getUrgency(order, now) {
   if (!ACTIVE_STATUSES.includes(order.status)) return null;
   const minutesElapsed = (now - new Date(order.placedAt).getTime()) / 60000;
@@ -48,6 +62,8 @@ export default function OrdersScreen({ restaurant }) {
   const [availableRiders, setAvailableRiders] = useState([]);
   const [loadingRiders, setLoadingRiders] = useState(false);
   const [newOrderAlert, setNewOrderAlert] = useState(null);
+  const [expiringSoonIds, setExpiringSoonIds] = useState(new Set());
+  const [autoCancelledAlert, setAutoCancelledAlert] = useState(null);
   const [now, setNow] = useState(Date.now()); // ticks forward so urgency badges age live, no refresh needed
   // null until the fresh value loads — the restaurant prop from login/storage can be stale
   const [isOpen, setIsOpen] = useState(null);
@@ -83,6 +99,15 @@ export default function OrdersScreen({ restaurant }) {
       load();
     });
     socket.on('orderUpdate', () => load());
+    socket.on('orderExpiringSoon', ({ orderId }) => {
+      setExpiringSoonIds((prev) => new Set(prev).add(orderId));
+    });
+    socket.on('orderUpdate', (updated) => {
+      if (updated?.cancelReason === 'acceptance_timeout') {
+        setAutoCancelledAlert(updated);
+        setTimeout(() => setAutoCancelledAlert(null), 8000);
+      }
+    });
     socketRef.current = socket;
     return () => socket.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -335,9 +360,22 @@ export default function OrdersScreen({ restaurant }) {
         </div>
       )}
 
+      {autoCancelledAlert && (
+        <div className="card" style={{ background: '#f0e5e5', border: '2px solid var(--chili)', marginBottom: 16 }}>
+          <div className="row">
+            <div>
+              <strong>⏰ Order auto-cancelled — not accepted in time</strong>
+              <p style={{ margin: '4px 0 0' }}>{autoCancelledAlert.customer?.user?.name}'s order was cancelled automatically. Try to accept new orders promptly to avoid this.</p>
+            </div>
+            <button className="btn-secondary" onClick={() => setAutoCancelledAlert(null)}>Got it</button>
+          </div>
+        </div>
+      )}
+
       <div className="stack">
         {orders.map((order) => {
           const urgency = getUrgency(order, now);
+          const acceptCountdown = getAcceptCountdown(order, now);
           return (
           <div key={order.id} className="card" style={urgency ? { borderLeft: `4px solid ${urgency.color}` } : undefined}>
             <div className="row" style={{ marginBottom: 8 }}>
@@ -351,6 +389,17 @@ export default function OrdersScreen({ restaurant }) {
                 <span className={`pill status-${order.status}`}>{order.status.replaceAll('_', ' ')}</span>
               </div>
             </div>
+
+            {acceptCountdown && (
+              <p
+                style={{
+                  fontSize: 13, fontWeight: 600, margin: '0 0 8px',
+                  color: acceptCountdown.urgent ? 'var(--chili-dark)' : '#8a5a00',
+                }}
+              >
+                {acceptCountdown.urgent ? '⏰ ' : '⏱ '}{acceptCountdown.label} — auto-cancels if not accepted
+              </p>
+            )}
 
             <div style={{ marginBottom: 8 }}>
               {order.items.map((line) => (

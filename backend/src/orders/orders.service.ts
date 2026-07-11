@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository, SelectQueryBuilder } from 'typeorm';
 import { Order, OrderStatus, PaymentMethod, PaymentStatus, RefundStatus } from './entities/order.entity';
@@ -284,7 +285,18 @@ export class OrdersService {
     return order;
   }
 
-  async updateStatus(id: string, newStatus: OrderStatus): Promise<Order> {
+  // How long a restaurant has to accept before the order auto-cancels, and when the
+  // halfway nudge fires. Mirrors Zomato/Swiggy's short accept-countdown convention.
+  // The restaurant dashboard duplicates ACCEPT_TIMEOUT_SECONDS for its live countdown UI —
+  // keep both in sync if this ever changes.
+  static readonly ACCEPT_TIMEOUT_MINUTES = 7;
+  static readonly NUDGE_AT_MINUTES = OrdersService.ACCEPT_TIMEOUT_MINUTES / 2;
+
+  async updateStatus(
+    id: string,
+    newStatus: OrderStatus,
+    cancelReason: 'customer' | 'restaurant' | 'acceptance_timeout' | null = null,
+  ): Promise<Order> {
     const order = await this.orderRepo.findOne({ where: { id }, relations: { deliveryPartner: true } });
     if (!order) {
       throw new NotFoundException(`Order ${id} not found`);
@@ -309,9 +321,12 @@ export class OrdersService {
         order.paymentStatus = PaymentStatus.PAID;
       }
     }
-    if (newStatus === OrderStatus.CANCELLED && order.paymentStatus === PaymentStatus.PAID) {
-      order.refundStatus = RefundStatus.PENDING;
-      order.refundAmount = order.total;
+    if (newStatus === OrderStatus.CANCELLED) {
+      order.cancelReason = cancelReason;
+      if (order.paymentStatus === PaymentStatus.PAID) {
+        order.refundStatus = RefundStatus.PENDING;
+        order.refundAmount = order.total;
+      }
     }
 
     await this.orderRepo.save(order);
@@ -824,5 +839,49 @@ export class OrdersService {
     order.refundStatus = RefundStatus.COMPLETED;
     await this.orderRepo.save(order);
     return this.findOne(orderId);
+  }
+
+  /**
+   * Acceptance-timeout sweep. Runs every 30s (cheap: PLACED orders are rare and short-lived
+   * by design). Two independent passes:
+   *  1. Nudge — orders past the halfway mark get a one-time "about to expire" push to the
+   *     restaurant's live dashboard, so a distracted kitchen gets a second chance.
+   *  2. Auto-cancel — orders past the full timeout are cancelled exactly like a manual
+   *     cancellation (reusing updateStatus, so refund-flagging and rider-release logic
+   *     can't drift between the two paths), tagged with cancelReason: 'acceptance_timeout'.
+   * Both queries are cheap indexed scans over a small, self-limiting set: an order leaves
+   * PLACED (via accept or cancel) well before it could accumulate.
+   */
+  @Cron('*/30 * * * * *')
+  async sweepAcceptanceTimeouts() {
+    await this.nudgeExpiringOrders();
+    await this.autoCancelStaleOrders();
+  }
+
+  async nudgeExpiringOrders(): Promise<void> {
+    const nudgeThreshold = new Date(Date.now() - OrdersService.NUDGE_AT_MINUTES * 60_000);
+    const candidates = await this.orderRepo.find({
+      where: { status: OrderStatus.PLACED, expiryNudgeSentAt: IsNull() },
+      relations: { restaurant: true },
+    });
+    for (const order of candidates) {
+      if (order.placedAt > nudgeThreshold) continue; // not halfway yet
+      order.expiryNudgeSentAt = new Date();
+      await this.orderRepo.save(order);
+      const secondsRemaining = Math.max(
+        0,
+        OrdersService.ACCEPT_TIMEOUT_MINUTES * 60 - Math.floor((Date.now() - order.placedAt.getTime()) / 1000),
+      );
+      this.ordersGateway.emitOrderExpiringSoon(order.restaurant.id, { orderId: order.id, secondsRemaining });
+    }
+  }
+
+  async autoCancelStaleOrders(): Promise<void> {
+    const deadline = new Date(Date.now() - OrdersService.ACCEPT_TIMEOUT_MINUTES * 60_000);
+    const stale = await this.orderRepo.find({ where: { status: OrderStatus.PLACED } });
+    for (const order of stale) {
+      if (order.placedAt > deadline) continue; // not timed out yet
+      await this.updateStatus(order.id, OrderStatus.CANCELLED, 'acceptance_timeout');
+    }
   }
 }

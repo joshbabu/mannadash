@@ -85,6 +85,16 @@ export class Order {
   @Column({ type: 'varchar', length: 300, nullable: true })
   instructions: string | null;
 
+  // Who/what cancelled the order — lets both apps show an honest reason instead of a bare
+  // "cancelled" pill. Null for every non-cancelled order.
+  @Column({ type: 'varchar', nullable: true })
+  cancelReason: 'customer' | 'restaurant' | 'acceptance_timeout' | null;
+
+  // Set the moment the halfway-to-timeout nudge fires, so the cron sends it exactly once
+  // per order rather than every time it sweeps
+  @Column({ type: 'timestamptz', nullable: true })
+  expiryNudgeSentAt: Date | null;
+
   // Set when create-payment is called, before the customer actually pays
   @Column({ nullable: true })
   razorpayOrderId: string;

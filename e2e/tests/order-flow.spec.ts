@@ -157,6 +157,9 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // This is the exact bug we fixed earlier — the order must appear with no page refresh
     await expect(restaurantPage.getByText('E2E Test Delivery Address')).toBeVisible({ timeout: 15_000 });
     await expect(restaurantPage.getByText('📝 Less spicy please')).toBeVisible();
+    // Phase C: the accept-countdown is visible on a still-placed order, warning the
+    // restaurant it will auto-cancel if left untouched
+    await expect(restaurantPage.getByText(/⏱ Accept within \d:\d\d — auto-cancels if not accepted/)).toBeVisible();
     // Phase 3 status cards: located by testid, since card labels like "Ready" also appear
     // in order-card text ("Ready for pickup — waiting for the rider") and would collide
     const cardFor = (key: string) => restaurantPage.getByTestId(`status-card-${key}`);
