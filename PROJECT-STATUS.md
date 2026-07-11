@@ -191,6 +191,13 @@ time, not just today.
    tests and things like the Wikimedia/Unsplash stock photo lookups get built and type-checked
    here, but their first *real* run happens in GitHub Actions (which has full internet access) or
    on your actual server — this is expected, not a sign of low confidence in the code.
+5. **Every app's `logout()` cleared the token but not the cached user object** — same bug,
+   copy-pasted into all four apps at initial build. In-memory state reset masked it within a
+   tab; only a refresh right after logout exposed it (stale cache re-hydrates the dashboard
+   with no valid token → real "Unauthorized" errors under a UI that still looks logged in).
+   Found by manual testing, not by a test — a reminder that "log out, then refresh" is a real
+   user path worth checking by hand even when the happy path is covered. Now regression-locked
+   in `e2e/tests/auth-logout.spec.ts` for all four apps.
 
 ## For the new chat
 

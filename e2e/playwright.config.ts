@@ -37,5 +37,6 @@ export default defineConfig({
     { command: 'npm run dev -- --port 5173', cwd: '../frontend', url: 'http://localhost:5173', reuseExistingServer: true, timeout: 30_000 },
     { command: 'npm run dev -- --port 5174', cwd: '../restaurant-dashboard', url: 'http://localhost:5174', reuseExistingServer: true, timeout: 30_000 },
     { command: 'npm run dev -- --port 5175', cwd: '../rider-app', url: 'http://localhost:5175', reuseExistingServer: true, timeout: 30_000 },
+    { command: 'npm run dev -- --port 5176', cwd: '../admin-panel', url: 'http://localhost:5176', reuseExistingServer: true, timeout: 30_000 },
   ],
 });

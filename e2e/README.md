@@ -4,6 +4,7 @@ Drives three real browsers simultaneously (customer, restaurant, rider) through 
 cross-app flow we've manually tested by hand dozens of times: place an order, restaurant
 accepts and prepares it, a rider delivers it, and the customer sees it update live at every
 step — no page refresh, exactly like the real bugs we found and fixed earlier in this build.
+A separate lightweight spec covers logout across customer, restaurant, rider, and admin.
 
 ## One-time setup
 
@@ -13,6 +14,7 @@ Each frontend needs to point at your **local** backend for this test, not produc
 cd frontend && echo "VITE_API_BASE=http://localhost:3000" > .env.local
 cd ../restaurant-dashboard && echo "VITE_API_BASE=http://localhost:3000" > .env.local
 cd ../rider-app && echo "VITE_API_BASE=http://localhost:3000" > .env.local
+cd ../admin-panel && echo "VITE_API_BASE=http://localhost:3000" > .env.local
 ```
 
 Create a local test database (separate from your real dev data, same as the backend test setup):
