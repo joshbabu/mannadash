@@ -304,8 +304,12 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     });
     expect(groupRes.ok()).toBeTruthy();
 
-    // Back to Browse, into the restaurant fresh
-    await customerPage.getByRole('button', { name: '🍲 Browse' }).click();
+    // The previous step ended still inside the restaurant's menu (from its Reorder click),
+    // where the bottom "Browse" tab is hidden (App.jsx: showBottomNav is false whenever a
+    // restaurant is selected) — go back to the restaurant list first, which re-shows the
+    // tab bar, THEN search back in. This also forces a fresh MenuScreen mount, so the
+    // dish+variant group just created via the API actually gets fetched.
+    await customerPage.getByRole('button', { name: '← Back' }).click();
     await customerPage.getByPlaceholder('Search by name or cuisine…').fill(restaurantName);
     await customerPage.getByText(restaurantName).click();
     await customerPage.getByText('E2E Variant Dish').waitFor();
