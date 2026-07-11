@@ -139,12 +139,27 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
 - **Phase L — Restaurant partner dashboard suite** (from the Zomato partner-app reference —
   this is the owner-facing half of the platform, distinct from anything customer-facing, and
   the largest remaining body of work). Breaks into independently shippable pieces:
-  - **L1 — Offers & coupons engine**: percentage/flat discounts, freebie-on-minimum-order,
-    audience targeting (all customers vs first-order-only), scheduling (day-of-week, time-of-day
-    windows). Needs an `Offer` entity, an eligibility-check step in order pricing, and a
-    redemption ledger so an offer's usage can be capped/reported on. This one also *unlocks*
-    the coupons item already sitting in Phase I. Genuinely session-sized on its own — the
-    pricing/eligibility logic deserves the same care Phase E's delivery fee got, not a rush.
+  - **L1 — Offers & coupons engine: DONE.** One `Offer` entity spans two very different UX
+    modes: `code: null` = automatic (best eligible offer applies itself silently, comparing
+    ACTUAL computed discount when several qualify, not just declared value) and `code: set`
+    = the customer types it, and a valid code always wins over whatever would've applied
+    automatically — a deliberate customer action should take precedence. Three discount
+    types (percentage with an optional cap, flat ₹, free delivery). Full eligibility engine:
+    minimum order, first-order-only audience (checked against real delivery history), day-
+    of-week/time-of-day windows, and per-customer/total usage limits backed by an
+    `OfferRedemption` ledger — counted, never a counter column that could drift. An invalid
+    or ineligible code throws a SPECIFIC reason ("needs a minimum order of ₹500"), never
+    silence. `POST /offers/preview` mirrors the real resolution but never throws, so
+    checkout can show why a code didn't work inline. Public listing exposes automatic
+    offers in full but code-based ones only as a blind teaser (`hasCode: true`, no `code`
+    field) — tested explicitly that the literal code string never appears in that response.
+    Restaurant dashboard: new Offers tab, full CRUD, pause/resume without losing redemption
+    history. Customer: an offers teaser on the menu page, a checkout banner for whichever
+    offer applies automatically, and a promo code box that overrides it. 23 backend tests
+    (compiled clean and passed 20/20 on the very first real run — the rest of the session's
+    hard-won lessons about locator ambiguity and cross-file test isolation clearly paid off
+    here) plus a full real-browser thread proving code-overrides-automatic in an actual UI.
+    This also unlocks the coupons item already sitting in Phase I.
   - **L2 — Customer complaints inbox**: a structured complaint/ticket table (order-linked,
     status: open/resolved), surfaced in the admin panel first, restaurant dashboard second.
   - **L3 — Review replies: DONE.** `Rating` gained `replyText`/`repliedAt`; a restaurant-

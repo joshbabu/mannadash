@@ -41,6 +41,10 @@ export const api = {
 
   // Menu
   getMenuItems: (restaurantId) => request(`/menu-items?restaurantId=${restaurantId}`),
+  getMyOffers: () => request('/offers/mine', { auth: true }),
+  createOffer: (body) => request('/offers', { method: 'POST', body, auth: true }),
+  updateOffer: (id, body) => request(`/offers/${id}`, { method: 'PATCH', body, auth: true }),
+  deleteOffer: (id) => request(`/offers/${id}`, { method: 'DELETE', auth: true }),
   createMenuItem: (body) => request('/menu-items', { method: 'POST', body, auth: true }),
   updateMenuItem: (id, body) => request(`/menu-items/${id}`, { method: 'PATCH', body, auth: true }),
   createVariantGroup: (menuItemId, body) => request(`/menu-items/${menuItemId}/variant-groups`, { method: 'POST', body, auth: true }),

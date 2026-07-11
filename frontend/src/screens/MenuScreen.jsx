@@ -33,9 +33,11 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
   const [menuSearch, setMenuSearch] = useState('');
   const [reviews, setReviews] = useState([]);
   const [showAllReviews, setShowAllReviews] = useState(false);
+  const [offers, setOffers] = useState([]);
 
   useEffect(() => {
     api.getRestaurantReviews(restaurant.id).then(setReviews).catch(() => {});
+    api.getPublicOffers(restaurant.id).then(setOffers).catch(() => {});
     api
       .getMenuItems(restaurant.id)
       .then((fetched) => {
@@ -187,6 +189,26 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
         {Number(restaurant.ratingAvg) > 0 && <>★ {Number(restaurant.ratingAvg).toFixed(1)} ({restaurant.ratingCount}) · </>}
         {restaurant.cuisineType}
       </p>
+
+      {offers.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+          {offers.map((o) => (
+            <span
+              key={o.id}
+              className="pill"
+              style={{ background: '#fdeee8', color: 'var(--chili-dark)', fontWeight: 600, fontSize: 12 }}
+              title={o.minOrderValue ? `Minimum order ₹${Number(o.minOrderValue).toFixed(0)}` : undefined}
+            >
+              {o.discountType === 'free_delivery'
+                ? '🛵 Free delivery'
+                : o.discountType === 'percentage'
+                ? `🎉 ${Number(o.discountValue)}% OFF${o.maxDiscountAmount ? ` up to ₹${Number(o.maxDiscountAmount).toFixed(0)}` : ''}`
+                : `🎉 ₹${Number(o.discountValue).toFixed(0)} OFF`}
+              {o.hasCode ? ' with code' : ''}
+            </span>
+          ))}
+        </div>
+      )}
 
       <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 8, marginBottom: 4, fontSize: 14 }}>
         <input type="checkbox" checked={vegOnly} onChange={(e) => setVegOnly(e.target.checked)} />

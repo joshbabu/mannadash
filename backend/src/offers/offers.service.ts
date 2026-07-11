@@ -7,6 +7,7 @@ import { Order, OrderStatus } from '../orders/entities/order.entity';
 import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { CreateOfferDto } from './dto/create-offer.dto';
 import { UpdateOfferDto } from './dto/update-offer.dto';
+import { calculateDeliveryFee } from '../orders/delivery-fee.util';
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -259,6 +260,46 @@ export class OffersService {
       }
     }
     return best;
+  }
+
+  /** Same as previewOffer, but computes the real distance-based delivery fee first —
+   *  needed for an accurate free_delivery preview at checkout, before the order exists. */
+  async previewOfferWithRealFee(
+    restaurantId: string,
+    customerId: string,
+    subtotal: number,
+    latitude: number,
+    longitude: number,
+    promoCode?: string,
+  ) {
+    const distanceRow = await this.restaurantRepo.manager.query(
+      `SELECT ST_Distance(location, ST_SetSRID(ST_MakePoint($1, $2), 4326)) as dist FROM restaurants WHERE id = $3`,
+      [longitude, latitude, restaurantId],
+    );
+    const distanceMeters = parseFloat(distanceRow[0]?.dist ?? '0');
+    const deliveryFee = calculateDeliveryFee(distanceMeters);
+    return this.previewOffer(restaurantId, customerId, subtotal, deliveryFee, promoCode);
+  }
+
+  /**
+   * Live checkout preview — same rules as resolveOffer, but never throws. A customer
+   * typing a code at checkout needs to see WHY it didn't work inline, not a fetch error;
+   * order placement itself still calls resolveOffer() and is the authoritative check.
+   */
+  async previewOffer(
+    restaurantId: string,
+    customerId: string,
+    subtotal: number,
+    deliveryFee: number,
+    promoCode?: string,
+  ): Promise<{ applied: boolean; offerName?: string; discountAmount?: number; reason?: string }> {
+    try {
+      const resolved = await this.resolveOffer(restaurantId, customerId, subtotal, deliveryFee, promoCode);
+      if (!resolved) return { applied: false };
+      return { applied: true, offerName: resolved.offer.name, discountAmount: resolved.discountAmount };
+    } catch (err) {
+      return { applied: false, reason: err.message };
+    }
   }
 
   /** Records that an offer was actually used — called once, right after the order that used it is saved. */

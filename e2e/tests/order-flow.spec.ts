@@ -247,6 +247,40 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await expect(customerPage.getByText('Thank you! Come back soon')).toBeVisible();
   });
 
+  await test.step('Phase L1: offers teaser, automatic discount, and a code overriding it', async () => {
+    // A modest automatic offer and a bigger code-based one — the code should win even
+    // though it's worth more, proving precedence in a real browser, not just the API
+    await api.post('/offers', {
+      headers: { Authorization: `Bearer ${restaurantToken}` },
+      data: { name: 'Auto 10%', discountType: 'percentage', discountValue: 10 },
+    });
+    await api.post('/offers', {
+      headers: { Authorization: `Bearer ${restaurantToken}` },
+      data: { name: 'Big Save', code: 'BIGSAVE', discountType: 'flat', discountValue: 40 },
+    });
+
+    // Reload to pick up the offers that didn't exist when this menu page first loaded
+    await customerPage.reload();
+    await expect(customerPage.getByText(/🎉 10% OFF/)).toBeVisible();
+    await expect(customerPage.getByText(/🎉 ₹40 OFF with code/)).toBeVisible();
+
+    // Scoped to E2E Test Dish specifically — this restaurant also has E2E Variant Dish
+    // from the Phase J step, whose "Add" opens a picker instead of adding directly
+    await customerPage.locator('.card', { hasText: 'E2E Test Dish' }).getByRole('button', { name: 'Add' }).click();
+    await customerPage.getByRole('button', { name: /View cart/ }).click();
+
+    // The 10% auto-offer applies itself with no action from the customer
+    await expect(customerPage.getByText('🎉 Auto 10%')).toBeVisible();
+
+    // Typing the code overrides it, even though BIGSAVE's ₹40 isn't necessarily bigger
+    // than 10% of this particular cart — the point is the code always wins on principle
+    await customerPage.getByPlaceholder('Have a promo code?').fill('bigsave');
+    await customerPage.getByRole('button', { name: 'Apply' }).click();
+    await expect(customerPage.getByText('🎉 Big Save')).toBeVisible();
+    await expect(customerPage.getByText('-₹40')).toBeVisible();
+    await expect(customerPage.getByText('🎉 Auto 10%')).toHaveCount(0);
+  });
+
   await test.step('History warns about closed restaurants and unavailable items', async () => {
     // Restaurant goes offline (the Phase 3 toggle) and the dish sells out
     const offline = await api.patch(`/restaurants/${restaurantId}`, {

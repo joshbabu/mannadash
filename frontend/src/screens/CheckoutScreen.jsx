@@ -16,6 +16,10 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
   const [paymentMethod, setPaymentMethod] = useState('cod'); // COD until Razorpay goes live
   const [instructions, setInstructions] = useState('');
   const [newLabel, setNewLabel] = useState('');
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedOffer, setAppliedOffer] = useState(null); // { offerName, discountAmount, fromCode }
+  const [promoError, setPromoError] = useState('');
+  const [checkingPromo, setCheckingPromo] = useState(false);
 
   useEffect(() => {
     api.getSavedAddresses().then(setSavedAddresses).catch(() => {});
@@ -44,6 +48,42 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
   });
   const subtotal = lines.reduce((sum, l) => sum + l.price * l.quantity, 0);
 
+  // Silently check for the best automatic offer whenever the cart or delivery point is
+  // known — no customer action needed. A later successful code application overrides this.
+  useEffect(() => {
+    if (subtotal <= 0) return;
+    api
+      .previewOffer({ restaurantId: restaurant.id, subtotal, latitude, longitude })
+      .then((res) => {
+        if (res.applied) setAppliedOffer({ offerName: res.offerName, discountAmount: res.discountAmount, fromCode: false });
+      })
+      .catch(() => {});
+  }, [subtotal, latitude, longitude, restaurant.id]);
+
+  async function applyPromoCode() {
+    if (!promoCodeInput.trim()) return;
+    setPromoError('');
+    setCheckingPromo(true);
+    try {
+      const res = await api.previewOffer({ restaurantId: restaurant.id, subtotal, latitude, longitude, promoCode: promoCodeInput.trim() });
+      if (res.applied) {
+        setAppliedOffer({ offerName: res.offerName, discountAmount: res.discountAmount, fromCode: true });
+      } else {
+        setPromoError(res.reason || "That code didn't work");
+      }
+    } catch (err) {
+      setPromoError(err.message);
+    } finally {
+      setCheckingPromo(false);
+    }
+  }
+
+  function removePromoCode() {
+    setAppliedOffer(null);
+    setPromoCodeInput('');
+    setPromoError('');
+  }
+
   async function placeOrder() {
     if (!address.trim()) {
       setError('Add a delivery address so the rider knows where to go');
@@ -63,6 +103,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
         longitude,
         paymentMethod,
         ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
+        ...(appliedOffer?.fromCode ? { promoCode: promoCodeInput.trim() } : {}),
       });
       onOrderPlaced(order);
     } catch (err) {
@@ -96,7 +137,35 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
           <span>Subtotal</span>
           <span>₹{subtotal.toFixed(0)}</span>
         </div>
+        {appliedOffer && (
+          <div className="row" style={{ color: 'var(--curry, #2e7d32)', marginTop: 4 }}>
+            <span>🎉 {appliedOffer.offerName}</span>
+            <span>
+              -₹{appliedOffer.discountAmount.toFixed(0)}
+              {appliedOffer.fromCode && (
+                <button className="btn-ghost" style={{ marginLeft: 8, fontSize: 12, padding: '0 4px' }} onClick={removePromoCode}>
+                  ✕
+                </button>
+              )}
+            </span>
+          </div>
+        )}
         <p className="muted" style={{ color: '#6b6156', marginTop: 4 }}>+ delivery fee, calculated at checkout</p>
+
+        {!appliedOffer?.fromCode && (
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <input
+              placeholder="Have a promo code?"
+              value={promoCodeInput}
+              onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+              style={{ flex: 1, background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd' }}
+            />
+            <button className="btn-secondary" onClick={applyPromoCode} disabled={checkingPromo || !promoCodeInput.trim()}>
+              {checkingPromo ? 'Checking…' : 'Apply'}
+            </button>
+          </div>
+        )}
+        {promoError && <p style={{ color: 'var(--chili-dark)', fontSize: 13, marginTop: 6 }}>{promoError}</p>}
       </div>
 
       <div className="card">

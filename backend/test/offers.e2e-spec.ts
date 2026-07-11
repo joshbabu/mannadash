@@ -293,4 +293,45 @@ describe('Offers engine (e2e)', () => {
       expect(res.body).toHaveLength(0);
     });
   });
+
+  describe('checkout preview (never throws, gives an honest reason instead)', () => {
+    it('previews the best automatic offer without a code', async () => {
+      const { restaurant } = await setupApprovedRestaurantWithDish(200);
+      await createOffer(restaurant, { name: 'Auto 20%', discountType: 'percentage', discountValue: 20 }).expect(201);
+      const customer = await signUpCustomer(app);
+      const res = await request(app.getHttpServer())
+        .post('/offers/preview')
+        .set('Authorization', `Bearer ${customer.token}`)
+        .send({ restaurantId: restaurant.id, subtotal: 200, latitude: 17.45, longitude: 78.39 })
+        .expect(201);
+      expect(res.body.applied).toBe(true);
+      expect(res.body.offerName).toBe('Auto 20%');
+      expect(res.body.discountAmount).toBe(40);
+    });
+
+    it('reports a real reason for an ineligible code, with a normal response, not a raw error', async () => {
+      const { restaurant } = await setupApprovedRestaurantWithDish(100);
+      await createOffer(restaurant, { name: 'Big', code: 'BIG', discountType: 'flat', discountValue: 50, minOrderValue: 500 }).expect(201);
+      const customer = await signUpCustomer(app);
+      const res = await request(app.getHttpServer())
+        .post('/offers/preview')
+        .set('Authorization', `Bearer ${customer.token}`)
+        .send({ restaurantId: restaurant.id, subtotal: 100, latitude: 17.45, longitude: 78.39, promoCode: 'BIG' })
+        .expect(201);
+      expect(res.body.applied).toBe(false);
+      expect(res.body.reason).toContain('minimum order');
+    });
+
+    it('previews nothing when no offer exists at all', async () => {
+      const { restaurant } = await setupApprovedRestaurantWithDish(200);
+      const customer = await signUpCustomer(app);
+      const res = await request(app.getHttpServer())
+        .post('/offers/preview')
+        .set('Authorization', `Bearer ${customer.token}`)
+        .send({ restaurantId: restaurant.id, subtotal: 200, latitude: 17.45, longitude: 78.39 })
+        .expect(201);
+      expect(res.body.applied).toBe(false);
+      expect(res.body.reason).toBeUndefined();
+    });
+  });
 });

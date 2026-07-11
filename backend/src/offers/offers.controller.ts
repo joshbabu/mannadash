@@ -2,6 +2,7 @@ import { Body, Controller, Delete, ForbiddenException, Get, Param, ParseUUIDPipe
 import { OffersService } from './offers.service';
 import { CreateOfferDto } from './dto/create-offer.dto';
 import { UpdateOfferDto } from './dto/update-offer.dto';
+import { PreviewOfferDto } from './dto/preview-offer.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller()
@@ -12,6 +13,15 @@ export class OffersController {
   @Get('restaurants/:id/offers')
   findPublicForRestaurant(@Param('id', ParseUUIDPipe) id: string) {
     return this.offersService.findPublicForRestaurant(id);
+  }
+
+  // Live checkout preview — shows the discount (or why a code didn't work) before the
+  // customer commits to placing the order. Never throws; see OffersService.previewOffer.
+  @UseGuards(JwtAuthGuard)
+  @Post('offers/preview')
+  preview(@Req() req: any, @Body() dto: PreviewOfferDto) {
+    if (req.user.role !== 'customer') throw new ForbiddenException('Only customers can preview offers');
+    return this.offersService.previewOfferWithRealFee(dto.restaurantId, req.user.userId, dto.subtotal, dto.latitude, dto.longitude, dto.promoCode);
   }
 
   @UseGuards(JwtAuthGuard)
