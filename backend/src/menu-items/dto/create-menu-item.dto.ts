@@ -38,4 +38,31 @@ export class CreateMenuItemDto {
   @IsOptional()
   @IsString()
   imageUrl?: string;
+
+  // Nutritional info per serving — all optional, all in grams. Calorie count is never
+  // accepted here; it's derived from these on display, never stored.
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  weightGrams?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  proteinGrams?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  carbsGrams?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  fatGrams?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  fibreGrams?: number;
 }

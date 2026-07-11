@@ -128,12 +128,14 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
   tests, all passing, including the security case; Playwright: one self-contained step
   (a second dish, so it doesn't disturb the primary flow's existing price assertions)
   driving the full picker → cart → checkout journey in a real browser.
-- **Phase K — Nutritional info per serving** (FSSAI-referenced in the reference screenshots:
-  weight, protein, carbs, fat, fibre, calories — with calorie count derivable as
-  `4×protein + 4×carbs + 9×fat` rather than manually entered, to keep the numbers honest).
-  Smaller than variants: a handful of nullable columns on `MenuItem`, an optional expandable
-  section on the dish card. Natural to build alongside Phase J since both touch the same
-  add/edit-item form.
+- **Phase K — Nutritional info per serving: DONE.** Five optional gram fields on `MenuItem`
+  (weight, protein, carbs, fat, fibre) — deliberately no stored calorie count; it's derived
+  as `4×protein + 4×carbs + 9×fat` everywhere it's shown (dashboard's live preview while
+  typing, customer's expandable "🥗 N kcal" line), so a manually-typed number can never
+  drift from the macros that supposedly produced it. Dashboard: collapsible section on the
+  add-item form, plus a per-item "+ Add nutritional info" editor for dishes that already
+  exist (`NutritionEditor.jsx`, small and flat — no groups, unlike variants). Fully optional
+  end to end; a dish with none of these set behaves exactly as before.
 - **Phase L — Restaurant partner dashboard suite** (from the Zomato partner-app reference —
   this is the owner-facing half of the platform, distinct from anything customer-facing, and
   the largest remaining body of work). Breaks into independently shippable pieces:
@@ -141,12 +143,18 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
     audience targeting (all customers vs first-order-only), scheduling (day-of-week, time-of-day
     windows). Needs an `Offer` entity, an eligibility-check step in order pricing, and a
     redemption ledger so an offer's usage can be capped/reported on. This one also *unlocks*
-    the coupons item already sitting in Phase I.
+    the coupons item already sitting in Phase I. Genuinely session-sized on its own — the
+    pricing/eligibility logic deserves the same care Phase E's delivery fee got, not a rush.
   - **L2 — Customer complaints inbox**: a structured complaint/ticket table (order-linked,
     status: open/resolved), surfaced in the admin panel first, restaurant dashboard second.
-  - **L3 — Review replies**: owners responding to a rating's comment, threaded under the
-    review — a small addition to the existing Rating entity (`replyText`, `repliedAt`) plus a
-    restaurant-guarded PATCH.
+  - **L3 — Review replies: DONE.** `Rating` gained `replyText`/`repliedAt`; a restaurant-
+    owner-guarded `PATCH /orders/ratings/:id/reply` (ownership checked through
+    `order.restaurant`, since Rating has no direct restaurant FK). One reply per review,
+    editable in place — replying again overwrites rather than stacking a thread, matching
+    Zomato's model (tested explicitly). Restaurant dashboard gained its first-ever Reviews
+    tab (`ReviewsScreen.jsx`) to actually see and answer reviews — reuses the existing
+    public reviews endpoint rather than adding a parallel authed one. Customer menu screen
+    shows the reply under the original comment, quoted-reply style.
   - **L4 — Deeper business analytics**: orders-percentage/discount-effectiveness graphs,
     online-percentage trend, delayed/rejected-order rate — most of the raw data already exists
     in the Order table; this is aggregation queries + chart UI on top of what Insights started.
@@ -218,6 +226,22 @@ time, not just today.
    not discovered after a user reports invisible text. Both the picker and checkout summary
    are now regression-locked with `toHaveCSS('color', ...)` assertions (not just `toBeVisible`,
    which passes even when text is genuinely unreadable).
+   **Update (Phase K/L3 session): consolidated all four one-off fixes into a single
+   structural rule, `.card .muted { color: #6b6156; }`, once it became clear nearly every
+   screen in the app combines the two and a fifth occurrence (the reviews card) turned up
+   on inspection before anyone even reported it. Provably safe as a blanket rule since it's
+   a descendant selector — it can only ever touch `.muted` text that's physically nested
+   inside a `.card`, which is uniformly light-background everywhere in this app.**
+7. **A test asserting "no X exists" is only true in isolation, not in a full-suite run
+   against a shared DB.** `no-rider-handling`'s "leaves an order alone when no rider exists
+   at all" assumed exactly that — but riders created by unrelated spec files (anywhere near
+   the shared default test coordinates) can be real and available by the time this test's
+   assertion runs, invalidating the premise. The other two tests in that same file already
+   used isolated coordinates for this exact reason; this one didn't, since it wasn't
+   expected to need it, until Phase L3's new spec (which also creates riders) changed the
+   full-suite's timing enough to expose it. Lesson: any test whose assertion depends on
+   "nothing else exists" needs the same spatial isolation as tests asserting "the sweep
+   found MY thing" — the two are symmetric risks, not just the latter.
 
 ## For the new chat
 

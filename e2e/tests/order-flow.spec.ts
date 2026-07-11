@@ -228,6 +228,25 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await expect(customerPage.getByText('How was your order?')).toHaveCount(0);
   });
 
+  await test.step('Phase L3: restaurant replies to a review, customer sees the reply', async () => {
+    await restaurantPage.getByRole('button', { name: 'Reviews' }).click();
+    await expect(restaurantPage.getByText('Best biryani in Uppal!')).toBeVisible();
+    const reviewCard = restaurantPage.locator('.card', { hasText: 'Best biryani in Uppal!' });
+    await reviewCard.getByRole('button', { name: 'Reply' }).click();
+    await reviewCard.getByPlaceholder(/Thank the customer/).fill('Thank you! Come back soon 🙏');
+    await reviewCard.getByRole('button', { name: 'Save reply' }).click();
+    await expect(reviewCard.getByText('Thank you! Come back soon')).toBeVisible();
+
+    // Customer revisits the menu — the same Back-then-Browse navigation as the Phase J
+    // step, since the customer is still deep inside the app from the reload above
+    await customerPage.getByRole('button', { name: '← Back' }).click();
+    await customerPage.getByRole('button', { name: '🍲 Browse' }).click();
+    await customerPage.getByPlaceholder('Search by name or cuisine…').fill(restaurantName);
+    await customerPage.getByText(restaurantName).click();
+    await expect(customerPage.getByText('Reply from the restaurant')).toBeVisible();
+    await expect(customerPage.getByText('Thank you! Come back soon')).toBeVisible();
+  });
+
   await test.step('History warns about closed restaurants and unavailable items', async () => {
     // Restaurant goes offline (the Phase 3 toggle) and the dish sells out
     const offline = await api.patch(`/restaurants/${restaurantId}`, {

@@ -72,7 +72,11 @@ describe('No-rider-available handling (e2e)', () => {
   }
 
   it('leaves an order alone when no rider exists at all — sweep does not throw or loop forever', async () => {
-    const { orderId, restaurant } = await setupReadyForPickupOrder();
+    // Isolated coordinates: this test's premise is "no rider exists nearby", which is
+    // only true if nothing else in the shared full-suite-run DB happens to have an
+    // available rider near the default (17.44, 78.38) test location — the same
+    // contention risk the other two tests in this file already guard against.
+    const { orderId, restaurant } = await setupReadyForPickupOrder({ latitude: 21.5, longitude: 82.5 });
     await expect(ordersService.retryUnassignedReadyOrders()).resolves.not.toThrow();
 
     const after = await dataSource.getRepository(Order).findOne({ where: { id: orderId }, relations: { deliveryPartner: true } });

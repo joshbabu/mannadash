@@ -594,7 +594,32 @@ export class OrdersService {
       comment: r.comment,
       createdAt: r.createdAt,
       customerName: (r as any).order?.customer?.user?.name?.split(' ')[0] ?? 'Customer',
+      replyText: r.replyText,
+      repliedAt: r.repliedAt,
     }));
+  }
+
+  /**
+   * L3 (restaurant partner dashboard suite): a restaurant replying to a review's comment.
+   * Ownership runs through order.restaurant, since Rating has no direct restaurant FK —
+   * same pattern as every other order-derived ownership check in this service. Replying
+   * again overwrites the previous reply rather than stacking a thread — a review gets one
+   * reply, updated in place, matching how Zomato's partner reviews screen behaves.
+   */
+  async replyToRating(ratingId: string, restaurantId: string, replyText: string) {
+    const rating = await this.ratingRepo.findOne({
+      where: { id: ratingId },
+      relations: { order: { restaurant: true } },
+    });
+    if (!rating) {
+      throw new NotFoundException(`Review ${ratingId} not found`);
+    }
+    if (rating.order.restaurant.id !== restaurantId) {
+      throw new ForbiddenException('You can only reply to reviews of your own restaurant');
+    }
+    rating.replyText = replyText;
+    rating.repliedAt = new Date();
+    return this.ratingRepo.save(rating);
   }
 
   async getOrderRating(orderId: string, userId: string) {

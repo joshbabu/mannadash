@@ -27,6 +27,7 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
   const [error, setError] = useState('');
   const [vegOnly, setVegOnly] = useState(false);
   const [expandedDescriptions, setExpandedDescriptions] = useState(new Set());
+  const [expandedNutrition, setExpandedNutrition] = useState(new Set());
   const [collapsedCategories, setCollapsedCategories] = useState(new Set());
   const [droppedFromReorder, setDroppedFromReorder] = useState(0);
   const [menuSearch, setMenuSearch] = useState('');
@@ -141,6 +142,21 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
       else next.add(itemId);
       return next;
     });
+  }
+
+  function toggleNutrition(itemId) {
+    setExpandedNutrition((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  }
+
+  // Same 4/4/9 formula as the restaurant dashboard's NutritionEditor — kept in sync by
+  // comment rather than a shared import, since these are two separate frontend projects.
+  function calculateCalories(protein, carbs, fat) {
+    return Math.round((Number(protein) || 0) * 4 + (Number(carbs) || 0) * 4 + (Number(fat) || 0) * 9);
   }
 
   function toggleCategory(category) {
@@ -272,6 +288,25 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
                       ) : (
                         <p className="muted" style={{ color: '#6b6156' }}>₹{Number(item.price).toFixed(0)}</p>
                       )}
+                      {item.weightGrams != null && (
+                        <div style={{ marginTop: 2 }}>
+                          <span
+                            onClick={() => toggleNutrition(item.id)}
+                            style={{ color: 'var(--chili-dark)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                          >
+                            🥗 {calculateCalories(item.proteinGrams, item.carbsGrams, item.fatGrams)} kcal · {item.weightGrams}g
+                            {expandedNutrition.has(item.id) ? ' (hide)' : ' (details)'}
+                          </span>
+                          {expandedNutrition.has(item.id) && (
+                            <p className="muted" style={{ fontSize: 12, margin: '2px 0 0' }}>
+                              {item.proteinGrams != null && <>Protein {item.proteinGrams}g · </>}
+                              {item.carbsGrams != null && <>Carbs {item.carbsGrams}g · </>}
+                              {item.fatGrams != null && <>Fat {item.fatGrams}g</>}
+                              {item.fibreGrams != null && <> · Fibre {item.fibreGrams}g</>}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                   {!item.isAvailable ? (
@@ -325,7 +360,7 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
       )}
 
       {reviews.length > 0 && (
-        <div className="card" style={{ marginTop: 20 }}>
+        <div id="menu-reviews" className="card" style={{ marginTop: 20 }}>
           <h3 style={{ fontSize: 16, margin: '0 0 8px' }}>Reviews ({reviews.length})</h3>
           {[5, 4, 3, 2, 1].map((star) => {
             const count = reviews.filter((r) => r.restaurantRating === star).length;
@@ -350,6 +385,12 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
                   </span>
                 </p>
                 {r.comment && <p style={{ margin: '2px 0 0' }}>{r.comment}</p>}
+                {r.replyText && (
+                  <div style={{ marginTop: 6, marginLeft: 12, paddingLeft: 10, borderLeft: '2px solid var(--turmeric, #d9930d)' }}>
+                    <p className="muted" style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>Reply from the restaurant</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 13 }}>{r.replyText}</p>
+                  </div>
+                )}
               </div>
             ))}
           </div>

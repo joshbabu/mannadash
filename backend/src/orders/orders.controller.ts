@@ -5,6 +5,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
 import { CreateRatingDto } from './dto/create-rating.dto';
+import { ReplyToRatingDto } from './dto/reply-to-rating.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('orders')
@@ -171,6 +172,16 @@ export class OrdersController {
   @Post(':id/rating')
   rateOrder(@Req() req: any, @Param('id', ParseUUIDPipe) id: string, @Body() dto: CreateRatingDto) {
     return this.ordersService.rateOrder(id, req.user.userId, dto);
+  }
+
+  // Restaurant-owner-guarded — L3 of the partner dashboard suite
+  @UseGuards(JwtAuthGuard)
+  @Patch('ratings/:ratingId/reply')
+  replyToRating(@Req() req: any, @Param('ratingId', ParseUUIDPipe) ratingId: string, @Body() dto: ReplyToRatingDto) {
+    if (req.user.role !== 'restaurant') {
+      throw new ForbiddenException('Only restaurants can reply to reviews');
+    }
+    return this.ordersService.replyToRating(ratingId, req.user.userId, dto.replyText);
   }
 
   // Admin-only, one-time (but safe to re-run) — recalculates ratingCount/ratingAvg for every

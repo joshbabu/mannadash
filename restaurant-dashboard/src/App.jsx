@@ -6,6 +6,7 @@ import OrdersScreen from './screens/OrdersScreen';
 import OrderHistoryScreen from './screens/OrderHistoryScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import InsightsScreen from './screens/InsightsScreen';
+import ReviewsScreen from './screens/ReviewsScreen';
 
 export default function App() {
   const [restaurant, setRestaurant] = useState(api.getStoredRestaurant());
@@ -66,6 +67,7 @@ export default function App() {
         <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}>Order History</button>
         <button className={tab === 'menu' ? 'active' : ''} onClick={() => setTab('menu')}>Menu</button>
         <button className={tab === 'insights' ? 'active' : ''} onClick={() => setTab('insights')}>Insights</button>
+        <button className={tab === 'reviews' ? 'active' : ''} onClick={() => setTab('reviews')}>Reviews</button>
         <button className={tab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}>Settings</button>
       </div>
 
@@ -73,6 +75,7 @@ export default function App() {
       {tab === 'history' && <OrderHistoryScreen />}
       {tab === 'menu' && <MenuScreen restaurant={restaurant} />}
       {tab === 'insights' && <InsightsScreen />}
+      {tab === 'reviews' && <ReviewsScreen restaurant={restaurant} />}
       {tab === 'settings' && <SettingsScreen restaurant={restaurant} />}
     </div>
   );

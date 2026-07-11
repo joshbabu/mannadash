@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import VariantGroupEditor from '../components/VariantGroupEditor';
+import NutritionEditor from '../components/NutritionEditor';
 
 export default function MenuScreen({ restaurant }) {
   const [items, setItems] = useState([]);
@@ -13,6 +14,12 @@ export default function MenuScreen({ restaurant }) {
   const [isVeg, setIsVeg] = useState(true);
   const [category, setCategory] = useState('main');
   const [description, setDescription] = useState('');
+  const [showNutrition, setShowNutrition] = useState(false);
+  const [weightGrams, setWeightGrams] = useState('');
+  const [proteinGrams, setProteinGrams] = useState('');
+  const [carbsGrams, setCarbsGrams] = useState('');
+  const [fatGrams, setFatGrams] = useState('');
+  const [fibreGrams, setFibreGrams] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploadingId, setUploadingId] = useState(null);
 
@@ -34,11 +41,29 @@ export default function MenuScreen({ restaurant }) {
     setSaving(true);
     setError('');
     try {
-      await api.createMenuItem({ restaurantId: restaurant.id, name, price: Number(price), originalPrice: originalPrice ? Number(originalPrice) : undefined, isVeg, category, description: description || undefined });
+      await api.createMenuItem({
+        restaurantId: restaurant.id,
+        name,
+        price: Number(price),
+        originalPrice: originalPrice ? Number(originalPrice) : undefined,
+        isVeg,
+        category,
+        description: description || undefined,
+        weightGrams: weightGrams ? Number(weightGrams) : undefined,
+        proteinGrams: proteinGrams ? Number(proteinGrams) : undefined,
+        carbsGrams: carbsGrams ? Number(carbsGrams) : undefined,
+        fatGrams: fatGrams ? Number(fatGrams) : undefined,
+        fibreGrams: fibreGrams ? Number(fibreGrams) : undefined,
+      });
       setName('');
       setPrice('');
       setOriginalPrice('');
       setDescription('');
+      setWeightGrams('');
+      setProteinGrams('');
+      setCarbsGrams('');
+      setFatGrams('');
+      setFibreGrams('');
       setShowForm(false);
       load();
     } catch (err) {
@@ -123,6 +148,25 @@ export default function MenuScreen({ restaurant }) {
             <input type="checkbox" checked={isVeg} onChange={(e) => setIsVeg(e.target.checked)} style={{ width: 'auto' }} />
             Vegetarian
           </label>
+
+          <div>
+            <button type="button" className="btn-secondary" style={{ fontSize: 13 }} onClick={() => setShowNutrition(!showNutrition)}>
+              {showNutrition ? 'Hide nutritional info' : '+ Nutritional info (optional)'}
+            </button>
+            {showNutrition && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                <input placeholder="Weight (g)" type="number" min="0" value={weightGrams} onChange={(e) => setWeightGrams(e.target.value)} style={{ width: 110 }} />
+                <input placeholder="Protein (g)" type="number" min="0" value={proteinGrams} onChange={(e) => setProteinGrams(e.target.value)} style={{ width: 110 }} />
+                <input placeholder="Carbs (g)" type="number" min="0" value={carbsGrams} onChange={(e) => setCarbsGrams(e.target.value)} style={{ width: 110 }} />
+                <input placeholder="Fat (g)" type="number" min="0" value={fatGrams} onChange={(e) => setFatGrams(e.target.value)} style={{ width: 110 }} />
+                <input placeholder="Fibre (g)" type="number" min="0" value={fibreGrams} onChange={(e) => setFibreGrams(e.target.value)} style={{ width: 110 }} />
+                <p className="muted" style={{ width: '100%', fontSize: 12, margin: 0 }}>
+                  Calories are calculated automatically from protein, carbs and fat — no need to enter them.
+                </p>
+              </div>
+            )}
+          </div>
+
           <button className="btn-primary" type="submit" disabled={saving}>
             {saving ? 'Adding…' : 'Add to menu'}
           </button>
@@ -166,6 +210,7 @@ export default function MenuScreen({ restaurant }) {
               </div>
             </div>
             <VariantGroupEditor menuItem={item} onChange={load} />
+            <NutritionEditor menuItem={item} onChange={load} />
           </div>
         ))}
       </div>

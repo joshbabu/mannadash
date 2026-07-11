@@ -47,6 +47,25 @@ export class MenuItem {
   @Column({ nullable: true })
   imageUrl: string;
 
+  // Nutritional info per serving, all optional — FSSAI references these but doesn't
+  // mandate every field. Calorie count is deliberately NOT stored: it's derived as
+  // 4×protein + 4×carbs + 9×fat wherever it's shown, so a manually-typed number can't
+  // drift from the macros that supposedly produced it.
+  @Column({ type: 'decimal', precision: 6, scale: 1, nullable: true })
+  weightGrams: number | null;
+
+  @Column({ type: 'decimal', precision: 6, scale: 1, nullable: true })
+  proteinGrams: number | null;
+
+  @Column({ type: 'decimal', precision: 6, scale: 1, nullable: true })
+  carbsGrams: number | null;
+
+  @Column({ type: 'decimal', precision: 6, scale: 1, nullable: true })
+  fatGrams: number | null;
+
+  @Column({ type: 'decimal', precision: 6, scale: 1, nullable: true })
+  fibreGrams: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
