@@ -188,7 +188,10 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
   });
 
   await test.step('Customer sees the delivery confirmed live, with a full receipt', async () => {
-    await expect(customerPage.getByText('Delivered')).toBeVisible({ timeout: 15_000 });
+    // Scoped to the status ladder specifically — once the receipt (below) renders, the
+    // word "Delivered" legitimately appears a second time in its delivery timeline, which
+    // would otherwise make this locator ambiguous
+    await expect(customerPage.locator('.tiffin-tier.current', { hasText: 'Delivered' })).toBeVisible({ timeout: 15_000 });
     // The receipt: itemized lines, fee breakdown, delivery timeline, and who delivered it
     await expect(customerPage.getByText('Receipt')).toBeVisible();
     await expect(customerPage.getByText('E2E Test Dish × 1')).toBeVisible();
