@@ -250,17 +250,23 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
   await test.step('Phase L1: offers teaser, automatic discount, and a code overriding it', async () => {
     // A modest automatic offer and a bigger code-based one — the code should win even
     // though it's worth more, proving precedence in a real browser, not just the API
-    await api.post('/offers', {
+    const autoOfferRes = await api.post('/offers', {
       headers: { Authorization: `Bearer ${restaurantToken}` },
       data: { name: 'Auto 10%', discountType: 'percentage', discountValue: 10 },
     });
-    await api.post('/offers', {
+    expect(autoOfferRes.ok()).toBeTruthy();
+    const codeOfferRes = await api.post('/offers', {
       headers: { Authorization: `Bearer ${restaurantToken}` },
       data: { name: 'Big Save', code: 'BIGSAVE', discountType: 'flat', discountValue: 40 },
     });
+    expect(codeOfferRes.ok()).toBeTruthy();
 
-    // Reload to pick up the offers that didn't exist when this menu page first loaded
+    // Reload resets all in-memory React state (selectedRestaurant included), dropping the
+    // customer back on Browse — same lesson as the rating-persistence step above. Navigate
+    // back to the restaurant explicitly rather than assuming reload preserves the screen.
     await customerPage.reload();
+    await customerPage.getByPlaceholder('Search by name or cuisine…').fill(restaurantName);
+    await customerPage.getByText(restaurantName).click();
     await expect(customerPage.getByText(/🎉 10% OFF/)).toBeVisible();
     await expect(customerPage.getByText(/🎉 ₹40 OFF with code/)).toBeVisible();
 
