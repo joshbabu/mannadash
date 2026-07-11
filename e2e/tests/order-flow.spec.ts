@@ -285,6 +285,11 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await expect(customerPage.getByText('🎉 Big Save')).toBeVisible();
     await expect(customerPage.getByText('-₹40')).toBeVisible();
     await expect(customerPage.getByText('🎉 Auto 10%')).toHaveCount(0);
+    // Regression: checkout used to say "+ delivery fee, calculated at checkout" instead
+    // of a real number — the customer could never see the actual total before ordering
+    await expect(customerPage.getByText('calculated at checkout')).toHaveCount(0);
+    await expect(customerPage.locator('#checkout-cart-summary').getByText('Delivery fee')).toBeVisible();
+    await expect(customerPage.locator('#checkout-cart-summary').getByText('Total', { exact: true })).toBeVisible();
 
     // Regression: the receipt must show the applied offer too, not just the checkout
     // screen — this exact gap shipped once (checkout showed it, the receipt never did)

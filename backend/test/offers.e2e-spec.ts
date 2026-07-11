@@ -307,6 +307,21 @@ describe('Offers engine (e2e)', () => {
       expect(res.body.applied).toBe(true);
       expect(res.body.offerName).toBe('Auto 20%');
       expect(res.body.discountAmount).toBe(40);
+      // The real distance-based fee, not a placeholder — this is what lets checkout show
+      // an honest total before the order is placed, not "calculated at checkout"
+      expect(res.body.deliveryFee).toBeGreaterThan(0);
+    });
+
+    it('returns the real delivery fee even when no offer applies at all', async () => {
+      const { restaurant } = await setupApprovedRestaurantWithDish(200);
+      const customer = await signUpCustomer(app);
+      const res = await request(app.getHttpServer())
+        .post('/offers/preview')
+        .set('Authorization', `Bearer ${customer.token}`)
+        .send({ restaurantId: restaurant.id, subtotal: 200, latitude: 17.45, longitude: 78.39 })
+        .expect(201);
+      expect(res.body.applied).toBe(false);
+      expect(res.body.deliveryFee).toBeGreaterThan(0);
     });
 
     it('reports a real reason for an ineligible code, with a normal response, not a raw error', async () => {

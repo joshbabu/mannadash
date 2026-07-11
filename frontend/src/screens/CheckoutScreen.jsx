@@ -18,6 +18,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
   const [newLabel, setNewLabel] = useState('');
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [appliedOffer, setAppliedOffer] = useState(null); // { offerName, discountAmount, fromCode }
+  const [deliveryFee, setDeliveryFee] = useState(null);
   const [promoError, setPromoError] = useState('');
   const [checkingPromo, setCheckingPromo] = useState(false);
 
@@ -55,6 +56,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
     api
       .previewOffer({ restaurantId: restaurant.id, subtotal, latitude, longitude })
       .then((res) => {
+        setDeliveryFee(res.deliveryFee);
         if (res.applied) setAppliedOffer({ offerName: res.offerName, discountAmount: res.discountAmount, fromCode: false });
       })
       .catch(() => {});
@@ -66,6 +68,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
     setCheckingPromo(true);
     try {
       const res = await api.previewOffer({ restaurantId: restaurant.id, subtotal, latitude, longitude, promoCode: promoCodeInput.trim() });
+      setDeliveryFee(res.deliveryFee);
       if (res.applied) {
         setAppliedOffer({ offerName: res.offerName, discountAmount: res.discountAmount, fromCode: true });
       } else {
@@ -150,7 +153,16 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
             </span>
           </div>
         )}
-        <p className="muted" style={{ color: '#6b6156', marginTop: 4 }}>+ delivery fee, calculated at checkout</p>
+        <div className="row" style={{ marginTop: 4 }}>
+          <span className="muted">Delivery fee</span>
+          <span>{deliveryFee == null ? 'calculated below' : `₹${deliveryFee.toFixed(0)}`}</span>
+        </div>
+        {deliveryFee != null && (
+          <div className="row" style={{ fontWeight: 700, marginTop: 6, paddingTop: 6, borderTop: '1px solid #e5ddc9' }}>
+            <span>Total</span>
+            <span>₹{Math.max(0, subtotal + deliveryFee - (appliedOffer?.discountAmount || 0)).toFixed(0)}</span>
+          </div>
+        )}
 
         {!appliedOffer?.fromCode && (
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>

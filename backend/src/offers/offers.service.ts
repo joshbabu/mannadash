@@ -292,13 +292,13 @@ export class OffersService {
     subtotal: number,
     deliveryFee: number,
     promoCode?: string,
-  ): Promise<{ applied: boolean; offerName?: string; discountAmount?: number; reason?: string }> {
+  ): Promise<{ applied: boolean; offerName?: string; discountAmount?: number; reason?: string; deliveryFee: number }> {
     try {
       const resolved = await this.resolveOffer(restaurantId, customerId, subtotal, deliveryFee, promoCode);
-      if (!resolved) return { applied: false };
-      return { applied: true, offerName: resolved.offer.name, discountAmount: resolved.discountAmount };
+      if (!resolved) return { applied: false, deliveryFee };
+      return { applied: true, offerName: resolved.offer.name, discountAmount: resolved.discountAmount, deliveryFee };
     } catch (err) {
-      return { applied: false, reason: err.message };
+      return { applied: false, reason: err.message, deliveryFee };
     }
   }
 
