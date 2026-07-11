@@ -14,6 +14,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [saveThisAddress, setSaveThisAddress] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('cod'); // COD until Razorpay goes live
+  const [instructions, setInstructions] = useState('');
   const [newLabel, setNewLabel] = useState('');
 
   useEffect(() => {
@@ -51,6 +52,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
         latitude,
         longitude,
         paymentMethod,
+        ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
       });
       onOrderPlaced(order);
     } catch (err) {
@@ -123,6 +125,18 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
       </div>
 
       {error && <div className="error-banner">{error}</div>}
+      <div className="card" style={{ marginBottom: 14 }}>
+        <p style={{ fontWeight: 700, margin: '0 0 8px' }}>Cooking instructions <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>(optional)</span></p>
+        <textarea
+          placeholder="e.g. less spicy, no onions…"
+          value={instructions}
+          onChange={(e) => setInstructions(e.target.value)}
+          maxLength={300}
+          rows={2}
+          style={{ width: '100%', resize: 'vertical' }}
+        />
+      </div>
+
       <div className="card" style={{ marginBottom: 14 }}>
         <p style={{ fontWeight: 700, margin: '0 0 8px' }}>Payment</p>
         <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 15, marginBottom: 6 }}>

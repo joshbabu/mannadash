@@ -360,6 +360,11 @@ export default function OrdersScreen({ restaurant }) {
               ))}
             </div>
 
+            {order.instructions && (
+              <p style={{ background: '#fdeee8', color: 'var(--chili-dark)', padding: '6px 10px', borderRadius: 8, fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+                📝 {order.instructions}
+              </p>
+            )}
             <p className="muted" style={{ marginBottom: 4 }}>Deliver to: {order.deliveryAddress}</p>
             <p style={{ fontWeight: 600, marginBottom: 12 }}>
               Total ₹{Number(order.total).toFixed(0)}

@@ -23,6 +23,12 @@ export class OrdersController {
     return this.ordersService.findAllForCustomer(req.user.userId);
   }
 
+  // Public — powers the reviews section on the customer menu page
+  @Get('restaurant/:id/reviews')
+  getRestaurantReviews(@Param('id', ParseUUIDPipe) id: string) {
+    return this.ordersService.getRestaurantReviews(id);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('restaurant/mine')
   findMyRestaurantOrders(@Req() req: any) {

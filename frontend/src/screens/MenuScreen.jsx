@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 
+// "Open today: 09:00–22:00" / "Closed today" from whichever hours scheme is configured
+function todayHoursLabel(restaurant) {
+  const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const weekly = restaurant.weeklyHours;
+  if (weekly && Object.keys(weekly).length > 0) {
+    const today = weekly[DAY_KEYS[new Date().getDay()]];
+    return today ? `Open today: ${today.open}–${today.close}` : 'Closed today';
+  }
+  if (restaurant.openTime && restaurant.closeTime) return `Open daily: ${restaurant.openTime}–${restaurant.closeTime}`;
+  return 'Open all day';
+}
+
 export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart }) {
   const [items, setItems] = useState([]);
   const [cart, setCart] = useState({}); // menuItemId -> quantity
@@ -10,8 +22,12 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
   const [expandedDescriptions, setExpandedDescriptions] = useState(new Set());
   const [collapsedCategories, setCollapsedCategories] = useState(new Set());
   const [droppedFromReorder, setDroppedFromReorder] = useState(0);
+  const [menuSearch, setMenuSearch] = useState('');
+  const [reviews, setReviews] = useState([]);
+  const [showAllReviews, setShowAllReviews] = useState(false);
 
   useEffect(() => {
+    api.getRestaurantReviews(restaurant.id).then(setReviews).catch(() => {});
     api
       .getMenuItems(restaurant.id)
       .then((fetched) => {
@@ -50,7 +66,14 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
 
   const CATEGORY_LABELS = { breakfast: 'Breakfast', starter: 'Starters', lunch: 'Lunch', dinner: 'Dinner', main: 'Mains', dessert: 'Desserts', beverage: 'Beverages' };
   const CATEGORY_ORDER = ['breakfast', 'starter', 'lunch', 'dinner', 'main', 'dessert', 'beverage'];
-  const visibleItems = vegOnly ? items.filter((item) => item.isVeg) : items;
+  const searched = menuSearch
+    ? items.filter(
+        (item) =>
+          item.name.toLowerCase().includes(menuSearch.toLowerCase()) ||
+          (item.description || '').toLowerCase().includes(menuSearch.toLowerCase()),
+      )
+    : items;
+  const visibleItems = vegOnly ? searched.filter((item) => item.isVeg) : searched;
   const groupedItems = CATEGORY_ORDER.map((cat) => ({
     category: cat,
     items: visibleItems.filter((item) => item.category === cat),
@@ -96,6 +119,13 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
       </label>
 
       {error && <div className="error-banner">{error}</div>}
+      <input
+        placeholder={`Search in ${restaurant.name}…`}
+        value={menuSearch}
+        onChange={(e) => setMenuSearch(e.target.value)}
+        style={{ marginBottom: 12 }}
+      />
+
       {droppedFromReorder > 0 && (
         <div className="error-banner" style={{ background: '#fff2d6', borderColor: 'var(--turmeric)', color: '#8a5a00' }}>
           {droppedFromReorder} item{droppedFromReorder === 1 ? ' from your previous order is' : 's from your previous order are'} no
@@ -150,7 +180,18 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
                           ⭐ Bestseller
                         </span>
                       )}
-                      <h3 style={{ fontSize: 16 }}>{item.name} {item.isVeg ? '🌱' : ''}</h3>
+                      <h3 style={{ fontSize: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span
+                          title={item.isVeg ? 'Veg' : 'Non-veg'}
+                          style={{
+                            width: 14, height: 14, border: `2px solid ${item.isVeg ? '#1b8a3a' : '#8a2a1b'}`,
+                            borderRadius: 3, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                          }}
+                        >
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: item.isVeg ? '#1b8a3a' : '#8a2a1b' }} />
+                        </span>
+                        {item.name}
+                      </h3>
                       {item.description && (
                         <p className="muted" style={{ color: '#8a8378', fontSize: 13, margin: '2px 0' }}>
                           {shownDescription}
@@ -196,6 +237,56 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
         </div>
         );
       })}
+
+      {menuSearch && visibleItems.length === 0 && (
+        <p className="muted" style={{ textAlign: 'center' }}>Nothing on the menu matches “{menuSearch}”</p>
+      )}
+
+      {reviews.length > 0 && (
+        <div className="card" style={{ marginTop: 20 }}>
+          <h3 style={{ fontSize: 16, margin: '0 0 8px' }}>Reviews ({reviews.length})</h3>
+          {[5, 4, 3, 2, 1].map((star) => {
+            const count = reviews.filter((r) => r.restaurantRating === star).length;
+            return (
+              <div key={star} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginBottom: 2 }}>
+                <span style={{ width: 24 }} className="muted">{star}★</span>
+                <div style={{ flex: 1, height: 6, background: '#eee4d4', borderRadius: 3 }}>
+                  <div style={{ width: `${(count / reviews.length) * 100}%`, height: 6, background: 'var(--turmeric, #d9930d)', borderRadius: 3 }} />
+                </div>
+                <span style={{ width: 20, textAlign: 'right' }} className="muted">{count}</span>
+              </div>
+            );
+          })}
+          <div style={{ marginTop: 10 }}>
+            {(showAllReviews ? reviews : reviews.filter((r) => r.comment).slice(0, 3)).map((r) => (
+              <div key={r.id} style={{ borderTop: '1px solid #eee4d4', paddingTop: 8, marginTop: 8, fontSize: 14 }}>
+                <p style={{ margin: 0 }}>
+                  <strong>{r.customerName}</strong>{' '}
+                  <span style={{ color: 'var(--turmeric, #d9930d)' }}>{'★'.repeat(r.restaurantRating)}</span>
+                  <span className="muted" style={{ fontSize: 12, marginLeft: 6 }}>
+                    {new Date(r.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                  </span>
+                </p>
+                {r.comment && <p style={{ margin: '2px 0 0' }}>{r.comment}</p>}
+              </div>
+            ))}
+          </div>
+          {reviews.length > 3 && (
+            <button className="btn-secondary" style={{ marginTop: 10 }} onClick={() => setShowAllReviews(!showAllReviews)}>
+              {showAllReviews ? 'Show fewer' : `Show all ${reviews.length} reviews`}
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="card" style={{ marginTop: 14, marginBottom: cartCount > 0 ? 80 : 20, fontSize: 13 }}>
+        <p style={{ fontWeight: 700, margin: '0 0 4px' }}>{restaurant.name}</p>
+        <p className="muted" style={{ margin: '0 0 2px' }}>{restaurant.address}</p>
+        <p className="muted" style={{ margin: '0 0 2px' }}>{todayHoursLabel(restaurant)}</p>
+        {restaurant.fssaiNumber && (
+          <p className="muted" style={{ margin: 0 }}>FSSAI Lic. No. {restaurant.fssaiNumber}</p>
+        )}
+      </div>
 
       {cartCount > 0 && (
         <div style={{ position: 'fixed', bottom: 20, left: 20, right: 20, maxWidth: 440, margin: '0 auto' }}>

@@ -80,6 +80,11 @@ export class Order {
   @Column({ type: 'varchar', default: PaymentMethod.ONLINE })
   paymentMethod: PaymentMethod;
 
+  // Optional cooking note from the customer ("less spicy", "no onions") — shown to the
+  // kitchen on the live order card
+  @Column({ type: 'varchar', length: 300, nullable: true })
+  instructions: string | null;
+
   // Set when create-payment is called, before the customer actually pays
   @Column({ nullable: true })
   razorpayOrderId: string;

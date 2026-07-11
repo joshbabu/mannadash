@@ -31,6 +31,8 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
         // Phase 4: captured at onboarding, rendered on the customer's restaurant card
         isVegOnly: true,
         costForTwo: 500,
+        fssaiNumber: '12345678901234', // shown in the menu-page info footer
+        fssaiExpiry: '2027-03-31',
       },
     });
     expect(created.ok()).toBeTruthy();
@@ -70,7 +72,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
 
     const menuItemRes = await api.post('/menu-items', {
       headers: { Authorization: `Bearer ${restaurantToken}` },
-      data: { restaurantId, name: 'E2E Test Dish', price: 199, category: 'main' },
+      data: { restaurantId, name: 'E2E Test Dish', price: 199, category: 'main', isVeg: true },
     });
     expect(menuItemRes.ok()).toBeTruthy();
     menuItemId = (await menuItemRes.json()).id;
@@ -125,9 +127,26 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await expect(customerPage.getByText('₹500 for two')).toBeVisible();
     await customerPage.getByText(restaurantName).click();
     await customerPage.getByText('E2E Test Dish').waitFor();
+
+    // Spice pack: the Indian-convention veg indicator on the dish itself
+    await expect(customerPage.locator('[title="Veg"]').first()).toBeVisible();
+
+    // In-menu search: filters live, explains an empty result, and comes back on clear
+    const menuSearch = customerPage.getByPlaceholder(/^Search in /);
+    await menuSearch.fill('zzzzz');
+    await expect(customerPage.getByText(/Nothing on the menu matches/)).toBeVisible();
+    await menuSearch.fill('e2e test');
+    await expect(customerPage.getByText('E2E Test Dish')).toBeVisible();
+    await menuSearch.fill('');
+
+    // Info footer: address, hours, and the FSSAI licence (collected at onboarding)
+    await expect(customerPage.getByText('FSSAI Lic. No. 12345678901234')).toBeVisible();
+
     await customerPage.getByRole('button', { name: 'Add' }).first().click();
     await customerPage.getByText(/View cart/).click();
     await customerPage.getByPlaceholder('Flat / house number, street, landmark').fill('E2E Test Delivery Address');
+    // Cooking instructions travel with the order to the kitchen
+    await customerPage.getByPlaceholder('e.g. less spicy, no onions…').fill('Less spicy please');
     // COD is the default payment method (Razorpay is gated on real keys)
     await expect(customerPage.getByText('💵 Cash on delivery')).toBeVisible();
     await customerPage.getByRole('button', { name: 'Place order' }).click();
@@ -137,6 +156,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
   await test.step('Restaurant receives the order live and prepares it', async () => {
     // This is the exact bug we fixed earlier — the order must appear with no page refresh
     await expect(restaurantPage.getByText('E2E Test Delivery Address')).toBeVisible({ timeout: 15_000 });
+    await expect(restaurantPage.getByText('📝 Less spicy please')).toBeVisible();
     // Phase 3 status cards: located by testid, since card labels like "Ready" also appear
     // in order-card text ("Ready for pickup — waiting for the rider") and would collide
     const cardFor = (key: string) => restaurantPage.getByTestId(`status-card-${key}`);
@@ -189,7 +209,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     const myOrders = await (await api.get('/orders', { headers: { Authorization: `Bearer ${accessToken}` } })).json();
     const rate = await api.post(`/orders/${myOrders[0].id}/rating`, {
       headers: { Authorization: `Bearer ${accessToken}` },
-      data: { restaurantRating: 5, deliveryRating: 5 },
+      data: { restaurantRating: 5, deliveryRating: 5, comment: 'Best biryani in Uppal!' },
     });
     expect(rate.ok()).toBeTruthy();
 
@@ -223,6 +243,13 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // "View menu" browses the restaurant without force-filling a cart
     await customerPage.getByRole('button', { name: 'View menu', exact: true }).first().click();
     await expect(customerPage.getByText('E2E Test Dish')).toBeVisible();
+    // The rating left earlier is now public social proof on the menu page
+    await expect(customerPage.getByText('Reviews (1)')).toBeVisible();
+    await expect(customerPage.getByText('Best biryani in Uppal!')).toBeVisible();
+    // Privacy: the reviewer appears by FIRST NAME ONLY — the review byline says 'E2E',
+    // and the full signup name appears nowhere on the page
+    await expect(customerPage.locator('strong').filter({ hasText: /^E2E$/ })).toBeVisible();
+    await expect(customerPage.getByText('E2E Test Customer')).toHaveCount(0);
 
     // Reorder is honest about what it couldn't re-add
     await customerPage.getByRole('button', { name: '← Back' }).click();

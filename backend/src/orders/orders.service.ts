@@ -140,6 +140,7 @@ export class OrdersService {
         restaurant,
         status: OrderStatus.PLACED,
         paymentMethod: dto.paymentMethod === 'cod' ? PaymentMethod.COD : PaymentMethod.ONLINE,
+        instructions: dto.instructions ?? null,
         deliveryAddress: dto.deliveryAddress,
         deliveryLocation: () => `ST_SetSRID(ST_MakePoint(${dto.longitude}, ${dto.latitude}), 4326)`,
         subtotal,
@@ -475,6 +476,29 @@ export class OrdersService {
   // Lets the customer app show "Thanks for rating!" instead of the form after a reload —
   // rating state lived only in React state before, so revisiting a rated order re-asked
   // for a rating and resubmission hit the duplicate-rating 400.
+  // Public social proof for the customer menu page: recent ratings with comments,
+  // customer identified by FIRST NAME ONLY — no phone, no full user object.
+  async getRestaurantReviews(restaurantId: string) {
+    const ratings = await this.ratingRepo
+      .createQueryBuilder('rating')
+      .leftJoinAndSelect('rating.order', 'order')
+      .leftJoinAndSelect('order.customer', 'customer')
+      .leftJoinAndSelect('customer.user', 'user')
+      .where('order.restaurantId = :restaurantId', { restaurantId })
+      .orderBy('rating.createdAt', 'DESC')
+      .take(50)
+      .getMany();
+
+    return ratings.map((r) => ({
+      id: r.id,
+      restaurantRating: r.restaurantRating,
+      deliveryRating: r.deliveryRating,
+      comment: r.comment,
+      createdAt: r.createdAt,
+      customerName: (r as any).order?.customer?.user?.name?.split(' ')[0] ?? 'Customer',
+    }));
+  }
+
   async getOrderRating(orderId: string, userId: string) {
     await this.findOne(orderId, userId); // enforces ownership
     const rating = await this.ratingRepo.findOne({ where: { order: { id: orderId } } });
