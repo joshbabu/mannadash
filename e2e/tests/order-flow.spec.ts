@@ -349,7 +349,9 @@ test('customer can cancel their own order before the restaurant accepts it', asy
     // Auto-accept the confirm() dialog the cancel button triggers
     customerPage.on('dialog', (dialog) => dialog.accept());
     await customerPage.getByRole('button', { name: 'Cancel order' }).click();
-    await expect(customerPage.getByText('This order was cancelled')).toBeVisible({ timeout: 10_000 });
+    // Phase C: the banner now states WHO cancelled, not just that it happened — this is a
+    // customer-initiated cancel, so it must say "You cancelled", not the generic old wording
+    await expect(customerPage.getByText('You cancelled this order.')).toBeVisible({ timeout: 10_000 });
   });
 
   await customerContext.close();
