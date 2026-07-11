@@ -81,7 +81,43 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
 - **Phase G — Customer push notifications** (restaurant + rider already have push)
 - **Phase H — Dish-level search** (find restaurants BY dish, not just name/cuisine)
 - **Phase I — Launch checklist**: packaging charges, coupons/first-order offers, receipts,
-  terms & privacy pages
+  terms & privacy pages, **GST line** (platform is liable for 5% GST on restaurant orders under
+  section 9(5) — touches order math, receipts, and payouts; needs its own careful session)
+- **Phase J — Item variants & add-ons** (from the Zomato "Litti Chokha — Small/Medium/Large"
+  reference). The real complexity isn't the UI, it's the data model: a `MenuItemVariantGroup`
+  (name, `required`, `selectionType: 'single' | 'multiple'`) owning `MenuItemVariantOption`
+  rows (label, priceDelta), and `OrderItem` needs to snapshot which options were picked *and*
+  their price at order time — same pattern as `priceAtOrder`, extended. Cart state in the
+  customer app goes from `{menuItemId: qty}` to keying on a composite of item + selected
+  options, since "Litti Chokha, Large" and "Litti Chokha, Small" are different cart lines.
+  Kitchen card and receipt both need to render the selected options per line. Sizeable —
+  touches menu creation, cart, checkout, order entity, kitchen display, and receipts.
+- **Phase K — Nutritional info per serving** (FSSAI-referenced in the reference screenshots:
+  weight, protein, carbs, fat, fibre, calories — with calorie count derivable as
+  `4×protein + 4×carbs + 9×fat` rather than manually entered, to keep the numbers honest).
+  Smaller than variants: a handful of nullable columns on `MenuItem`, an optional expandable
+  section on the dish card. Natural to build alongside Phase J since both touch the same
+  add/edit-item form.
+- **Phase L — Restaurant partner dashboard suite** (from the Zomato partner-app reference —
+  this is the owner-facing half of the platform, distinct from anything customer-facing, and
+  the largest remaining body of work). Breaks into independently shippable pieces:
+  - **L1 — Offers & coupons engine**: percentage/flat discounts, freebie-on-minimum-order,
+    audience targeting (all customers vs first-order-only), scheduling (day-of-week, time-of-day
+    windows). Needs an `Offer` entity, an eligibility-check step in order pricing, and a
+    redemption ledger so an offer's usage can be capped/reported on. This one also *unlocks*
+    the coupons item already sitting in Phase I.
+  - **L2 — Customer complaints inbox**: a structured complaint/ticket table (order-linked,
+    status: open/resolved), surfaced in the admin panel first, restaurant dashboard second.
+  - **L3 — Review replies**: owners responding to a rating's comment, threaded under the
+    review — a small addition to the existing Rating entity (`replyText`, `repliedAt`) plus a
+    restaurant-guarded PATCH.
+  - **L4 — Deeper business analytics**: orders-percentage/discount-effectiveness graphs,
+    online-percentage trend, delayed/rejected-order rate — most of the raw data already exists
+    in the Order table; this is aggregation queries + chart UI on top of what Insights started.
+  - **L5 — Notification preferences**: per-channel toggles (push/WhatsApp/email) and a weekly
+    digest — meaningful once Phase G (customer push) and a messaging provider exist.
+  - Explicitly not planned: the video/"Dish Bytes" reel feature — out of scope for this stage,
+    not revisited.
 - **Non-code**: domain purchase, Razorpay activation (phone number), Telugu localization (later)
 
 ## Known gaps / not yet done
