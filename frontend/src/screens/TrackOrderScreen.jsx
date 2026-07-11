@@ -54,6 +54,7 @@ function printReceipt(order) {
     ${itemRows}
     <tr class="rule"><td class="muted">Item total</td><td class="r">₹${Number(order.subtotal).toFixed(0)}</td></tr>
     <tr><td class="muted">Delivery fee</td><td class="r">₹${Number(order.deliveryFee).toFixed(0)}</td></tr>
+    ${order.discountAmount != null && Number(order.discountAmount) > 0 ? `<tr style="color:#2e7d32"><td>🎉 ${esc(order.appliedOfferName)}</td><td class="r">-₹${Number(order.discountAmount).toFixed(0)}</td></tr>` : ''}
     <tr class="total"><td>Total</td><td class="r">₹${Number(order.total).toFixed(0)}</td></tr>
     <tr><td class="muted">${order.paymentMethod === 'cod' ? 'Cash on delivery' : 'Online payment'}</td><td class="r">${esc(order.paymentStatus)}</td></tr>
   </table>
@@ -283,6 +284,12 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
               <span className="muted">Delivery fee</span>
               <span>₹{Number(order.deliveryFee).toFixed(0)}</span>
             </div>
+            {order.discountAmount != null && Number(order.discountAmount) > 0 && (
+              <div className="row" style={{ color: 'var(--curry, #2e7d32)' }}>
+                <span>🎉 {order.appliedOfferName}</span>
+                <span>-₹{Number(order.discountAmount).toFixed(0)}</span>
+              </div>
+            )}
             <div className="row" style={{ fontWeight: 700, marginTop: 4 }}>
               <span>Total</span>
               <span>₹{Number(order.total).toFixed(0)}</span>

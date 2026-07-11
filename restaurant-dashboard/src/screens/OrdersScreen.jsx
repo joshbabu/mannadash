@@ -441,6 +441,11 @@ export default function OrdersScreen({ restaurant }) {
               {order.paymentMethod === 'cod' && (
                 <span className="pill" style={{ background: '#fff2d6', color: '#8a5a00', marginLeft: 8 }}>💵 COD</span>
               )}
+              {order.discountAmount != null && Number(order.discountAmount) > 0 && (
+                <span className="pill" style={{ background: '#e3edd8', color: 'var(--curry)', marginLeft: 8 }} title={order.appliedOfferName}>
+                  🎉 -₹{Number(order.discountAmount).toFixed(0)}
+                </span>
+              )}
             </p>
 
             {order.deliveryPartner && (

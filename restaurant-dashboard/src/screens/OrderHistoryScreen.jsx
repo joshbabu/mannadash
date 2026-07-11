@@ -134,6 +134,11 @@ export default function OrderHistoryScreen() {
                     {order.paymentMethod === 'cod' && (
                       <span className="pill" style={{ background: '#fff2d6', color: '#8a5a00' }}>💵 COD</span>
                     )}
+                    {order.discountAmount != null && Number(order.discountAmount) > 0 && (
+                      <span className="pill" style={{ background: '#e3edd8', color: 'var(--curry)' }} title={order.appliedOfferName}>
+                        🎉 -₹{Number(order.discountAmount).toFixed(0)}
+                      </span>
+                    )}
                     <span className={`pill status-${order.status}`}>{order.status}</span>
                     <span className="pill" style={{ background: order.paymentStatus === 'paid' ? '#e3edd8' : '#f0e5e5', color: order.paymentStatus === 'paid' ? 'var(--curry)' : '#8a3a3a' }}>
                       {order.paymentStatus}

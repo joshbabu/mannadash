@@ -285,6 +285,34 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await expect(customerPage.getByText('🎉 Big Save')).toBeVisible();
     await expect(customerPage.getByText('-₹40')).toBeVisible();
     await expect(customerPage.getByText('🎉 Auto 10%')).toHaveCount(0);
+
+    // Regression: the receipt must show the applied offer too, not just the checkout
+    // screen — this exact gap shipped once (checkout showed it, the receipt never did)
+    // before it was caught by hand and fixed.
+    await customerPage.getByPlaceholder('Flat / house number, street, landmark').fill('Offer Test Delivery Address');
+    await customerPage.getByRole('button', { name: 'Place order' }).click();
+    await expect(customerPage.getByText('Estimated delivery')).toBeVisible();
+
+    const customerLogin = await api.post('/auth/login', { data: { phone: customerPhone, password: 'testpass123' } });
+    const { accessToken: customerAccessToken } = await customerLogin.json();
+    const myOrders = await (await api.get('/orders', { headers: { Authorization: `Bearer ${customerAccessToken}` } })).json();
+    const offerOrderId = myOrders[0].id;
+    const advance = (token: string, status: string) =>
+      api.patch(`/orders/${offerOrderId}/status`, { headers: { Authorization: `Bearer ${token}` }, data: { status } });
+    await advance(restaurantToken, 'accepted');
+    await advance(restaurantToken, 'preparing');
+    await advance(restaurantToken, 'ready_for_pickup');
+    await api.post(`/orders/${offerOrderId}/assign-rider/${riderId}`, { headers: { Authorization: `Bearer ${restaurantToken}` } });
+    await advance(riderToken, 'picked_up');
+    await advance(riderToken, 'delivered');
+
+    // The customer never left this order's live tracking screen — same pattern as the
+    // main flow's delivery step, updates arrive via socket without any navigation.
+    // Scoped to the status ladder — the receipt (below) also says "Delivered", which
+    // already caused a strict-mode collision once earlier in this same file.
+    await expect(customerPage.locator('.tiffin-tier.current', { hasText: 'Delivered' })).toBeVisible({ timeout: 15_000 });
+    await expect(customerPage.getByText('🎉 Big Save')).toBeVisible();
+    await expect(customerPage.getByText('-₹40')).toBeVisible();
   });
 
   await test.step('History warns about closed restaurants and unavailable items', async () => {
