@@ -283,6 +283,15 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
   });
 
   await test.step('Phase J: a dish with a required variant group prices and orders correctly through the picker', async () => {
+    // The earlier "closed restaurant" step took this restaurant offline to test the
+    // Closed-now tag, and the customer search endpoint correctly excludes offline
+    // restaurants (WHERE isOpen = true) — bring it back online or it can never be found.
+    const backOnline = await api.patch(`/restaurants/${restaurantId}`, {
+      headers: { Authorization: `Bearer ${restaurantToken}` },
+      data: { isOpen: true },
+    });
+    expect(backOnline.ok()).toBeTruthy();
+
     // A second dish on the same restaurant, kept separate from E2E Test Dish so this
     // doesn't disturb any of the existing price/label assertions built around that one
     const variantDishRes = await api.post('/menu-items', {
