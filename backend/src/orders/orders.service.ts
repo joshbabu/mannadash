@@ -1,7 +1,8 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { calculateDeliveryFee } from './delivery-fee.util';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Repository, SelectQueryBuilder } from 'typeorm';
+import { In, IsNull, LessThan, Repository, SelectQueryBuilder } from 'typeorm';
 import { Order, OrderStatus, PaymentMethod, PaymentStatus, RefundStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Rating } from './entities/rating.entity';
@@ -20,7 +21,6 @@ import { OrdersGateway } from './orders.gateway';
 import { RazorpayService } from '../payments/razorpay.service';
 
 // Flat delivery fee for MVP — replace with distance-based calculation once rider assignment exists
-const FLAT_DELIVERY_FEE = 30;
 
 // Valid forward-only status transitions — prevents e.g. jumping straight from placed to delivered
 const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
@@ -114,18 +114,28 @@ export class OrdersService {
       orderItems.push(orderItem);
     }
 
-    const commissionAmount = Math.round(subtotal * (Number(restaurant.commissionRate) / 100) * 100) / 100;
-    const total = subtotal + FLAT_DELIVERY_FEE;
+    if (restaurant.minOrderValue && subtotal < restaurant.minOrderValue) {
+      throw new BadRequestException(
+        `${restaurant.name} has a minimum order of ₹${restaurant.minOrderValue} (your cart is ₹${subtotal})`,
+      );
+    }
 
-    // Rough ETA: restaurant's stated prep time + a distance-based travel estimate.
-    // Assumes ~20km/h average city delivery speed — doesn't account for real traffic,
-    // so treat this as a reasonable estimate shown to the customer, not a guarantee.
-    const AVG_DELIVERY_SPEED_MPS = 5.56;
+    // Distance between restaurant and delivery address — computed once, reused for both
+    // the delivery fee (below) and the ETA estimate, since both are distance-driven.
     const distanceRow = await this.orderRepo.manager.query(
       `SELECT ST_Distance(location, ST_SetSRID(ST_MakePoint($1, $2), 4326)) as dist FROM restaurants WHERE id = $3`,
       [dto.longitude, dto.latitude, restaurant.id],
     );
     const distanceMeters = parseFloat(distanceRow[0].dist);
+    const deliveryFee = calculateDeliveryFee(distanceMeters);
+
+    const commissionAmount = Math.round(subtotal * (Number(restaurant.commissionRate) / 100) * 100) / 100;
+    const total = subtotal + deliveryFee;
+
+    // Rough ETA: restaurant's stated prep time + a distance-based travel estimate.
+    // Assumes ~20km/h average city delivery speed — doesn't account for real traffic,
+    // so treat this as a reasonable estimate shown to the customer, not a guarantee.
+    const AVG_DELIVERY_SPEED_MPS = 5.56;
     const travelSeconds = distanceMeters / AVG_DELIVERY_SPEED_MPS;
     const prepSeconds = restaurant.avgPrepTimeMins * 60;
     const estimatedDeliveryAt = new Date(Date.now() + (prepSeconds + travelSeconds) * 1000);
@@ -145,7 +155,7 @@ export class OrdersService {
         deliveryAddress: dto.deliveryAddress,
         deliveryLocation: () => `ST_SetSRID(ST_MakePoint(${dto.longitude}, ${dto.latitude}), 4326)`,
         subtotal,
-        deliveryFee: FLAT_DELIVERY_FEE,
+        deliveryFee,
         commissionAmount,
         total,
         estimatedDeliveryAt,
@@ -856,6 +866,47 @@ export class OrdersService {
   async sweepAcceptanceTimeouts() {
     await this.nudgeExpiringOrders();
     await this.autoCancelStaleOrders();
+  }
+
+  /**
+   * Phase F: a restaurant that clicks "Auto-assign nearest" and gets "no riders nearby"
+   * shouldn't have to keep clicking — this sweep retries automatically every 45s for any
+   * order sitting ready-for-pickup with no rider yet. Reuses assignRider() itself, so a
+   * successful retry emits the exact same order-update + rider-push events as a manual
+   * click; nothing about "how an order gets a rider" forks between the two paths.
+   * Orders past READY_STUCK_MINUTES unassigned are left for a human — see staleUnassignedOrders().
+   */
+  @Cron('*/45 * * * * *')
+  async retryUnassignedReadyOrders(): Promise<void> {
+    // relations: restaurant is required — assignRider() reads order.restaurant.id to locate
+    // the restaurant's coordinates, and silently omitting it here previously turned every
+    // retry attempt into a swallowed TypeError instead of the expected "no rider" case
+    const candidates = await this.orderRepo.find({
+      where: { status: OrderStatus.READY_FOR_PICKUP, deliveryPartner: IsNull() },
+      relations: { restaurant: true },
+    });
+    for (const order of candidates) {
+      try {
+        await this.assignRider(order.id);
+      } catch (err) {
+        if (err instanceof BadRequestException) continue; // genuinely no rider nearby — try again next sweep
+        throw err; // anything else is a real bug and shouldn't be swallowed
+      }
+    }
+  }
+
+  // How long an order can sit ready-for-pickup with no rider before it's surfaced to admin
+  // as needing a human to intervene (call a rider directly, call the restaurant, etc.)
+  static readonly READY_STUCK_MINUTES = 5;
+
+  /** Powers the admin panel's "Needs a rider" list. Read-only visibility — no auto-action here. */
+  async staleUnassignedOrders(): Promise<Order[]> {
+    const threshold = new Date(Date.now() - OrdersService.READY_STUCK_MINUTES * 60_000);
+    return this.orderRepo.find({
+      where: { status: OrderStatus.READY_FOR_PICKUP, deliveryPartner: IsNull(), readyAt: LessThan(threshold) },
+      relations: { restaurant: true, customer: { user: true } },
+      order: { readyAt: 'ASC' },
+    });
   }
 
   async nudgeExpiringOrders(): Promise<void> {

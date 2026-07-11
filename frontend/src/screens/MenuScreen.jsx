@@ -284,15 +284,24 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
         <p className="muted" style={{ margin: '0 0 2px' }}>{restaurant.address}</p>
         <p className="muted" style={{ margin: '0 0 2px' }}>{todayHoursLabel(restaurant)}</p>
         {restaurant.fssaiNumber && (
-          <p className="muted" style={{ margin: 0 }}>FSSAI Lic. No. {restaurant.fssaiNumber}</p>
+          <p className="muted" style={{ margin: restaurant.minOrderValue ? '0 0 2px' : 0 }}>FSSAI Lic. No. {restaurant.fssaiNumber}</p>
+        )}
+        {restaurant.minOrderValue && (
+          <p className="muted" style={{ margin: 0 }}>Minimum order: ₹{restaurant.minOrderValue}</p>
         )}
       </div>
 
       {cartCount > 0 && (
         <div style={{ position: 'fixed', bottom: 20, left: 20, right: 20, maxWidth: 440, margin: '0 auto' }}>
-          <button className="btn-primary" onClick={goToCheckout}>
-            View cart · {cartCount} item{cartCount > 1 ? 's' : ''} · ₹{cartTotal.toFixed(0)}
-          </button>
+          {restaurant.minOrderValue && cartTotal < restaurant.minOrderValue ? (
+            <div className="btn-primary" style={{ textAlign: 'center', opacity: 0.7, cursor: 'default' }}>
+              Add ₹{(restaurant.minOrderValue - cartTotal).toFixed(0)} more to reach the ₹{restaurant.minOrderValue} minimum
+            </div>
+          ) : (
+            <button className="btn-primary" onClick={goToCheckout}>
+              View cart · {cartCount} item{cartCount > 1 ? 's' : ''} · ₹{cartTotal.toFixed(0)}
+            </button>
+          )}
         </div>
       )}
     </div>

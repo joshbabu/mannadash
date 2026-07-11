@@ -122,15 +122,17 @@ describe('Operating hours, payouts, and refunds (e2e)', () => {
     await request(app.getHttpServer()).patch(`/orders/${orderId}/status`).set('Authorization', `Bearer ${rider.token}`).send({ status: 'picked_up' }).expect(200);
     await request(app.getHttpServer()).patch(`/orders/${orderId}/status`).set('Authorization', `Bearer ${rider.token}`).send({ status: 'delivered' }).expect(200);
 
+    // Phase E: delivery fee is now distance-tiered, not a flat ₹30. This order's ~1.5km
+    // distance falls in the base tier (₹25) — see delivery-fee.util.ts.
     const earningsBefore = await request(app.getHttpServer()).get('/orders/rider/earnings').set('Authorization', `Bearer ${rider.token}`).expect(200);
-    expect(earningsBefore.body.pendingPayout).toBe(30);
+    expect(earningsBefore.body.pendingPayout).toBe(25);
 
     // Non-admin cannot issue a payout
     await request(app.getHttpServer()).post(`/orders/rider/${rider.id}/payout`).set('Authorization', `Bearer ${rider.token}`).expect(403);
 
     // Admin issues it
     const payoutRes = await request(app.getHttpServer()).post(`/orders/rider/${rider.id}/payout`).set('Authorization', `Bearer ${admin}`).expect(201);
-    expect(payoutRes.body.amount).toBe(30);
+    expect(payoutRes.body.amount).toBe(25);
 
     const earningsAfter = await request(app.getHttpServer()).get('/orders/rider/earnings').set('Authorization', `Bearer ${rider.token}`).expect(200);
     expect(earningsAfter.body.pendingPayout).toBe(0);

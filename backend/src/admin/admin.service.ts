@@ -9,6 +9,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { User } from '../customers/entities/user.entity';
 import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { DeliveryPartner } from '../delivery-partners/entities/delivery-partner.entity';
+import { OrdersService } from '../orders/orders.service';
 
 const SALT_ROUNDS = 10;
 
@@ -34,6 +35,7 @@ export class AdminService {
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectRepository(Restaurant) private readonly restaurantRepo: Repository<Restaurant>,
     @InjectRepository(DeliveryPartner) private readonly riderRepo: Repository<DeliveryPartner>,
+    private readonly ordersService: OrdersService,
   ) {}
 
   /**
@@ -42,6 +44,26 @@ export class AdminService {
    * user changes it from their app. When WhatsApp-OTP self-service lands, this stays as
    * the support path behind it.
    */
+  /**
+   * Phase F visibility: orders sitting ready-for-pickup with no rider for longer than
+   * OrdersService.READY_STUCK_MINUTES — the auto-retry sweep has been trying and failing,
+   * so this is a human's turn (call a rider directly, call the restaurant, or just know
+   * it's happening). Shapes the response down to what the admin panel actually needs —
+   * no full entity dump, no customer phone/address.
+   */
+  async getStaleUnassignedOrders() {
+    const orders = await this.ordersService.staleUnassignedOrders();
+    return orders.map((o) => ({
+      id: o.id,
+      restaurantName: o.restaurant.name,
+      restaurantPhone: o.restaurant.phone,
+      customerName: o.customer.user.name,
+      total: o.total,
+      readyAt: o.readyAt,
+      minutesWaiting: Math.round((Date.now() - o.readyAt.getTime()) / 60_000),
+    }));
+  }
+
   async resetPassword(dto: ResetPasswordDto) {
     const repo: Repository<any> =
       dto.role === 'customer' ? this.userRepo : dto.role === 'restaurant' ? this.restaurantRepo : this.riderRepo;

@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -11,6 +11,15 @@ export class AdminController {
   @Post('login')
   login(@Body() dto: AdminLoginDto) {
     return this.adminService.login(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('stale-unassigned-orders')
+  getStaleUnassignedOrders(@Req() req: any) {
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Only admins can view this');
+    }
+    return this.adminService.getStaleUnassignedOrders();
   }
 
   @UseGuards(JwtAuthGuard)

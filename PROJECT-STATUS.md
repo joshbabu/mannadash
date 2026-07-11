@@ -74,6 +74,9 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
   blocker as Razorpay. The self-service upgrade path when ready is **WhatsApp OTP via
   Meta's Cloud API** (works from a non-Indian business number; users' WhatsApp numbers are
   already captured at onboarding); the admin reset stays as the support fallback.
+  *(Fixed during Phase F work: the "Reset a password" card was accidentally nested inside
+  the pending-restaurants conditional, so it silently disappeared whenever the approval
+  queue was empty — moved to always render regardless of tab or pending count.)*
 - **Phase C — Order acceptance timeout: DONE.** A restaurant has 7 minutes to accept a placed
   order (mirrors Zomato/Swiggy's short accept-countdown convention); a cron sweep (every 30s)
   nudges the restaurant's live dashboard once at the halfway mark (3.5 min) and auto-cancels
@@ -85,8 +88,24 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
   dashboard mirrors it as `ACCEPT_TIMEOUT_SECONDS` for its live countdown UI — keep both in
   sync if this ever changes.
 - **Phase D — ~~Saved addresses~~ already built** (checkout has save/pick with labels)
-- **Phase E — Delivery fee & minimum order review** (currently flat ₹30, no minimum)
-- **Phase F — No-rider-available handling**
+- **Phase E — Delivery fee & minimum order: DONE.** Flat ₹30 replaced with distance-tiered
+  pricing (`backend/src/orders/delivery-fee.util.ts`, a pure function): ₹25 base fee inside
+  3km, +₹6/km from 3–7km, +₹8/km beyond 7km, capped at ₹90. Reuses the restaurant↔customer
+  distance already computed for the ETA estimate — no new PostGIS query needed. Restaurants
+  can also set an optional minimum order value via Settings; checkout won't let a customer
+  proceed below it, and the backend enforces it too (defense in depth, not just UI trust).
+- **Phase F — No-rider-available handling: DONE.** A cron sweep (45s cadence) retries
+  `assignRider` automatically for any ready-for-pickup order with no rider — reuses the
+  exact same assignment path as a manual "Auto-assign nearest" click, so a successful retry
+  is indistinguishable from a human doing it. The restaurant dashboard shows a live
+  "🔍 Searching for a nearby rider…" indicator, turning urgent after
+  `OrdersService.READY_STUCK_MINUTES` (5 min) with a "call one directly" prompt. The admin
+  panel gets a "⏰ Needs a rider" card — read-only visibility (no auto-action) once an order
+  has been stuck past that threshold, with a tap-to-call link to the restaurant. This module
+  had a real bug caught by its own tests before shipping: the sweep's initial DB query
+  omitted the `restaurant` relation, silently turning every retry attempt into a swallowed
+  `TypeError` instead of the expected "no rider nearby" case — fixed, and the catch block now
+  only swallows the specific expected exception, rethrowing anything else.
 - **Phase G — Customer push notifications** (restaurant + rider already have push)
 - **Phase H — Dish-level search** (find restaurants BY dish, not just name/cuisine)
 - **Phase I — Launch checklist**: packaging charges, coupons/first-order offers, receipts,

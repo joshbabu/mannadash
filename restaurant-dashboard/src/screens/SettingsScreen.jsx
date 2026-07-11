@@ -77,6 +77,7 @@ export default function SettingsScreen({ restaurant }) {
           ),
           isVegOnly: Boolean(pub.isVegOnly),
           costForTwo: pub.costForTwo ? String(pub.costForTwo) : '',
+          minOrderValue: pub.minOrderValue ? String(pub.minOrderValue) : '',
           fssaiNumber: kyc.fssaiNumber || '',
           fssaiExpiry: kyc.fssaiExpiry || '',
           pan: kyc.pan || '',
@@ -97,6 +98,7 @@ export default function SettingsScreen({ restaurant }) {
     if (form.whatsappNumber && !PATTERNS.whatsapp.re.test(form.whatsappNumber)) return PATTERNS.whatsapp.msg;
     if (!DAYS.some((d) => form.workingDays[d])) return 'Select at least one working day';
     if (form.costForTwo && (!/^\d+$/.test(form.costForTwo) || Number(form.costForTwo) < 1)) return 'Cost for two should be a positive amount';
+    if (form.minOrderValue && (!/^\d+$/.test(form.minOrderValue) || Number(form.minOrderValue) < 1)) return 'Minimum order should be a positive amount';
     if (form.fssaiNumber && !PATTERNS.fssai.re.test(form.fssaiNumber)) return PATTERNS.fssai.msg;
     if (form.fssaiNumber && !form.fssaiExpiry) return 'Please add the FSSAI expiry date';
     if (form.pan && !PATTERNS.pan.re.test(form.pan)) return PATTERNS.pan.msg;
@@ -137,6 +139,7 @@ export default function SettingsScreen({ restaurant }) {
       weeklyHours,
       isVegOnly: form.isVegOnly,
       costForTwo: form.costForTwo ? Number(form.costForTwo) : null,
+      minOrderValue: form.minOrderValue ? Number(form.minOrderValue) : null,
       fssaiNumber: orNull(form.fssaiNumber),
       fssaiExpiry: form.fssaiNumber ? form.fssaiExpiry : null,
       pan: orNull(form.pan),
@@ -266,6 +269,7 @@ export default function SettingsScreen({ restaurant }) {
           Both veg &amp; non-veg
         </label>
         <input placeholder="Cost for two (₹, approximate)" value={form.costForTwo} onChange={(e) => set('costForTwo', e.target.value.replace(/\D/g, ''))} maxLength={5} />
+        <input placeholder="Minimum order value (₹, optional)" value={form.minOrderValue} onChange={(e) => set('minOrderValue', e.target.value.replace(/\D/g, ''))} maxLength={5} style={{ marginTop: 8 }} />
       </div>
 
       <div className="card" style={{ marginBottom: 14 }}>

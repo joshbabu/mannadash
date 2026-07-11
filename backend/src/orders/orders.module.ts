@@ -27,5 +27,6 @@ import { PushModule } from '../push/push.module';
   ],
   providers: [OrdersService, OrdersGateway],
   controllers: [OrdersController],
+  exports: [OrdersService], // AdminModule needs staleUnassignedOrders() for the "Needs a rider" list
 })
 export class OrdersModule {}

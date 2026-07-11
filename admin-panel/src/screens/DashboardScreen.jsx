@@ -63,6 +63,19 @@ export default function DashboardScreen({ onLogout }) {
     return null;
   }
 
+  // Phase F: orders stuck ready-for-pickup with no rider — polled independently of the
+  // restaurant/rider tab data since it's relevant regardless of which tab is open
+  const [staleOrders, setStaleOrders] = useState([]);
+
+  useEffect(() => {
+    function loadStaleOrders() {
+      api.getStaleUnassignedOrders().then(setStaleOrders).catch(() => {});
+    }
+    loadStaleOrders();
+    const interval = setInterval(loadStaleOrders, 30_000);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     load();
   }, []);
@@ -124,11 +137,6 @@ export default function DashboardScreen({ onLogout }) {
       {actionError && <div className="error-banner">{actionError}</div>}
       {loading && <p className="muted">Loading…</p>}
 
-      {tab === 'restaurants' && !loading && (
-        <div>
-          {pendingRestaurants.length > 0 && (
-            <>
-
       <div className="card" style={{ marginBottom: 20 }}>
         <p style={{ fontWeight: 700, margin: '0 0 2px' }}>Reset a password</p>
         <p className="muted" style={{ fontSize: 13, margin: '0 0 10px' }}>Generates a temporary password — share it with the user over call or WhatsApp; they should change it from their app</p>
@@ -151,6 +159,32 @@ export default function DashboardScreen({ onLogout }) {
         )}
       </div>
 
+      {staleOrders.length > 0 && (
+        <div className="card" style={{ marginBottom: 20, background: 'rgba(211,84,0,0.12)', border: '1px solid rgba(211,84,0,0.4)' }}>
+          <p style={{ fontWeight: 700, margin: '0 0 2px' }}>⏰ Needs a rider ({staleOrders.length})</p>
+          <p className="muted" style={{ fontSize: 13, margin: '0 0 10px' }}>
+            Ready for pickup for over 5 minutes with no rider found nearby — auto-retry has been trying every 45s. Call a rider or the restaurant directly.
+          </p>
+          <div className="stack">
+            {staleOrders.map((o) => (
+              <div key={o.id} className="row" style={{ fontSize: 14 }}>
+                <span>
+                  <strong>{o.restaurantName}</strong> → {o.customerName} · ₹{Number(o.total).toFixed(0)}
+                </span>
+                <span>
+                  {o.minutesWaiting}m waiting ·{' '}
+                  <a href={`tel:${o.restaurantPhone}`} style={{ color: 'inherit' }}>📞 Call restaurant</a>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'restaurants' && !loading && (
+        <div>
+          {pendingRestaurants.length > 0 && (
+            <>
               <h2 style={{ fontSize: 16, marginBottom: 10 }}>Awaiting approval</h2>
               <div className="stack" style={{ marginBottom: 24 }}>
                 {pendingRestaurants.map((r) => (

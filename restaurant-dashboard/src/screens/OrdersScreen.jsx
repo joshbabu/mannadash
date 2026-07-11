@@ -32,6 +32,23 @@ const ACTIVE_STATUSES = ['placed', 'accepted', 'preparing', 'ready_for_pickup'];
 const ACCEPT_TIMEOUT_SECONDS = 7 * 60;
 const NUDGE_AT_SECONDS = ACCEPT_TIMEOUT_SECONDS / 2;
 
+// Mirrors OrdersService.READY_STUCK_MINUTES on the backend — keep in sync if that changes.
+const READY_STUCK_MINUTES = 5;
+
+// "Searching for a rider…" while ready_for_pickup and unassigned; escalates to an urgent
+// tone once the auto-retry sweep has had a real chance and still come up empty
+function getRiderSearchStatus(order, now) {
+  if (order.status !== 'ready_for_pickup' || order.deliveryPartner || !order.readyAt) return null;
+  const minutesWaiting = (now - new Date(order.readyAt).getTime()) / 60000;
+  return {
+    stuck: minutesWaiting >= READY_STUCK_MINUTES,
+    label:
+      minutesWaiting >= READY_STUCK_MINUTES
+        ? `No riders found nearby for ${Math.round(minutesWaiting)}m — try Choose rider, or call one directly`
+        : '🔍 Searching for a nearby rider…',
+  };
+}
+
 // Countdown to auto-cancel for a still-PLACED order, or null once accepted/decided
 function getAcceptCountdown(order, now) {
   if (order.status !== 'placed') return null;
@@ -376,6 +393,7 @@ export default function OrdersScreen({ restaurant }) {
         {orders.map((order) => {
           const urgency = getUrgency(order, now);
           const acceptCountdown = getAcceptCountdown(order, now);
+          const riderSearch = getRiderSearchStatus(order, now);
           return (
           <div key={order.id} className="card" style={urgency ? { borderLeft: `4px solid ${urgency.color}` } : undefined}>
             <div className="row" style={{ marginBottom: 8 }}>
@@ -455,6 +473,17 @@ export default function OrdersScreen({ restaurant }) {
                 </>
               )}
             </div>
+
+            {riderSearch && (
+              <p
+                style={{
+                  fontSize: 13, fontWeight: 600, marginTop: 8,
+                  color: riderSearch.stuck ? 'var(--chili-dark)' : '#8a5a00',
+                }}
+              >
+                {riderSearch.label}
+              </p>
+            )}
 
             {riderPickerOrderId === order.id && (
               <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)' }}>

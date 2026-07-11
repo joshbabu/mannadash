@@ -101,6 +101,11 @@ export class Restaurant {
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 20.0 })
   commissionRate: number;
 
+  // Null = no minimum. Restaurant-configurable via Settings, enforced at order placement
+  // (checkout also warns the customer before they try).
+  @Column({ type: 'int', nullable: true })
+  minOrderValue: number | null;
+
   @Column({ default: 30 })
   avgPrepTimeMins: number;
 

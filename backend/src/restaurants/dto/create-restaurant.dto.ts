@@ -103,4 +103,9 @@ export class CreateRestaurantDto {
   @IsInt()
   @Min(1)
   costForTwo?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  minOrderValue?: number;
 }
