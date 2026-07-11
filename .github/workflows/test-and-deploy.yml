@@ -80,12 +80,14 @@ jobs:
           npm ci --prefix frontend
           npm ci --prefix restaurant-dashboard
           npm ci --prefix rider-app
+          npm ci --prefix admin-panel
 
       - name: Point frontends at the local test backend
         run: |
           echo "VITE_API_BASE=http://localhost:3000" > frontend/.env.local
           echo "VITE_API_BASE=http://localhost:3000" > restaurant-dashboard/.env.local
           echo "VITE_API_BASE=http://localhost:3000" > rider-app/.env.local
+          echo "VITE_API_BASE=http://localhost:3000" > admin-panel/.env.local
 
       - name: Install e2e dependencies and browser
         working-directory: e2e
