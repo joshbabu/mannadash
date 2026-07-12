@@ -1,0 +1,56 @@
+name: Toggle GST & platform fee
+
+# Manual only — never runs on a push, only when you click "Run workflow" in the
+# Actions tab. This is deliberate: GST going live is a compliance decision, not
+# something that should ever fire automatically as a side effect of a code change.
+on:
+  workflow_dispatch:
+    inputs:
+      enabled:
+        description: 'Turn GST + platform fee on or off'
+        required: true
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+        default: 'false'
+
+jobs:
+  toggle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update .env on the server and restart the backend
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          GST_ENABLED_VALUE: ${{ inputs.enabled }}
+          PLATFORM_FEE_AMOUNT_VALUE: ${{ secrets.PLATFORM_FEE_AMOUNT }}
+          GST_RESTAURANT_RATE_VALUE: ${{ secrets.GST_RESTAURANT_RATE_PERCENT }}
+          GST_DELIVERY_RATE_VALUE: ${{ secrets.GST_DELIVERY_RATE_PERCENT }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: GST_ENABLED_VALUE,PLATFORM_FEE_AMOUNT_VALUE,GST_RESTAURANT_RATE_VALUE,GST_DELIVERY_RATE_VALUE
+          script: |
+            set -e
+            cd /root/mannadash-app
+
+            # Back up before touching anything real
+            cp .env .env.backup-$(date +%Y%m%d-%H%M%S)
+
+            # Surgical: strip any existing lines for exactly these four vars (line-anchored,
+            # so nothing else in .env — DB password, JWT secret, etc. — is ever touched),
+            # then append the fresh values. This is the ONLY part of .env this workflow edits.
+            grep -v '^GST_ENABLED=\|^PLATFORM_FEE_AMOUNT=\|^GST_RESTAURANT_RATE_PERCENT=\|^GST_DELIVERY_RATE_PERCENT=' .env > .env.tmp || true
+            mv .env.tmp .env
+
+            echo "GST_ENABLED=${GST_ENABLED_VALUE}" >> .env
+            if [ "${GST_ENABLED_VALUE}" = "true" ]; then
+              echo "PLATFORM_FEE_AMOUNT=${PLATFORM_FEE_AMOUNT_VALUE:-0}" >> .env
+              echo "GST_RESTAURANT_RATE_PERCENT=${GST_RESTAURANT_RATE_VALUE:-5}" >> .env
+              echo "GST_DELIVERY_RATE_PERCENT=${GST_DELIVERY_RATE_VALUE:-18}" >> .env
+            fi
+
+            docker compose -f docker-compose.prod.yml up -d --force-recreate backend
+
+            echo "Done. GST_ENABLED is now: ${GST_ENABLED_VALUE}"
