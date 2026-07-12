@@ -71,13 +71,24 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
 
   // Silently check for the best automatic offer whenever the cart or delivery point is
   // known — no customer action needed. A later successful code application overrides this.
+  //
+  // Bug fixed here: this effect re-runs on every subtotal change (including the in-checkout
+  // qty stepper), and was unconditionally overwriting appliedOffer — so incrementing a
+  // quantity after applying a code silently replaced the code with the automatic offer.
+  // The functional setAppliedOffer form checks what's ACTUALLY applied right now (not a
+  // stale closure value) before deciding whether to touch it: a code in place is never
+  // overwritten by this effect, only cleared/replaced by another explicit code action.
   useEffect(() => {
     if (subtotal <= 0) return;
     api
       .previewOffer({ restaurantId: restaurant.id, subtotal, latitude, longitude })
       .then((res) => {
         setDeliveryFee(res.deliveryFee);
-        if (res.applied) setAppliedOffer({ offerName: res.offerName, discountAmount: res.discountAmount, fromCode: false });
+        setAppliedOffer((prev) => {
+          if (prev?.fromCode) return prev; // a customer-entered code always wins, untouched
+          if (res.applied) return { offerName: res.offerName, discountAmount: res.discountAmount, fromCode: false };
+          return null; // the previous automatic offer (if any) no longer qualifies
+        });
       })
       .catch(() => {});
   }, [subtotal, latitude, longitude, restaurant.id]);
