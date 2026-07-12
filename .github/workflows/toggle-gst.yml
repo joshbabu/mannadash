@@ -3,6 +3,13 @@ name: Toggle GST & platform fee
 # Manual only — never runs on a push, only when you click "Run workflow" in the
 # Actions tab. This is deliberate: GST going live is a compliance decision, not
 # something that should ever fire automatically as a side effect of a code change.
+#
+# All four values are typed in on the Run workflow form itself — no GitHub secrets
+# needed. That's a deliberate testing-phase choice: quick to tweak run to run while
+# nothing's live yet. Once real customers are on the platform and these numbers stop
+# changing, switch platform_fee_amount/gst_restaurant_rate/gst_delivery_rate back to
+# repo secrets (Settings → Secrets and variables → Actions) so they're not sitting in
+# every workflow run's visible history.
 on:
   workflow_dispatch:
     inputs:
@@ -14,6 +21,21 @@ on:
           - 'true'
           - 'false'
         default: 'false'
+      platform_fee_amount:
+        description: 'Platform fee in rupees (only used if enabled=true)'
+        required: false
+        type: string
+        default: '0'
+      gst_restaurant_rate:
+        description: 'Restaurant GST rate, percent (only used if enabled=true)'
+        required: false
+        type: string
+        default: '5'
+      gst_delivery_rate:
+        description: 'Delivery GST rate, percent (only used if enabled=true)'
+        required: false
+        type: string
+        default: '18'
 
 jobs:
   toggle:
@@ -23,9 +45,9 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         env:
           GST_ENABLED_VALUE: ${{ inputs.enabled }}
-          PLATFORM_FEE_AMOUNT_VALUE: ${{ secrets.PLATFORM_FEE_AMOUNT }}
-          GST_RESTAURANT_RATE_VALUE: ${{ secrets.GST_RESTAURANT_RATE_PERCENT }}
-          GST_DELIVERY_RATE_VALUE: ${{ secrets.GST_DELIVERY_RATE_PERCENT }}
+          PLATFORM_FEE_AMOUNT_VALUE: ${{ inputs.platform_fee_amount }}
+          GST_RESTAURANT_RATE_VALUE: ${{ inputs.gst_restaurant_rate }}
+          GST_DELIVERY_RATE_VALUE: ${{ inputs.gst_delivery_rate }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
@@ -53,4 +75,4 @@ jobs:
 
             docker compose -f docker-compose.prod.yml up -d --force-recreate backend
 
-            echo "Done. GST_ENABLED is now: ${GST_ENABLED_VALUE}"
+            echo "Done. GST_ENABLED=${GST_ENABLED_VALUE}, platform fee=${PLATFORM_FEE_AMOUNT_VALUE}, restaurant GST=${GST_RESTAURANT_RATE_VALUE}%, delivery GST=${GST_DELIVERY_RATE_VALUE}%"
