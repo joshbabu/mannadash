@@ -175,30 +175,42 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
     own earnings, added to (never touched by commission on) the delivery fee — the rider
     earnings screen shows delivery fee and tip as separate line items so a rider can see
     when they were tipped, not just a lump sum.
-  - **Platform fee & GST: built, dormant by default.** MannaDash isn't GST-registered yet
-    (confirmed directly), so this stays OFF until it actually is — genuinely zero, not a
-    hidden nonzero charge, tested explicitly (`gst-and-platform-fee.e2e-spec.ts`, 6 tests).
-    Two different things live in `backend/src/orders/gst-config.util.ts`: **platform fee**
-    (MannaDash's own charge, not a tax — can be turned on any time, no registration
-    needed) and **GST** (real tax law — CGST Act section 9(5) makes the *platform*, not
-    the individual restaurant, liable to collect and remit once registered as an
-    e-commerce operator; turning this on before registration would mean charging a tax
-    that isn't actually going anywhere real). Both are env-var-gated
-    (`PLATFORM_FEE_AMOUNT`, `GST_ENABLED`, `GST_RESTAURANT_RATE_PERCENT`,
+  - **Platform fee & GST: built AND deployed, currently in testing mode.** MannaDash isn't
+    GST-registered yet (confirmed directly), so real customers never see this until it's
+    deliberately turned on for good — but Joshua wanted to preview it in dev, so it's live
+    and toggleable right now. Two different things live in
+    `backend/src/orders/gst-config.util.ts`: **platform fee** (MannaDash's own charge, not
+    a tax — can be on any time, no registration needed) and **GST** (real tax law — CGST
+    Act section 9(5) makes the *platform*, not the individual restaurant, liable to
+    collect and remit once registered as an e-commerce operator; turning this on before
+    registration would mean charging a tax that isn't actually going anywhere real). Both
+    are env-var-gated (`PLATFORM_FEE_AMOUNT`, `GST_ENABLED`, `GST_RESTAURANT_RATE_PERCENT`,
     `GST_DELIVERY_RATE_PERCENT`) and always server-computed — a client attempting to send
     these fields on an order gets rejected outright (`forbidNonWhitelisted`), not silently
-    ignored. **Advice given, not yet decided:** recommended launching with platform fee at
-    ₹0 as a deliberate differentiator against Swiggy/Zomato's creeping ₹10ish fees — cheap
-    to offer, genuinely resonates with customers who already resent the incumbents'
-    fee creep. The frontend is fully wired and driven entirely by what the backend
-    returns — checkout and receipts show nothing extra today, and the moment
-    `GST_ENABLED=true` is set in production, the real breakdown appears automatically,
-    no frontend redeploy needed. **The rates used (5% food, 18% delivery) are the
-    commonly-cited ones as of this writing, NOT verified tax advice — confirm the actual
-    applicable rates with an accountant before ever setting `GST_ENABLED=true`.** Also:
-    per the standing `.env` lesson below, remember to add these vars to
-    `docker-compose.prod.yml`'s `environment:` block when the time comes — an env var in
-    `.env` alone doesn't reach the container.
+    ignored. Fully tested (`gst-and-platform-fee.e2e-spec.ts`, 6 tests): genuinely zero
+    when unconfigured, platform fee independent of GST, both GST lines computed correctly
+    once enabled, commission never inflated by either, GST on delivery computed from the
+    real fee before any offer discount. **Advice given, not yet decided:** recommended
+    launching with platform fee at ₹0 as a differentiator against Swiggy/Zomato's creeping
+    ₹10ish fees. The frontend is driven entirely by what the backend returns — nothing
+    extra shows unless the backend actually returns a nonzero value, no separate frontend
+    flag to keep in sync.
+
+    **How it's actually toggled** (`.github/workflows/toggle-gst.yml`): a manual-only
+    GitHub Actions workflow (`workflow_dispatch` — never fires on a push) that SSHs in
+    using the same `SSH_HOST`/`SSH_USER`/`SSH_PRIVATE_KEY` secrets the normal deploy
+    already uses, surgically rewrites just those four lines in the server's real `.env`
+    (backed up first, every other line — DB password, JWT secret — untouched), and
+    restarts the backend container. All four values (on/off + the three numbers) are
+    typed directly into the "Run workflow" form — a deliberate testing-phase choice so
+    nothing needs a GitHub secret set up first. **Before real customers are on the
+    platform**, switch `platform_fee_amount`/`gst_restaurant_rate`/`gst_delivery_rate`
+    to repo secrets instead (Settings → Secrets and variables → Actions) — form inputs
+    are visible in that run's log, fine for now, not once these are live numbers.
+    **The rates used (5% food, 18% delivery) are the commonly-cited ones as of this
+    writing, NOT verified tax advice — confirm the actual applicable rates with an
+    accountant before relying on this for real orders**, even though the mechanism
+    itself is proven and working.
   - **L2 — Customer complaints inbox**: a structured complaint/ticket table (order-linked,
     status: open/resolved), surfaced in the admin panel first, restaurant dashboard second.
   - **L3 — Review replies: DONE.** `Rating` gained `replyText`/`repliedAt`; a restaurant-
@@ -308,6 +320,17 @@ time, not just today.
    already have moved. The existing delivery-type/tip Playwright assertions turned out to
    already be correct and complete once found, which cut real rework — worth checking what's
    already there before writing new tests too, not just new code.
+9. **Similarly-named patches for the same feature are genuinely confusable, in practice, not
+   just in theory.** Setting up the GST toggle produced three patches in close succession —
+   `platform-fee-gst.patch`, `gst-env-passthrough.patch`, `toggle-gst-workflow.patch` — and
+   Joshua legitimately re-applied `toggle-gst-workflow.patch` a second time thinking it was
+   `gst-env-passthrough.patch`, which silently did nothing (already applied → nothing to
+   commit → no push → no CI run), and cost real back-and-forth to diagnose (had to walk
+   through `docker exec ... env | grep GST` coming back empty before finding the actual
+   cause). Lesson: when several patches land in one sitting for one feature, say the target
+   *filename* explicitly every time ("this one touches docker-compose.prod.yml", "this one
+   touches .github/workflows/"), not just the patch's own filename — the person applying
+   them is juggling a Downloads folder, not reading diffs before running `git apply`.
 
 ## For the new chat
 
