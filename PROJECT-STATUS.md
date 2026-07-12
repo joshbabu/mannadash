@@ -160,6 +160,18 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
     hard-won lessons about locator ambiguity and cross-file test isolation clearly paid off
     here) plus a full real-browser thread proving code-overrides-automatic in an actual UI.
     This also unlocks the coupons item already sitting in Phase I.
+  - **Checkout UX pass (Uber Eats/Swiggy reference): DONE for the cheap wins.** A combined
+    "🎉 ₹X saved on this order!" banner instead of the discount being buried in the price
+    breakdown; a sticky bottom "To Pay ₹X" bar with the CTA always visible (no scrolling to
+    find Place Order); quantity steppers directly in the checkout item list (a checkout-
+    local cart copy — MenuScreen's own cart is untouched, so Back still shows what was
+    originally added there); an opt-in "🍴 Send cutlery" checkbox (`cutleryNeeded` on
+    `Order`, defaults false — matches the "reduce plastic waste" pattern real apps use now,
+    shown on the kitchen card when requested). Two bigger items from the same reference
+    were deliberately deferred, not rushed: **GST & Other Charges breakdown** (real
+    compliance math — same section 9(5) liability already flagged in Phase I, needs a
+    dedicated session like Phase E's delivery fee got) and **Delivery Type tiers**
+    (Express/Standard/Eco — a genuine new feature needing backend fee-tier work, not UI).
   - **L2 — Customer complaints inbox**: a structured complaint/ticket table (order-linked,
     status: open/resolved), surfaced in the admin panel first, restaurant dashboard second.
   - **L3 — Review replies: DONE.** `Rating` gained `replyText`/`repliedAt`; a restaurant-

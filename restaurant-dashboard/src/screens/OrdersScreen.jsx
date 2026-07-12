@@ -435,6 +435,9 @@ export default function OrdersScreen({ restaurant }) {
                 📝 {order.instructions}
               </p>
             )}
+            {order.cutleryNeeded && (
+              <p className="muted" style={{ fontSize: 13, marginBottom: 4 }}>🍴 Cutlery requested</p>
+            )}
             <p className="muted" style={{ marginBottom: 4 }}>Deliver to: {order.deliveryAddress}</p>
             <p style={{ fontWeight: 600, marginBottom: 12 }}>
               Total ₹{Number(order.total).toFixed(0)}

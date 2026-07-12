@@ -169,6 +169,7 @@ export class OrdersService {
         status: OrderStatus.PLACED,
         paymentMethod: dto.paymentMethod === 'cod' ? PaymentMethod.COD : PaymentMethod.ONLINE,
         instructions: dto.instructions ?? null,
+        cutleryNeeded: dto.cutleryNeeded ?? false,
         deliveryAddress: dto.deliveryAddress,
         deliveryLocation: () => `ST_SetSRID(ST_MakePoint(${dto.longitude}, ${dto.latitude}), 4326)`,
         subtotal,

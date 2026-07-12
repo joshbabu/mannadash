@@ -85,6 +85,11 @@ export class Order {
   @Column({ type: 'varchar', length: 300, nullable: true })
   instructions: string | null;
 
+  // Opt-IN, not opt-out — defaults to false so cutlery isn't sent unless asked for,
+  // matching the increasingly common "reduce plastic waste" pattern real apps use.
+  @Column({ default: false })
+  cutleryNeeded: boolean;
+
   // Who/what cancelled the order — lets both apps show an honest reason instead of a bare
   // "cancelled" pill. Null for every non-cancelled order.
   @Column({ type: 'varchar', nullable: true })

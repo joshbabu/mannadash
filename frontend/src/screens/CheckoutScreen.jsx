@@ -21,6 +21,26 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
   const [deliveryFee, setDeliveryFee] = useState(null);
   const [promoError, setPromoError] = useState('');
   const [checkingPromo, setCheckingPromo] = useState(false);
+  const [cutleryNeeded, setCutleryNeeded] = useState(false);
+  const [showBillDetails, setShowBillDetails] = useState(false);
+  // A local, checkout-owned copy of the cart so quantities can be adjusted right here —
+  // MenuScreen's own cart is untouched, so hitting Back still shows what was originally
+  // added there. Seeded once from the prop; array index is a stable enough key since this
+  // list never reorders, only quantities change or a line disappears at zero.
+  const [cartItems, setCartItems] = useState(orderItems);
+
+  function changeLineQty(index, delta) {
+    setCartItems((prev) => {
+      const next = [...prev];
+      const newQty = next[index].quantity + delta;
+      if (newQty <= 0) {
+        next.splice(index, 1);
+      } else {
+        next[index] = { ...next[index], quantity: newQty };
+      }
+      return next;
+    });
+  }
 
   useEffect(() => {
     api.getSavedAddresses().then(setSavedAddresses).catch(() => {});
@@ -33,7 +53,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
     setSaveThisAddress(false);
   }
 
-  const lines = orderItems.map((oi) => {
+  const lines = cartItems.map((oi) => {
     const item = menuItems.find((m) => m.id === oi.menuItemId);
     const selectedOptions = (oi.selectedOptionIds || [])
       .map((optId) => {
@@ -88,6 +108,10 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
   }
 
   async function placeOrder() {
+    if (cartItems.length === 0) {
+      setError('Your cart is empty — add something before placing an order');
+      return;
+    }
     if (!address.trim()) {
       setError('Add a delivery address so the rider knows where to go');
       return;
@@ -100,11 +124,12 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
       }
       const order = await api.placeOrder({
         restaurantId: restaurant.id,
-        items: orderItems,
+        items: cartItems,
         deliveryAddress: address,
         latitude,
         longitude,
         paymentMethod,
+        cutleryNeeded,
         ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
         ...(appliedOffer?.fromCode ? { promoCode: promoCodeInput.trim() } : {}),
       });
@@ -117,24 +142,46 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
   }
 
   return (
-    <div className="screen">
+    <div className="screen" style={{ paddingBottom: 90 }}>
       <button className="btn-secondary" onClick={onBack} style={{ marginTop: 12, marginBottom: 12 }}>
         ← Back to menu
       </button>
-      <h1 style={{ fontSize: 24, marginBottom: 16 }}>Your order</h1>
+      <h1 style={{ fontSize: 24, marginBottom: 12 }}>Your order</h1>
+
+      {appliedOffer && (
+        <div style={{ background: '#e3edd8', color: 'var(--curry, #2e7d32)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontWeight: 600 }}>
+          🎉 ₹{appliedOffer.discountAmount.toFixed(0)} saved on this order!
+        </div>
+      )}
 
       <div id="checkout-cart-summary" className="card">
         {lines.map((l, i) => (
-          <div className="row" key={`${l.menuItemId}-${i}`} style={{ marginBottom: 8 }}>
+          <div className="row" key={`${l.menuItemId}-${i}`} style={{ marginBottom: 10 }}>
             <span>
-              {l.quantity} × {l.name}
+              {l.name}
               {l.selectedOptions?.length > 0 && (
                 <span className="muted"> ({l.selectedOptions.map((o) => o.label).join(', ')})</span>
               )}
+              <br />
+              <span className="muted" style={{ fontSize: 13 }}>₹{l.price.toFixed(0)} each</span>
             </span>
-            <span>₹{(l.price * l.quantity).toFixed(0)}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="qty-control">
+                <button onClick={() => changeLineQty(i, -1)}>−</button>
+                <span style={{ minWidth: 16, textAlign: 'center' }}>{l.quantity}</span>
+                <button onClick={() => changeLineQty(i, 1)}>+</button>
+              </div>
+              <span style={{ minWidth: 48, textAlign: 'right' }}>₹{(l.price * l.quantity).toFixed(0)}</span>
+            </div>
           </div>
         ))}
+        {cartItems.length === 0 && <p className="muted">Your cart is empty.</p>}
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, marginTop: 4 }}>
+          <input type="checkbox" checked={cutleryNeeded} onChange={(e) => setCutleryNeeded(e.target.checked)} style={{ width: 'auto' }} />
+          🍴 Send cutlery
+        </label>
+
         <div style={{ borderTop: '1px solid #e5ddc9', margin: '10px 0' }} />
         <div className="row" style={{ fontWeight: 600 }}>
           <span>Subtotal</span>
@@ -246,9 +293,29 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
       </div>
 
 
-      <button className="btn-primary" onClick={placeOrder} disabled={loading}>
-        {loading ? 'Placing order…' : 'Place order'}
-      </button>
+      <div
+        style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--paper, #fdf8ef)',
+          borderTop: '1px solid #e5ddc9', padding: '12px 20px', display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between', gap: 12, zIndex: 40,
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 700, color: 'var(--charcoal)' }}>
+            {deliveryFee == null ? 'Calculating…' : `To Pay ₹${Math.max(0, subtotal + deliveryFee - (appliedOffer?.discountAmount || 0)).toFixed(0)}`}
+          </div>
+          <button
+            className="btn-ghost"
+            style={{ fontSize: 12, padding: 0, color: 'var(--chili-dark)' }}
+            onClick={() => document.getElementById('checkout-cart-summary')?.scrollIntoView({ behavior: 'smooth' })}
+          >
+            View detailed bill
+          </button>
+        </div>
+        <button className="btn-primary" style={{ flex: 'none', minWidth: 160 }} onClick={placeOrder} disabled={loading || cartItems.length === 0}>
+          {loading ? 'Placing order…' : 'Place order'}
+        </button>
+      </div>
     </div>
   );
 }

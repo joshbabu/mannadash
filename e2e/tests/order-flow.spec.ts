@@ -291,6 +291,20 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await expect(customerPage.locator('#checkout-cart-summary').getByText('Delivery fee')).toBeVisible();
     await expect(customerPage.locator('#checkout-cart-summary').getByText('Total', { exact: true })).toBeVisible();
 
+    // The combined savings banner at the top of the page
+    await expect(customerPage.getByText('🎉 ₹40 saved on this order!')).toBeVisible();
+
+    // The sticky pay bar always shows the real total, and matches the itemized card
+    await expect(customerPage.getByText(/To Pay ₹\d+/)).toBeVisible();
+
+    // In-checkout quantity editing — a brand new capability, not just a display change.
+    // E2E Test Dish is ₹199; bumping it to 2 should update both the line total and the
+    // sticky footer's total without any navigation back to the menu.
+    const dishLine = customerPage.locator('#checkout-cart-summary .row', { hasText: 'E2E Test Dish' });
+    await dishLine.getByRole('button', { name: '+' }).click();
+    await expect(dishLine.getByText('₹398')).toBeVisible(); // 199 × 2
+    await dishLine.getByRole('button', { name: '−' }).click(); // back to 1, keeps totals correct downstream
+
     // Regression: the receipt must show the applied offer too, not just the checkout
     // screen — this exact gap shipped once (checkout showed it, the receipt never did)
     // before it was caught by hand and fixed.

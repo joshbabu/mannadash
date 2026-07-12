@@ -141,4 +141,49 @@ describe('Order lifecycle authority (e2e)', () => {
       .set('Authorization', `Bearer ${otherCustomer.token}`)
       .expect(403);
   });
+
+  describe('cutlery preference', () => {
+    it('defaults to false when not specified, and persists true when requested', async () => {
+      const restaurant = await signUpRestaurant(app);
+      const admin = await adminLogin(app);
+      await request(app.getHttpServer())
+        .patch(`/restaurants/${restaurant.id}/status`)
+        .set('Authorization', `Bearer ${admin}`)
+        .send({ status: 'approved' })
+        .expect(200);
+      const menuItem = await request(app.getHttpServer())
+        .post('/menu-items')
+        .set('Authorization', `Bearer ${restaurant.token}`)
+        .send({ restaurantId: restaurant.id, name: 'Cutlery Test Dish', price: 100, category: 'main' })
+        .expect(201);
+      const customer = await signUpCustomer(app);
+
+      const withoutCutlery = await request(app.getHttpServer())
+        .post('/orders')
+        .set('Authorization', `Bearer ${customer.token}`)
+        .send({
+          restaurantId: restaurant.id,
+          items: [{ menuItemId: menuItem.body.id, quantity: 1 }],
+          deliveryAddress: 'X',
+          latitude: 17.45,
+          longitude: 78.39,
+        })
+        .expect(201);
+      expect(withoutCutlery.body.cutleryNeeded).toBe(false);
+
+      const withCutlery = await request(app.getHttpServer())
+        .post('/orders')
+        .set('Authorization', `Bearer ${customer.token}`)
+        .send({
+          restaurantId: restaurant.id,
+          items: [{ menuItemId: menuItem.body.id, quantity: 1 }],
+          deliveryAddress: 'X',
+          latitude: 17.45,
+          longitude: 78.39,
+          cutleryNeeded: true,
+        })
+        .expect(201);
+      expect(withCutlery.body.cutleryNeeded).toBe(true);
+    });
+  });
 });

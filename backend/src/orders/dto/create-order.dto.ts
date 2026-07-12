@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsNumber, IsString, IsUUID, Max, Min, ValidateNested, IsIn, IsOptional, MaxLength } from 'class-validator';
+import { ArrayMinSize, IsArray, IsBoolean, IsNumber, IsString, IsUUID, Max, Min, ValidateNested, IsIn, IsOptional, MaxLength } from 'class-validator';
 import { OrderItemInputDto } from './order-item-input.dto';
 
 export class CreateOrderDto {
@@ -42,4 +42,8 @@ export class CreateOrderDto {
   @IsString()
   @MaxLength(20)
   promoCode?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  cutleryNeeded?: boolean;
 }
