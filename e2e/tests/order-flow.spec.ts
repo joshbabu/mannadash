@@ -318,6 +318,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     const parseTotal = (s: string | null) => Number(s?.match(/\d+/)?.[0] ?? 0);
 
     await customerPage.getByText('Express', { exact: true }).click();
+    await customerPage.getByRole('button', { name: 'Tip', exact: true }).click();
     await customerPage.getByRole('button', { name: '₹20', exact: true }).click();
     await expect(customerPage.locator('#checkout-cart-summary').getByText('+₹29')).toBeVisible();
     await expect(customerPage.locator('#checkout-cart-summary').getByText('+₹20')).toBeVisible();
