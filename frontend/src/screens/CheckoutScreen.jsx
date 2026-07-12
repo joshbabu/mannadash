@@ -6,6 +6,18 @@ import { DELIVERY_TYPES, TIP_PRESETS } from '../utils/delivery-type';
 const DEFAULT_LAT = 17.45;
 const DEFAULT_LNG = 78.39;
 
+// Quick-tap instruction presets — tapping one toggles it into the final instructions
+// string sent to the kitchen/rider, combined with any free-typed text. No new backend
+// field: `instructions` is still just a plain string everywhere downstream (kitchen card,
+// receipt), so these are purely a faster way to fill it in, not structured data.
+const INSTRUCTION_CHIPS = [
+  { id: 'directions', icon: '🎙️', label: 'Directions to reach' },
+  { id: 'leave_at_door', icon: '🚪', label: 'Leave at the door' },
+  { id: 'avoid_calling', icon: '📵', label: 'Avoid calling' },
+  { id: 'avoid_ringing', icon: '🔕', label: 'Avoid ringing the bell' },
+  { id: 'leave_with_security', icon: '🛡️', label: 'Leave with security' },
+];
+
 export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBack, onOrderPlaced }) {
   const orderingForUser = api.getStoredUser();
   const [address, setAddress] = useState('');
@@ -28,11 +40,28 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
   const [tipAmount, setTipAmount] = useState(0);
   const [customTip, setCustomTip] = useState('');
   const [activeTab, setActiveTab] = useState('deliveryType');
+  const [selectedChips, setSelectedChips] = useState(new Set());
   // A local, checkout-owned copy of the cart so quantities can be adjusted right here —
   // MenuScreen's own cart is untouched, so hitting Back still shows what was originally
   // added there. Seeded once from the prop; array index is a stable enough key since this
   // list never reorders, only quantities change or a line disappears at zero.
   const [cartItems, setCartItems] = useState(orderItems);
+
+  function toggleChip(id) {
+    setSelectedChips((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // What actually gets sent: selected chip phrases first, then any free-typed text —
+  // combined into the one plain string every downstream screen already knows how to show.
+  const finalInstructions = [
+    ...INSTRUCTION_CHIPS.filter((c) => selectedChips.has(c.id)).map((c) => c.label),
+    ...(instructions.trim() ? [instructions.trim()] : []),
+  ].join(', ');
 
   function changeLineQty(index, delta) {
     setCartItems((prev) => {
@@ -150,7 +179,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
         cutleryNeeded,
         deliveryType,
         tipAmount,
-        ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
+        ...(finalInstructions ? { instructions: finalInstructions.slice(0, 300) } : {}),
         ...(appliedOffer?.fromCode ? { promoCode: promoCodeInput.trim() } : {}),
       });
       onOrderPlaced(order);
@@ -392,7 +421,24 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
 
         {activeTab === 'instructions' && (
           <div>
-            <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>Cooking instructions (optional)</p>
+            <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>Quick options</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+              {INSTRUCTION_CHIPS.map((chip) => (
+                <button
+                  key={chip.id}
+                  className="btn-secondary"
+                  style={
+                    selectedChips.has(chip.id)
+                      ? { background: 'var(--chili-dark)', color: '#fff', borderColor: 'var(--chili-dark)' }
+                      : {}
+                  }
+                  onClick={() => toggleChip(chip.id)}
+                >
+                  {chip.icon} {chip.label}
+                </button>
+              ))}
+            </div>
+            <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>Anything else? (optional)</p>
             <textarea
               placeholder="e.g. less spicy, no onions…"
               value={instructions}

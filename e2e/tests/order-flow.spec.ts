@@ -148,6 +148,9 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // Cooking instructions travel with the order to the kitchen — now behind a tab
     // (Delivery Type / Tip / Instructions), not always visible like it used to be
     await customerPage.getByRole('button', { name: 'Instructions', exact: true }).click();
+    // A quick-tap chip combines with free text into one plain string — no separate
+    // backend field, just a faster way to fill the same instructions box
+    await customerPage.getByRole('button', { name: '🚪 Leave at the door' }).click();
     await customerPage.getByPlaceholder('e.g. less spicy, no onions…').fill('Less spicy please');
     // COD is the default payment method (Razorpay is gated on real keys)
     await expect(customerPage.getByText('💵 Cash on delivery')).toBeVisible();
@@ -158,7 +161,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
   await test.step('Restaurant receives the order live and prepares it', async () => {
     // This is the exact bug we fixed earlier — the order must appear with no page refresh
     await expect(restaurantPage.getByText('E2E Test Delivery Address')).toBeVisible({ timeout: 15_000 });
-    await expect(restaurantPage.getByText('📝 Less spicy please')).toBeVisible();
+    await expect(restaurantPage.getByText('📝 Leave at the door, Less spicy please')).toBeVisible();
     // Phase C: the accept-countdown is visible on a still-placed order, warning the
     // restaurant it will auto-cancel if left untouched
     await expect(restaurantPage.getByText(/⏱ Accept within \d:\d\d — auto-cancels if not accepted/)).toBeVisible();
