@@ -117,6 +117,14 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
   `sw.js`/`pushNotifications.js` from the rider app verbatim (no customer-specific logic
   needed) and added the same "Enable notifications" prompt pattern to `TrackOrderScreen`
   — the moment a customer is actually watching an order, not buried in settings.
+  **Follow-up, same session:** iOS Safari blocks the underlying Push API entirely unless
+  a site has been added to the Home Screen as an installed PWA (an Apple restriction, not
+  fixable from the app side) — so added basic PWA installability: `manifest.json`, a real
+  icon set (`icon-192.png`/`icon-512.png`/`apple-touch-icon.png` — replaced the leftover
+  Vite-scaffold purple favicon that was never actually MannaDash-branded), and the
+  Apple-specific meta tags iOS needs (it ignores `manifest.json` for install behavior).
+  Android/Chrome/desktop already worked without any of this; this specifically unblocks
+  iOS. Regression-checked in Playwright: manifest is linked, fetchable, and has icons.
 - **Phase H — Dish-level search** (find restaurants BY dish, not just name/cuisine)
 - **Phase I — Launch checklist**: packaging charges, coupons/first-order offers, receipts,
   terms & privacy pages, **GST line** (platform is liable for 5% GST on restaurant orders under

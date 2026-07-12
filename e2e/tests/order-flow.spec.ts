@@ -115,6 +115,13 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
   await test.step('Customer signs up and places an order', async () => {
     customerPhone = uniquePhone(3);
     await customerPage.goto('http://localhost:5173');
+    // PWA installability — required for push notifications to work on iOS Safari at all.
+    // Cheap to check, easy to silently break if index.html gets touched later.
+    await expect(customerPage.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.json');
+    const manifestRes = await customerPage.request.get('http://localhost:5173/manifest.json');
+    expect(manifestRes.ok()).toBeTruthy();
+    const manifest = await manifestRes.json();
+    expect(manifest.icons.length).toBeGreaterThan(0);
     await customerPage.getByText('Create an account').click();
     await customerPage.getByPlaceholder('Full name').fill('E2E Test Customer');
     await customerPage.getByPlaceholder('Phone number').fill(customerPhone);
