@@ -461,6 +461,39 @@ export class OrdersService {
     }
 
     const updated = await this.findOne(id);
+
+    // Phase G: customer push — same silent-no-op-if-unconfigured/unsubscribed pattern as
+    // the existing restaurant/rider pushes above. Deliberately only the three moments a
+    // customer actually cares about tracking, not every internal status change (e.g. no
+    // push for 'preparing' — that's not actionable news to them).
+    const customerUserId = updated.customer?.user?.id;
+    if (customerUserId) {
+      if (newStatus === OrderStatus.ACCEPTED) {
+        this.pushService.sendToSubscriber(customerUserId, 'customer', {
+          title: 'Order accepted!',
+          body: `${updated.restaurant.name} is preparing your order.`,
+        });
+      } else if (newStatus === OrderStatus.PICKED_UP) {
+        this.pushService.sendToSubscriber(customerUserId, 'customer', {
+          title: 'On the way!',
+          body: `Your order from ${updated.restaurant.name} is out for delivery.`,
+        });
+      } else if (newStatus === OrderStatus.DELIVERED) {
+        this.pushService.sendToSubscriber(customerUserId, 'customer', {
+          title: 'Delivered!',
+          body: `Enjoy your order from ${updated.restaurant.name}.`,
+        });
+      } else if (newStatus === OrderStatus.CANCELLED) {
+        this.pushService.sendToSubscriber(customerUserId, 'customer', {
+          title: 'Order cancelled',
+          body:
+            cancelReason === 'acceptance_timeout'
+              ? `${updated.restaurant.name} didn't respond in time — you have not been charged.`
+              : `Your order from ${updated.restaurant.name} was cancelled.`,
+        });
+      }
+    }
+
     this.ordersGateway.emitOrderUpdate(id, updated);
     return updated;
   }

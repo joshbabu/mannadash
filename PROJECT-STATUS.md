@@ -106,7 +106,17 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
   omitted the `restaurant` relation, silently turning every retry attempt into a swallowed
   `TypeError` instead of the expected "no rider nearby" case — fixed, and the catch block now
   only swallows the specific expected exception, rethrowing anything else.
-- **Phase G — Customer push notifications** (restaurant + rider already have push)
+- **Phase G — Customer push notifications: DONE.** The backend infrastructure
+  (`PushSubscription`, `PushService`, the `/push/subscribe` endpoint) was already fully
+  generic by role — zero backend changes needed for subscription itself, confirmed by a
+  test that a customer can use the exact same endpoint riders/restaurants already use.
+  Wired into `updateStatus()`: a customer gets notified at the three moments they actually
+  care about — accepted, picked up, delivered — plus cancelled with an honest reason
+  (acceptance-timeout vs restaurant-initiated), deliberately skipping non-actionable
+  internal transitions like "preparing". Frontend: copied the existing generic
+  `sw.js`/`pushNotifications.js` from the rider app verbatim (no customer-specific logic
+  needed) and added the same "Enable notifications" prompt pattern to `TrackOrderScreen`
+  — the moment a customer is actually watching an order, not buried in settings.
 - **Phase H — Dish-level search** (find restaurants BY dish, not just name/cuisine)
 - **Phase I — Launch checklist**: packaging charges, coupons/first-order offers, receipts,
   terms & privacy pages, **GST line** (platform is liable for 5% GST on restaurant orders under

@@ -4,6 +4,7 @@ import { api, SOCKET_URL } from '../api';
 import StarRating from '../components/StarRating';
 import LiveMap from '../components/LiveMap';
 import { DELIVERY_TYPES } from '../utils/delivery-type';
+import { enablePushNotifications, isPushSupported, getInitialPushStatus, silentlyRefreshSubscription } from '../utils/pushNotifications';
 
 const STAGES = [
   { key: 'placed', label: 'Order placed' },
@@ -86,6 +87,25 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
   const [submittingRating, setSubmittingRating] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState('');
+  const [pushStatus, setPushStatus] = useState(getInitialPushStatus); // 'idle' | 'enabling' | 'enabled' | 'error' | 'unsupported'
+  const [pushError, setPushError] = useState('');
+
+  useEffect(() => {
+    if (pushStatus === 'enabled') silentlyRefreshSubscription();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleEnablePush() {
+    setPushStatus('enabling');
+    setPushError('');
+    try {
+      await enablePushNotifications();
+      setPushStatus('enabled');
+    } catch (err) {
+      setPushStatus('error');
+      setPushError(err.message);
+    }
+  }
 
   // The server is the source of truth for "already rated" — local state alone re-asked
   // for a rating on every page reload (and resubmitting hit the duplicate-rating error)
@@ -183,6 +203,15 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
           {new Date(order.estimatedDeliveryAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
         </p>
       )}
+
+      {isPushSupported() && pushStatus === 'idle' && !isCancelled && order.status !== 'delivered' && (
+        <div className="card" style={{ marginBottom: 14 }}>
+          <p style={{ margin: '0 0 10px' }}>🔔 Get notified the moment your order status changes.</p>
+          <button className="btn-secondary" onClick={handleEnablePush}>Enable notifications</button>
+        </div>
+      )}
+      {pushStatus === 'enabling' && <p className="muted" style={{ marginBottom: 14 }}>Enabling notifications…</p>}
+      {pushStatus === 'error' && <p className="muted" style={{ marginBottom: 14, color: 'var(--chili)' }}>Couldn't enable notifications: {pushError}</p>}
 
       {order.status === 'placed' && (
         <div style={{ marginBottom: 16 }}>

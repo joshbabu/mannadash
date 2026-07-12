@@ -60,6 +60,8 @@ export const api = {
   setToken: (token) => localStorage.setItem('dabba_token', token),
   clearToken: () => localStorage.removeItem('dabba_token'),
   clearStoredUser: () => localStorage.removeItem('dabba_user'),
+  getVapidPublicKey: () => request('/push/vapid-public-key'),
+  subscribeToPush: (subscription) => request('/push/subscribe', { method: 'POST', body: { subscription }, auth: true }),
   getStoredUser: () => {
     const raw = localStorage.getItem('dabba_user');
     return raw ? JSON.parse(raw) : null;
