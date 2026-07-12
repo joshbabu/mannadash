@@ -23,8 +23,24 @@ export class PushService {
       this.logger.warn('VAPID keys not set — push notifications will silently no-op until configured in .env');
       return;
     }
-    webpush.setVapidDetails('mailto:admin@mannadash.example', publicKey, privateKey);
-    this.configured = true;
+
+    // Real production incident: a malformed (but non-empty) key here — e.g. a copy-paste
+    // slip, or standard base64 with "=" padding instead of the required unpadded
+    // URL-safe base64 — made setVapidDetails() throw synchronously. Uncaught, that crashed
+    // NestJS's entire dependency-injection bootstrap, taking down the whole backend, not
+    // just push. The guard above only ever checked "empty", never "well-formed" — this
+    // try/catch closes that gap so a malformed key degrades the same way a missing one
+    // already did, instead of taking the whole app down with it.
+    try {
+      webpush.setVapidDetails('mailto:admin@mannadash.example', publicKey, privateKey);
+      this.configured = true;
+    } catch (err: any) {
+      this.logger.error(
+        `VAPID keys are set but malformed (${err?.message}) — push notifications will silently no-op ` +
+          `until fixed in .env. This must never crash the app.`,
+      );
+    }
+    return;
   }
 
   async saveSubscription(subscriberId: string, subscriberRole: string, subscription: Record<string, any>) {

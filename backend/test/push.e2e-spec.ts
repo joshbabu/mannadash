@@ -77,4 +77,30 @@ describe('Push notifications (e2e)', () => {
       .send({ status: 'accepted' })
       .expect(200);
   });
+
+  describe('malformed VAPID key does not crash the app (real production incident)', () => {
+    afterEach(() => {
+      delete process.env.VAPID_PUBLIC_KEY;
+      delete process.env.VAPID_PRIVATE_KEY;
+    });
+
+    it('boots successfully even with a malformed (but non-empty) VAPID public key', async () => {
+      // Tonight's actual outage: a copy-paste slip left VAPID_PUBLIC_KEY as literal
+      // placeholder text, which made webpush.setVapidDetails() throw synchronously
+      // inside PushService's constructor — uncaught, that crashed NestJS's entire
+      // dependency-injection bootstrap, taking down the whole backend, not just push.
+      process.env.VAPID_PUBLIC_KEY = '<paste the new public key here>';
+      process.env.VAPID_PRIVATE_KEY = '<paste the new private key here>';
+
+      let brokenApp: INestApplication | undefined;
+      try {
+        brokenApp = await createTestApp();
+        // The app booting at all IS the assertion — this used to throw during bootstrap
+        const res = await request(brokenApp.getHttpServer()).get('/push/vapid-public-key').expect(200);
+        expect(res.body).toHaveProperty('publicKey');
+      } finally {
+        if (brokenApp) await brokenApp.close();
+      }
+    });
+  });
 });

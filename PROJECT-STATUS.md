@@ -349,6 +349,28 @@ time, not just today.
    *filename* explicitly every time ("this one touches docker-compose.prod.yml", "this one
    touches .github/workflows/"), not just the patch's own filename — the person applying
    them is juggling a Downloads folder, not reading diffs before running `git apply`.
+10. **A real production outage happened testing Phase G, and it's worth having the full
+    chain written down.** Testing customer push on iOS surfaced `BadJwtToken` from Apple's
+    push service — turned out unrelated to iOS or the new customer code (it also broke
+    the already-working restaurant push), and traced to the VAPID key pair in `.env`
+    being malformed. A manual key-rotation attempt then wrote the literal placeholder text
+    `<paste the new public key here>` into `.env` (an easy mistake copying a multi-step
+    command block), and NestJS's `PushService` constructor — which only guards against
+    keys being *absent*, not *malformed* — threw uncaught during dependency injection,
+    **crashing the entire backend**, not just push. Recovered by removing the VAPID lines
+    entirely (matches the "absent" guard, restores everything else immediately) before
+    fixing the actual key pair. Even after generating a genuinely fresh, correctly-matched
+    pair, `BadJwtToken` persisted — because `pushManager.subscribe()` doesn't replace an
+    existing browser-side subscription when called with a *different* key; it silently
+    hands back the old (now-invalid) one. Fixed in `pushNotifications.js` (all three
+    apps — same bug, copy-pasted three times, only ever surfaced once a key was rotated):
+    explicitly `unsubscribe()` any existing subscription before creating a new one.
+    Two real lessons: **(a)** any constructor/startup code that validates external config
+    should fail closed to "disabled" on malformed input, the same way it already does for
+    missing input — a stricter guard here would have prevented the outage entirely;
+    **(b)** rotating a push VAPID key isn't just a server-side change, every existing
+    client subscription is now silently stale and needs an explicit, verified resubscribe,
+    not just "tap the button again."
 
 ## For the new chat
 
