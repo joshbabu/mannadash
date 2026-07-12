@@ -33,6 +33,8 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [appliedOffer, setAppliedOffer] = useState(null); // { offerName, discountAmount, fromCode }
   const [deliveryFee, setDeliveryFee] = useState(null);
+  const [taxesAndFees, setTaxesAndFees] = useState(null); // { platformFeeAmount, restaurantGstAmount, deliveryGstAmount } — stays null/zero until the backend ever enables GST
+  const [showBillDetails, setShowBillDetails] = useState(false);
   const [promoError, setPromoError] = useState('');
   const [checkingPromo, setCheckingPromo] = useState(false);
   const [cutleryNeeded, setCutleryNeeded] = useState(false);
@@ -103,7 +105,13 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
   });
   const subtotal = lines.reduce((sum, l) => sum + l.price * l.quantity, 0);
   const deliveryTypeSurcharge = DELIVERY_TYPES.find((d) => d.value === deliveryType)?.surcharge ?? 0;
-  const grandTotal = deliveryFee == null ? null : Math.max(0, subtotal + deliveryFee + deliveryTypeSurcharge + tipAmount - (appliedOffer?.discountAmount || 0));
+  const taxesAndFeesTotal = taxesAndFees
+    ? taxesAndFees.platformFeeAmount + taxesAndFees.restaurantGstAmount + taxesAndFees.deliveryGstAmount
+    : 0;
+  const grandTotal =
+    deliveryFee == null
+      ? null
+      : Math.max(0, subtotal + deliveryFee + deliveryTypeSurcharge + tipAmount + taxesAndFeesTotal - (appliedOffer?.discountAmount || 0));
 
   // Silently check for the best automatic offer whenever the cart or delivery point is
   // known — no customer action needed. A later successful code application overrides this.
@@ -120,6 +128,11 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
       .previewOffer({ restaurantId: restaurant.id, subtotal, latitude, longitude })
       .then((res) => {
         setDeliveryFee(res.deliveryFee);
+        setTaxesAndFees({
+          platformFeeAmount: res.platformFeeAmount || 0,
+          restaurantGstAmount: res.restaurantGstAmount || 0,
+          deliveryGstAmount: res.deliveryGstAmount || 0,
+        });
         setAppliedOffer((prev) => {
           if (prev?.fromCode) return prev; // a customer-entered code always wins, untouched
           if (res.applied) return { offerName: res.offerName, discountAmount: res.discountAmount, fromCode: false };
@@ -136,6 +149,11 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
     try {
       const res = await api.previewOffer({ restaurantId: restaurant.id, subtotal, latitude, longitude, promoCode: promoCodeInput.trim() });
       setDeliveryFee(res.deliveryFee);
+      setTaxesAndFees({
+        platformFeeAmount: res.platformFeeAmount || 0,
+        restaurantGstAmount: res.restaurantGstAmount || 0,
+        deliveryGstAmount: res.deliveryGstAmount || 0,
+      });
       if (res.applied) {
         setAppliedOffer({ offerName: res.offerName, discountAmount: res.discountAmount, fromCode: true });
       } else {
@@ -274,6 +292,25 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
           <div className="row" style={{ marginTop: 4 }}>
             <span className="muted">Tip for rider</span>
             <span>+₹{tipAmount.toFixed(0)}</span>
+          </div>
+        )}
+        {taxesAndFeesTotal > 0 && (
+          <div className="row" style={{ marginTop: 4 }}>
+            <button
+              className="btn-ghost"
+              style={{ padding: 0, color: 'inherit', fontSize: 'inherit', textDecoration: 'underline dotted' }}
+              onClick={() => setShowBillDetails(!showBillDetails)}
+            >
+              Taxes & charges
+            </button>
+            <span>+₹{taxesAndFeesTotal.toFixed(0)}</span>
+          </div>
+        )}
+        {showBillDetails && taxesAndFeesTotal > 0 && (
+          <div className="muted" style={{ fontSize: 12, marginTop: 4, marginLeft: 12 }}>
+            {taxesAndFees.platformFeeAmount > 0 && <div>Platform fee: ₹{taxesAndFees.platformFeeAmount.toFixed(2)}</div>}
+            {taxesAndFees.restaurantGstAmount > 0 && <div>Restaurant GST: ₹{taxesAndFees.restaurantGstAmount.toFixed(2)}</div>}
+            {taxesAndFees.deliveryGstAmount > 0 && <div>GST on delivery: ₹{taxesAndFees.deliveryGstAmount.toFixed(2)}</div>}
           </div>
         )}
         {grandTotal != null && (

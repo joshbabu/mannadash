@@ -100,6 +100,18 @@ export class Order {
   @Column({ type: 'decimal', precision: 8, scale: 2, default: 0 })
   tipAmount: number;
 
+  // Platform fee + GST — see gst-config.util.ts. Always server-computed from config, NEVER
+  // accepted from the client (unlike deliveryType/tipAmount, which are real customer
+  // choices). All default to 0 and stay 0 until explicitly enabled — see that file for why.
+  @Column({ type: 'decimal', precision: 8, scale: 2, default: 0 })
+  platformFeeAmount: number;
+
+  @Column({ type: 'decimal', precision: 8, scale: 2, default: 0 })
+  restaurantGstAmount: number;
+
+  @Column({ type: 'decimal', precision: 8, scale: 2, default: 0 })
+  deliveryGstAmount: number;
+
   // Who/what cancelled the order — lets both apps show an honest reason instead of a bare
   // "cancelled" pill. Null for every non-cancelled order.
   @Column({ type: 'varchar', nullable: true })

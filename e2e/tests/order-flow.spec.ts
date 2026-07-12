@@ -293,6 +293,10 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // Regression: checkout used to say "+ delivery fee, calculated at checkout" instead
     // of a real number — the customer could never see the actual total before ordering
     await expect(customerPage.getByText('calculated at checkout')).toHaveCount(0);
+    // GST & platform fee are built but dormant until MannaDash is actually GST-registered
+    // — this proves "not configured" genuinely means invisible, not a hidden nonzero charge
+    await expect(customerPage.getByText('Taxes & charges')).toHaveCount(0);
+    await expect(customerPage.getByText('Platform fee')).toHaveCount(0);
     await expect(customerPage.locator('#checkout-cart-summary').getByText('Delivery fee')).toBeVisible();
     await expect(customerPage.locator('#checkout-cart-summary').getByText('Total', { exact: true })).toBeVisible();
 

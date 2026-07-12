@@ -174,10 +174,31 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
     confirms Express still wins the one available rider. Tips flow straight to the rider's
     own earnings, added to (never touched by commission on) the delivery fee — the rider
     earnings screen shows delivery fee and tip as separate line items so a rider can see
-    when they were tipped, not just a lump sum. Only **GST & Other Charges** stays
-    deliberately deferred — real compliance math, same section 9(5) liability already
-    flagged in Phase I, needs its own dedicated session once registration status is known,
-    not squeezed in alongside everything else.
+    when they were tipped, not just a lump sum.
+  - **Platform fee & GST: built, dormant by default.** MannaDash isn't GST-registered yet
+    (confirmed directly), so this stays OFF until it actually is — genuinely zero, not a
+    hidden nonzero charge, tested explicitly (`gst-and-platform-fee.e2e-spec.ts`, 6 tests).
+    Two different things live in `backend/src/orders/gst-config.util.ts`: **platform fee**
+    (MannaDash's own charge, not a tax — can be turned on any time, no registration
+    needed) and **GST** (real tax law — CGST Act section 9(5) makes the *platform*, not
+    the individual restaurant, liable to collect and remit once registered as an
+    e-commerce operator; turning this on before registration would mean charging a tax
+    that isn't actually going anywhere real). Both are env-var-gated
+    (`PLATFORM_FEE_AMOUNT`, `GST_ENABLED`, `GST_RESTAURANT_RATE_PERCENT`,
+    `GST_DELIVERY_RATE_PERCENT`) and always server-computed — a client attempting to send
+    these fields on an order gets rejected outright (`forbidNonWhitelisted`), not silently
+    ignored. **Advice given, not yet decided:** recommended launching with platform fee at
+    ₹0 as a deliberate differentiator against Swiggy/Zomato's creeping ₹10ish fees — cheap
+    to offer, genuinely resonates with customers who already resent the incumbents'
+    fee creep. The frontend is fully wired and driven entirely by what the backend
+    returns — checkout and receipts show nothing extra today, and the moment
+    `GST_ENABLED=true` is set in production, the real breakdown appears automatically,
+    no frontend redeploy needed. **The rates used (5% food, 18% delivery) are the
+    commonly-cited ones as of this writing, NOT verified tax advice — confirm the actual
+    applicable rates with an accountant before ever setting `GST_ENABLED=true`.** Also:
+    per the standing `.env` lesson below, remember to add these vars to
+    `docker-compose.prod.yml`'s `environment:` block when the time comes — an env var in
+    `.env` alone doesn't reach the container.
   - **L2 — Customer complaints inbox**: a structured complaint/ticket table (order-linked,
     status: open/resolved), surfaced in the admin panel first, restaurant dashboard second.
   - **L3 — Review replies: DONE.** `Rating` gained `replyText`/`repliedAt`; a restaurant-

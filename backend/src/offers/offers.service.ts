@@ -8,6 +8,7 @@ import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { CreateOfferDto } from './dto/create-offer.dto';
 import { UpdateOfferDto } from './dto/update-offer.dto';
 import { calculateDeliveryFee } from '../orders/delivery-fee.util';
+import { computeTaxesAndFees } from '../orders/gst-config.util';
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -278,7 +279,10 @@ export class OffersService {
     );
     const distanceMeters = parseFloat(distanceRow[0]?.dist ?? '0');
     const deliveryFee = calculateDeliveryFee(distanceMeters);
-    return this.previewOffer(restaurantId, customerId, subtotal, deliveryFee, promoCode);
+    const preview = await this.previewOffer(restaurantId, customerId, subtotal, deliveryFee, promoCode);
+    // Taxes & fees — always computed, but stay genuinely zero until GST_ENABLED is set.
+    // Included here so checkout can show the real breakdown live, fully dormant today.
+    return { ...preview, ...computeTaxesAndFees(subtotal, deliveryFee) };
   }
 
   /**

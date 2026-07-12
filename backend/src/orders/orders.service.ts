@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { Cron } from '@nestjs/schedule';
 import { calculateDeliveryFee } from './delivery-fee.util';
 import { DELIVERY_TYPE_CONFIG, isValidDeliveryType } from './delivery-type.util';
+import { computeTaxesAndFees } from './gst-config.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, LessThan, Repository, SelectQueryBuilder } from 'typeorm';
 import { Order, OrderStatus, PaymentMethod, PaymentStatus, RefundStatus } from './entities/order.entity';
@@ -152,9 +153,12 @@ export class OrdersService {
     const tipAmount = dto.tipAmount ?? 0;
 
     const commissionAmount = Math.round(subtotal * (Number(restaurant.commissionRate) / 100) * 100) / 100;
+    // Platform fee + GST — always server-computed from config (see gst-config.util.ts),
+    // never from the client. Both default to 0 and stay 0 until explicitly enabled.
+    const taxesAndFees = computeTaxesAndFees(subtotal, deliveryFee);
     // A tip is money for the rider, never discounted or commissioned — added straight to
     // what the customer pays, same as the delivery-type surcharge (or Eco's small credit).
-    const total = Math.max(0, subtotal + deliveryFee + deliverySurcharge + tipAmount - discountAmount);
+    const total = Math.max(0, subtotal + deliveryFee + deliverySurcharge + tipAmount + taxesAndFees.total - discountAmount);
 
     // Rough ETA: restaurant's stated prep time + a distance-based travel estimate, adjusted
     // by the chosen delivery tier. Express doesn't just promise faster — see
@@ -182,6 +186,9 @@ export class OrdersService {
         cutleryNeeded: dto.cutleryNeeded ?? false,
         deliveryType,
         tipAmount,
+        platformFeeAmount: taxesAndFees.platformFeeAmount,
+        restaurantGstAmount: taxesAndFees.restaurantGstAmount,
+        deliveryGstAmount: taxesAndFees.deliveryGstAmount,
         deliveryAddress: dto.deliveryAddress,
         deliveryLocation: () => `ST_SetSRID(ST_MakePoint(${dto.longitude}, ${dto.latitude}), 4326)`,
         subtotal,
