@@ -46,4 +46,13 @@ export class CreateOrderDto {
   @IsOptional()
   @IsBoolean()
   cutleryNeeded?: boolean;
+
+  @IsOptional()
+  @IsIn(['standard', 'express', 'eco'])
+  deliveryType?: 'standard' | 'express' | 'eco';
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  tipAmount?: number;
 }

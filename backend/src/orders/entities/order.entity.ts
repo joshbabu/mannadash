@@ -90,6 +90,16 @@ export class Order {
   @Column({ default: false })
   cutleryNeeded: boolean;
 
+  // Express/Standard/Eco — see delivery-type.util.ts for the surcharge and real dispatch
+  // priority each tier gets.
+  @Column({ type: 'varchar', default: 'standard' })
+  deliveryType: 'standard' | 'express' | 'eco';
+
+  // For the rider, not the platform — added to their earnings in getRiderEarnings(),
+  // never touched by commission math.
+  @Column({ type: 'decimal', precision: 8, scale: 2, default: 0 })
+  tipAmount: number;
+
   // Who/what cancelled the order — lets both apps show an honest reason instead of a bare
   // "cancelled" pill. Null for every non-cancelled order.
   @Column({ type: 'varchar', nullable: true })

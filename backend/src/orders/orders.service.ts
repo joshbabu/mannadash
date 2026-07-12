@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { calculateDeliveryFee } from './delivery-fee.util';
+import { DELIVERY_TYPE_CONFIG, isValidDeliveryType } from './delivery-type.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, LessThan, Repository, SelectQueryBuilder } from 'typeorm';
 import { Order, OrderStatus, PaymentMethod, PaymentStatus, RefundStatus } from './entities/order.entity';
@@ -146,16 +147,25 @@ export class OrdersService {
     const discountAmount = resolvedOffer?.discountAmount ?? 0;
     const appliedOfferName = resolvedOffer?.offer.name ?? null;
 
-    const commissionAmount = Math.round(subtotal * (Number(restaurant.commissionRate) / 100) * 100) / 100;
-    const total = Math.max(0, subtotal + deliveryFee - discountAmount);
+    const deliveryType = isValidDeliveryType(dto.deliveryType) ? dto.deliveryType : 'standard';
+    const deliverySurcharge = DELIVERY_TYPE_CONFIG[deliveryType].surcharge;
+    const tipAmount = dto.tipAmount ?? 0;
 
-    // Rough ETA: restaurant's stated prep time + a distance-based travel estimate.
+    const commissionAmount = Math.round(subtotal * (Number(restaurant.commissionRate) / 100) * 100) / 100;
+    // A tip is money for the rider, never discounted or commissioned — added straight to
+    // what the customer pays, same as the delivery-type surcharge (or Eco's small credit).
+    const total = Math.max(0, subtotal + deliveryFee + deliverySurcharge + tipAmount - discountAmount);
+
+    // Rough ETA: restaurant's stated prep time + a distance-based travel estimate, adjusted
+    // by the chosen delivery tier. Express doesn't just promise faster — see
+    // retryUnassignedReadyOrders() for the real dispatch-priority half of that promise.
     // Assumes ~20km/h average city delivery speed — doesn't account for real traffic,
     // so treat this as a reasonable estimate shown to the customer, not a guarantee.
     const AVG_DELIVERY_SPEED_MPS = 5.56;
     const travelSeconds = distanceMeters / AVG_DELIVERY_SPEED_MPS;
     const prepSeconds = restaurant.avgPrepTimeMins * 60;
-    const estimatedDeliveryAt = new Date(Date.now() + (prepSeconds + travelSeconds) * 1000);
+    const etaAdjustmentSeconds = DELIVERY_TYPE_CONFIG[deliveryType].etaAdjustmentSeconds;
+    const estimatedDeliveryAt = new Date(Date.now() + Math.max(60, prepSeconds + travelSeconds + etaAdjustmentSeconds) * 1000);
 
     // deliveryLocation needs a raw SQL expression, which TypeORM's save() doesn't support directly —
     // so we insert via query builder, same pattern used in RestaurantsService.create
@@ -170,6 +180,8 @@ export class OrdersService {
         paymentMethod: dto.paymentMethod === 'cod' ? PaymentMethod.COD : PaymentMethod.ONLINE,
         instructions: dto.instructions ?? null,
         cutleryNeeded: dto.cutleryNeeded ?? false,
+        deliveryType,
+        tipAmount,
         deliveryAddress: dto.deliveryAddress,
         deliveryLocation: () => `ST_SetSRID(ST_MakePoint(${dto.longitude}, ${dto.latitude}), 4326)`,
         subtotal,
@@ -748,7 +760,9 @@ export class OrdersService {
     let todayTotal = 0;
     let pendingPayout = 0;
     const history = deliveredOrders.map((order) => {
-      const amount = Number(order.deliveryFee);
+      // The tip is the rider's, never the platform's — added here, never touched by
+      // commission math, which only ever applies to the restaurant's subtotal.
+      const amount = Number(order.deliveryFee) + Number(order.tipAmount || 0);
       lifetimeTotal += amount;
       if (order.deliveredAt && order.deliveredAt >= startOfToday) {
         todayTotal += amount;
@@ -760,6 +774,8 @@ export class OrdersService {
         orderId: order.id,
         restaurantName: order.restaurant.name,
         amount,
+        deliveryFee: Number(order.deliveryFee),
+        tipAmount: Number(order.tipAmount || 0),
         deliveredAt: order.deliveredAt,
         paidOut: !!order.payout,
       };
@@ -1004,7 +1020,15 @@ export class OrdersService {
     const candidates = await this.orderRepo.find({
       where: { status: OrderStatus.READY_FOR_PICKUP, deliveryPartner: IsNull() },
       relations: { restaurant: true },
+      order: { placedAt: 'ASC' }, // fair queueing within the same tier
     });
+    // Express genuinely jumps the queue here — the honest, buildable version of "faster"
+    // with one shared rider pool: no dedicated Express riders, but real priority when
+    // multiple orders are competing for the same available rider. A plain 'ASC' sort on
+    // the deliveryType column would sort alphabetically ("eco" < "express" < "standard"),
+    // the OPPOSITE of what's wanted — so this sorts by the actual configured priority
+    // weight instead, with placedAt as the tiebreaker within the same tier.
+    candidates.sort((a, b) => DELIVERY_TYPE_CONFIG[a.deliveryType].priorityWeight - DELIVERY_TYPE_CONFIG[b.deliveryType].priorityWeight);
     for (const order of candidates) {
       try {
         await this.assignRider(order.id);
