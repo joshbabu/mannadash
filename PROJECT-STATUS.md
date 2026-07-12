@@ -160,18 +160,24 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
     hard-won lessons about locator ambiguity and cross-file test isolation clearly paid off
     here) plus a full real-browser thread proving code-overrides-automatic in an actual UI.
     This also unlocks the coupons item already sitting in Phase I.
-  - **Checkout UX pass (Uber Eats/Swiggy reference): DONE for the cheap wins.** A combined
-    "🎉 ₹X saved on this order!" banner instead of the discount being buried in the price
-    breakdown; a sticky bottom "To Pay ₹X" bar with the CTA always visible (no scrolling to
-    find Place Order); quantity steppers directly in the checkout item list (a checkout-
-    local cart copy — MenuScreen's own cart is untouched, so Back still shows what was
-    originally added there); an opt-in "🍴 Send cutlery" checkbox (`cutleryNeeded` on
-    `Order`, defaults false — matches the "reduce plastic waste" pattern real apps use now,
-    shown on the kitchen card when requested). Two bigger items from the same reference
-    were deliberately deferred, not rushed: **GST & Other Charges breakdown** (real
-    compliance math — same section 9(5) liability already flagged in Phase I, needs a
-    dedicated session like Phase E's delivery fee got) and **Delivery Type tiers**
-    (Express/Standard/Eco — a genuine new feature needing backend fee-tier work, not UI).
+  - **Checkout UX pass (Uber Eats/Swiggy reference): DONE.** A combined "🎉 ₹X saved on
+    this order!" banner instead of the discount being buried in the price breakdown; a
+    sticky bottom "To Pay ₹X" bar with the CTA always visible; quantity steppers directly
+    in the checkout item list (a checkout-local cart copy — MenuScreen's own cart is
+    untouched, so Back still shows what was originally added there); an opt-in "🍴 Send
+    cutlery" checkbox; a "You are ordering for [name], updates on [phone]" banner from the
+    account's own details; and a **Delivery Type / Tip / Instructions tab bar**.
+    Delivery Type (Express +₹29 / Standard / Eco -₹5) isn't just a price tag — Express
+    genuinely jumps the queue in `retryUnassignedReadyOrders()` (see L1's dispatch-priority
+    note below), the honest version of "faster" a single shared rider pool can actually
+    deliver on, proven by a test that places a Standard order BEFORE an Express one and
+    confirms Express still wins the one available rider. Tips flow straight to the rider's
+    own earnings, added to (never touched by commission on) the delivery fee — the rider
+    earnings screen shows delivery fee and tip as separate line items so a rider can see
+    when they were tipped, not just a lump sum. Only **GST & Other Charges** stays
+    deliberately deferred — real compliance math, same section 9(5) liability already
+    flagged in Phase I, needs its own dedicated session once registration status is known,
+    not squeezed in alongside everything else.
   - **L2 — Customer complaints inbox**: a structured complaint/ticket table (order-linked,
     status: open/resolved), surfaced in the admin panel first, restaurant dashboard second.
   - **L3 — Review replies: DONE.** `Rating` gained `replyText`/`repliedAt`; a restaurant-
@@ -269,6 +275,18 @@ time, not just today.
    full-suite's timing enough to expose it. Lesson: any test whose assertion depends on
    "nothing else exists" needs the same spatial isolation as tests asserting "the sweep
    found MY thing" — the two are symmetric risks, not just the latter.
+8. **`CheckoutScreen.jsx` had accumulated real duplication before the delivery-type/tip
+   build even started** — a complete-but-unwired earlier pass had already added
+   `DELIVERY_TYPES`/`TIP_PRESETS` state, a properly-extracted `utils/delivery-type.js`, and
+   two full standalone cards, none of which had been surfaced or mentioned. Building on top
+   without checking first produced duplicate `useState` declarations (a hard compile
+   error, caught immediately) and, more worryingly, a duplicate "ordering for" banner that
+   would have silently rendered twice (no compile error — just visibly wrong). Lesson: for
+   a file this actively churned in one session, grep for the state/constant names *before*
+   adding them, not just read the section you're about to touch — the rest of the file may
+   already have moved. The existing delivery-type/tip Playwright assertions turned out to
+   already be correct and complete once found, which cut real rework — worth checking what's
+   already there before writing new tests too, not just new code.
 
 ## For the new chat
 

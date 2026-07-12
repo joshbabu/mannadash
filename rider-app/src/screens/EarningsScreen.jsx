@@ -64,6 +64,7 @@ export default function EarningsScreen() {
                 <p style={{ margin: 0, fontWeight: 600 }}>{h.restaurantName}</p>
                 <p style={{ margin: '2px 0 0', color: '#8a8378', fontSize: 13 }}>
                   {new Date(h.deliveredAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} · {new Date(h.deliveredAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                  {h.tipAmount > 0 && <> · 🎁 ₹{h.tipAmount.toFixed(0)} tip</>}
                 </p>
               </div>
               <strong style={{ color: 'var(--curry)', fontSize: 17 }}>+₹{h.amount.toFixed(0)}</strong>

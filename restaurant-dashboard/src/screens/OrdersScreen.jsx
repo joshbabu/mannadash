@@ -438,6 +438,9 @@ export default function OrdersScreen({ restaurant }) {
             {order.cutleryNeeded && (
               <p className="muted" style={{ fontSize: 13, marginBottom: 4 }}>🍴 Cutlery requested</p>
             )}
+            {order.deliveryType === 'express' && (
+              <p style={{ color: 'var(--chili-dark)', fontWeight: 600, fontSize: 13, marginBottom: 4 }}>⚡ Express — this rider gets priority</p>
+            )}
             <p className="muted" style={{ marginBottom: 4 }}>Deliver to: {order.deliveryAddress}</p>
             <p style={{ fontWeight: 600, marginBottom: 12 }}>
               Total ₹{Number(order.total).toFixed(0)}
@@ -447,6 +450,11 @@ export default function OrdersScreen({ restaurant }) {
               {order.discountAmount != null && Number(order.discountAmount) > 0 && (
                 <span className="pill" style={{ background: '#e3edd8', color: 'var(--curry)', marginLeft: 8 }} title={order.appliedOfferName}>
                   🎉 -₹{Number(order.discountAmount).toFixed(0)}
+                </span>
+              )}
+              {order.tipAmount != null && Number(order.tipAmount) > 0 && (
+                <span className="pill" style={{ background: '#fdeee8', color: 'var(--chili-dark)', marginLeft: 8 }}>
+                  💰 Tip ₹{Number(order.tipAmount).toFixed(0)}
                 </span>
               )}
             </p>

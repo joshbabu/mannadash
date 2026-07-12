@@ -294,6 +294,10 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // The combined savings banner at the top of the page
     await expect(customerPage.getByText('🎉 ₹40 saved on this order!')).toBeVisible();
 
+    // "You are ordering for" banner — the account's own name and phone, no editing yet
+    await expect(customerPage.getByText(/You are ordering for/)).toBeVisible();
+    await expect(customerPage.getByText(/We'll share order tracking and delivery updates on/)).toBeVisible();
+
     // The sticky pay bar always shows the real total, and matches the itemized card
     await expect(customerPage.getByText(/To Pay ₹\d+/)).toBeVisible();
 
@@ -304,6 +308,20 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await dishLine.getByRole('button', { name: '+' }).click();
     await expect(dishLine.getByText('₹398')).toBeVisible(); // 199 × 2
     await dishLine.getByRole('button', { name: '−' }).click(); // back to 1, keeps totals correct downstream
+
+    // Delivery type + tip — capture the total before and after, and check the DELTA
+    // rather than an exact figure, since the real distance-based delivery fee for this
+    // restaurant/address pair isn't a number this test hardcodes anywhere else.
+    const totalBefore = await customerPage.getByText(/To Pay ₹\d+/).textContent();
+    const parseTotal = (s: string | null) => Number(s?.match(/\d+/)?.[0] ?? 0);
+
+    await customerPage.getByText('Express', { exact: true }).click();
+    await customerPage.getByRole('button', { name: '₹20', exact: true }).click();
+    await expect(customerPage.locator('#checkout-cart-summary').getByText('+₹29')).toBeVisible();
+    await expect(customerPage.locator('#checkout-cart-summary').getByText('+₹20')).toBeVisible();
+
+    const totalAfter = await customerPage.getByText(/To Pay ₹\d+/).textContent();
+    expect(parseTotal(totalAfter) - parseTotal(totalBefore)).toBe(49); // +29 Express, +20 tip
 
     // Regression: the receipt must show the applied offer too, not just the checkout
     // screen — this exact gap shipped once (checkout showed it, the receipt never did)

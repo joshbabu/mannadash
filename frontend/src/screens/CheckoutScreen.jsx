@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { DELIVERY_TYPES, TIP_PRESETS } from '../utils/delivery-type';
 
 // Default delivery point for the MVP demo — matches the restaurant list's default search center
 const DEFAULT_LAT = 17.45;
 const DEFAULT_LNG = 78.39;
 
 export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBack, onOrderPlaced }) {
+  const orderingForUser = api.getStoredUser();
   const [address, setAddress] = useState('');
   const [latitude, setLatitude] = useState(DEFAULT_LAT);
   const [longitude, setLongitude] = useState(DEFAULT_LNG);
@@ -22,7 +24,10 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
   const [promoError, setPromoError] = useState('');
   const [checkingPromo, setCheckingPromo] = useState(false);
   const [cutleryNeeded, setCutleryNeeded] = useState(false);
-  const [showBillDetails, setShowBillDetails] = useState(false);
+  const [deliveryType, setDeliveryType] = useState('standard');
+  const [tipAmount, setTipAmount] = useState(0);
+  const [customTip, setCustomTip] = useState('');
+  const [activeTab, setActiveTab] = useState('deliveryType');
   // A local, checkout-owned copy of the cart so quantities can be adjusted right here —
   // MenuScreen's own cart is untouched, so hitting Back still shows what was originally
   // added there. Seeded once from the prop; array index is a stable enough key since this
@@ -68,6 +73,8 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
     return { ...oi, name: item?.name, price: unitPrice, selectedOptions };
   });
   const subtotal = lines.reduce((sum, l) => sum + l.price * l.quantity, 0);
+  const deliveryTypeSurcharge = DELIVERY_TYPES.find((d) => d.value === deliveryType)?.surcharge ?? 0;
+  const grandTotal = deliveryFee == null ? null : Math.max(0, subtotal + deliveryFee + deliveryTypeSurcharge + tipAmount - (appliedOffer?.discountAmount || 0));
 
   // Silently check for the best automatic offer whenever the cart or delivery point is
   // known — no customer action needed. A later successful code application overrides this.
@@ -141,6 +148,8 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
         longitude,
         paymentMethod,
         cutleryNeeded,
+        deliveryType,
+        tipAmount,
         ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
         ...(appliedOffer?.fromCode ? { promoCode: promoCodeInput.trim() } : {}),
       });
@@ -158,6 +167,17 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
         ← Back to menu
       </button>
       <h1 style={{ fontSize: 24, marginBottom: 12 }}>Your order</h1>
+
+      {orderingForUser && (
+        <div className="card" style={{ marginBottom: 14, fontSize: 14 }}>
+          <p style={{ margin: 0 }}>
+            You are ordering for <strong>{orderingForUser.name}</strong>
+          </p>
+          <p className="muted" style={{ margin: '2px 0 0' }}>
+            We'll share order tracking and delivery updates on {orderingForUser.phone}
+          </p>
+        </div>
+      )}
 
       {appliedOffer && (
         <div style={{ background: '#e3edd8', color: 'var(--curry, #2e7d32)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontWeight: 600 }}>
@@ -215,10 +235,22 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
           <span className="muted">Delivery fee</span>
           <span>{deliveryFee == null ? 'calculated below' : `₹${deliveryFee.toFixed(0)}`}</span>
         </div>
-        {deliveryFee != null && (
+        {deliveryTypeSurcharge !== 0 && (
+          <div className="row" style={{ marginTop: 4 }}>
+            <span className="muted">{DELIVERY_TYPES.find((d) => d.value === deliveryType)?.label}</span>
+            <span>{deliveryTypeSurcharge > 0 ? '+' : ''}₹{deliveryTypeSurcharge.toFixed(0)}</span>
+          </div>
+        )}
+        {tipAmount > 0 && (
+          <div className="row" style={{ marginTop: 4 }}>
+            <span className="muted">Tip for rider</span>
+            <span>+₹{tipAmount.toFixed(0)}</span>
+          </div>
+        )}
+        {grandTotal != null && (
           <div className="row" style={{ fontWeight: 700, marginTop: 6, paddingTop: 6, borderTop: '1px solid #e5ddc9' }}>
             <span>Total</span>
-            <span>₹{Math.max(0, subtotal + deliveryFee - (appliedOffer?.discountAmount || 0)).toFixed(0)}</span>
+            <span>₹{grandTotal.toFixed(0)}</span>
           </div>
         )}
 
@@ -279,16 +311,98 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
       </div>
 
       {error && <div className="error-banner">{error}</div>}
+
       <div className="card" style={{ marginBottom: 14 }}>
-        <p style={{ fontWeight: 700, margin: '0 0 8px' }}>Cooking instructions <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>(optional)</span></p>
-        <textarea
-          placeholder="e.g. less spicy, no onions…"
-          value={instructions}
-          onChange={(e) => setInstructions(e.target.value)}
-          maxLength={300}
-          rows={2}
-          style={{ width: '100%', resize: 'vertical' }}
-        />
+        <div style={{ display: 'flex', borderRadius: 10, background: '#f0e9db', padding: 4, marginBottom: 14 }}>
+          {[
+            { key: 'deliveryType', label: 'Delivery Type' },
+            { key: 'tip', label: 'Tip' },
+            { key: 'instructions', label: 'Instructions' },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              style={{
+                flex: 1, border: 'none', borderRadius: 8, padding: '8px 4px', fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', background: activeTab === tab.key ? 'var(--charcoal, #2b2620)' : 'transparent',
+                color: activeTab === tab.key ? '#fff' : 'var(--charcoal, #2b2620)',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'deliveryType' && (
+          <div className="stack">
+            {DELIVERY_TYPES.map((dt) => (
+              <label
+                key={dt.value}
+                style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px',
+                  borderRadius: 10, cursor: 'pointer', border: '1px solid', gap: 10,
+                  borderColor: deliveryType === dt.value ? 'var(--chili-dark)' : '#e5ddc9',
+                  background: deliveryType === dt.value ? '#fdeee8' : 'transparent',
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <input type="radio" checked={deliveryType === dt.value} onChange={() => setDeliveryType(dt.value)} style={{ width: 'auto' }} />
+                  <span>
+                    <strong style={{ color: deliveryType === dt.value ? 'var(--chili-dark)' : 'inherit' }}>{dt.label}</strong>
+                    <br />
+                    <span className="muted" style={{ fontSize: 12 }}>{dt.description}</span>
+                  </span>
+                </span>
+                <span style={{ textAlign: 'right', fontSize: 12 }}>
+                  <div style={{ fontWeight: 600 }}>
+                    {dt.surcharge === 0 ? 'Included' : dt.surcharge > 0 ? `+₹${dt.surcharge}` : `-₹${Math.abs(dt.surcharge)}`}
+                  </div>
+                  {dt.etaNote && <div className="muted">{dt.etaNote}</div>}
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'tip' && (
+          <div>
+            <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>100% of your tip goes to your delivery rider.</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {TIP_PRESETS.map((amt) => (
+                <button
+                  key={amt}
+                  className="btn-secondary"
+                  style={tipAmount === amt && customTip === '' ? { background: 'var(--chili-dark)', color: '#fff', borderColor: 'var(--chili-dark)' } : {}}
+                  onClick={() => { setTipAmount(amt); setCustomTip(''); }}
+                >
+                  {amt === 0 ? 'No tip' : `₹${amt}`}
+                </button>
+              ))}
+            </div>
+            <input
+              placeholder="Custom amount"
+              type="number"
+              min="0"
+              value={customTip}
+              onChange={(e) => { setCustomTip(e.target.value); setTipAmount(Number(e.target.value) || 0); }}
+              style={{ marginTop: 10, width: 160, background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd' }}
+            />
+          </div>
+        )}
+
+        {activeTab === 'instructions' && (
+          <div>
+            <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>Cooking instructions (optional)</p>
+            <textarea
+              placeholder="e.g. less spicy, no onions…"
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
+              maxLength={300}
+              rows={2}
+              style={{ width: '100%', resize: 'vertical' }}
+            />
+          </div>
+        )}
       </div>
 
       <div className="card" style={{ marginBottom: 14 }}>
@@ -313,7 +427,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
       >
         <div>
           <div style={{ fontWeight: 700, color: 'var(--charcoal)' }}>
-            {deliveryFee == null ? 'Calculating…' : `To Pay ₹${Math.max(0, subtotal + deliveryFee - (appliedOffer?.discountAmount || 0)).toFixed(0)}`}
+            {deliveryFee == null ? 'Calculating…' : `To Pay ₹${grandTotal.toFixed(0)}`}
           </div>
           <button
             className="btn-ghost"

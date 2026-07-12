@@ -268,7 +268,15 @@ export default function HomeScreen({ rider, onLogout }) {
                   </div>
                   <p className="muted" style={{ color: '#6b6156', marginBottom: 4 }}>Pickup: {order.restaurant.address}</p>
                   <p className="muted" style={{ color: '#6b6156', marginBottom: 12 }}>Deliver to: {order.deliveryAddress}</p>
-                  <p style={{ fontWeight: 600, marginBottom: order.paymentMethod === 'cod' && order.status !== 'delivered' ? 4 : 12 }}>₹{Number(order.total).toFixed(0)}</p>
+                  <p style={{ fontWeight: 600, marginBottom: order.paymentMethod === 'cod' && order.status !== 'delivered' ? 4 : 12 }}>
+                    ₹{Number(order.total).toFixed(0)}
+                    {order.deliveryType === 'express' && (
+                      <span className="pill" style={{ background: '#fdeee8', color: 'var(--chili-dark)', marginLeft: 8, fontSize: 12 }}>⚡ Express</span>
+                    )}
+                    {Number(order.tipAmount) > 0 && (
+                      <span className="pill" style={{ background: '#e3edd8', color: 'var(--curry)', marginLeft: 8, fontSize: 12 }}>🎁 ₹{Number(order.tipAmount).toFixed(0)} tip</span>
+                    )}
+                  </p>
                   {order.paymentMethod === 'cod' && order.status !== 'delivered' && (
                     <p style={{ background: '#fff2d6', color: '#8a5a00', padding: '6px 10px', borderRadius: 8, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
                       💵 Collect ₹{Number(order.total).toFixed(0)} in cash

@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 import { api, SOCKET_URL } from '../api';
 import StarRating from '../components/StarRating';
 import LiveMap from '../components/LiveMap';
+import { DELIVERY_TYPES } from '../utils/delivery-type';
 
 const STAGES = [
   { key: 'placed', label: 'Order placed' },
@@ -54,6 +55,12 @@ function printReceipt(order) {
     ${itemRows}
     <tr class="rule"><td class="muted">Item total</td><td class="r">₹${Number(order.subtotal).toFixed(0)}</td></tr>
     <tr><td class="muted">Delivery fee</td><td class="r">₹${Number(order.deliveryFee).toFixed(0)}</td></tr>
+    ${order.deliveryType && order.deliveryType !== 'standard' ? (() => {
+      const cfg = DELIVERY_TYPES.find((d) => d.value === order.deliveryType);
+      const s = cfg?.surcharge ?? 0;
+      return `<tr><td class="muted">${esc(cfg?.label)}</td><td class="r">${s > 0 ? '+' : '-'}₹${Math.abs(s)}</td></tr>`;
+    })() : ''}
+    ${Number(order.tipAmount) > 0 ? `<tr><td class="muted">Tip for rider</td><td class="r">+₹${Number(order.tipAmount).toFixed(0)}</td></tr>` : ''}
     ${order.discountAmount != null && Number(order.discountAmount) > 0 ? `<tr style="color:#2e7d32"><td>🎉 ${esc(order.appliedOfferName)}</td><td class="r">-₹${Number(order.discountAmount).toFixed(0)}</td></tr>` : ''}
     <tr class="total"><td>Total</td><td class="r">₹${Number(order.total).toFixed(0)}</td></tr>
     <tr><td class="muted">${order.paymentMethod === 'cod' ? 'Cash on delivery' : 'Online payment'}</td><td class="r">${esc(order.paymentStatus)}</td></tr>
@@ -284,6 +291,23 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
               <span className="muted">Delivery fee</span>
               <span>₹{Number(order.deliveryFee).toFixed(0)}</span>
             </div>
+            {order.deliveryType && order.deliveryType !== 'standard' && (
+              <div className="row">
+                <span className="muted">{DELIVERY_TYPES.find((d) => d.value === order.deliveryType)?.label}</span>
+                <span>
+                  {(() => {
+                    const s = DELIVERY_TYPES.find((d) => d.value === order.deliveryType)?.surcharge ?? 0;
+                    return s > 0 ? `+₹${s}` : `-₹${Math.abs(s)}`;
+                  })()}
+                </span>
+              </div>
+            )}
+            {Number(order.tipAmount) > 0 && (
+              <div className="row">
+                <span className="muted">Tip for rider</span>
+                <span>+₹{Number(order.tipAmount).toFixed(0)}</span>
+              </div>
+            )}
             {order.discountAmount != null && Number(order.discountAmount) > 0 && (
               <div className="row" style={{ color: 'var(--curry, #2e7d32)' }}>
                 <span>🎉 {order.appliedOfferName}</span>
