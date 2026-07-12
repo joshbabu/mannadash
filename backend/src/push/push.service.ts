@@ -32,7 +32,14 @@ export class PushService {
     // try/catch closes that gap so a malformed key degrades the same way a missing one
     // already did, instead of taking the whole app down with it.
     try {
-      webpush.setVapidDetails('mailto:admin@mannadash.example', publicKey, privateKey);
+      // The VAPID "subject" — a contact URI included in every push JWT. Apple's push
+      // service has been reported (by other developers, not something I can verify with
+      // full confidence myself) to be stricter than Chrome's about this being a real,
+      // reachable contact rather than a placeholder domain — worth trying a real one if
+      // BadJwtToken persists specifically against Apple's endpoint. Defaults to the old
+      // placeholder so nothing changes unless VAPID_SUBJECT is actually set.
+      const subject = this.config.get<string>('VAPID_SUBJECT', 'mailto:admin@mannadash.example');
+      webpush.setVapidDetails(subject, publicKey, privateKey);
       this.configured = true;
     } catch (err: any) {
       this.logger.error(
