@@ -145,7 +145,9 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await customerPage.getByRole('button', { name: 'Add' }).first().click();
     await customerPage.getByText(/View cart/).click();
     await customerPage.getByPlaceholder('Flat / house number, street, landmark').fill('E2E Test Delivery Address');
-    // Cooking instructions travel with the order to the kitchen
+    // Cooking instructions travel with the order to the kitchen — now behind a tab
+    // (Delivery Type / Tip / Instructions), not always visible like it used to be
+    await customerPage.getByRole('button', { name: 'Instructions', exact: true }).click();
     await customerPage.getByPlaceholder('e.g. less spicy, no onions…').fill('Less spicy please');
     // COD is the default payment method (Razorpay is gated on real keys)
     await expect(customerPage.getByText('💵 Cash on delivery')).toBeVisible();
