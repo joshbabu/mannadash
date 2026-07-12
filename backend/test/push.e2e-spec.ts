@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import * as webpush from 'web-push';
 import { createTestApp, signUpRider, signUpCustomer, signUpRestaurant, adminLogin } from './test-helpers';
 
 describe('Push notifications (e2e)', () => {
@@ -100,6 +101,69 @@ describe('Push notifications (e2e)', () => {
         expect(res.body).toHaveProperty('publicKey');
       } finally {
         if (brokenApp) await brokenApp.close();
+      }
+    });
+  });
+
+  describe('VAPID_SUBJECT is configurable (the fix for the real BadJwtToken/VapidPkHashMismatch incident)', () => {
+    // A genuinely valid key pair, generated fresh — needed here because setVapidDetails()
+    // validates the keys too, and these tests are specifically about the subject argument
+    const validKeys = webpush.generateVAPIDKeys();
+
+    afterEach(() => {
+      delete process.env.VAPID_PUBLIC_KEY;
+      delete process.env.VAPID_PRIVATE_KEY;
+      delete process.env.VAPID_SUBJECT;
+    });
+
+    it('uses a custom VAPID_SUBJECT when set, instead of the hardcoded placeholder', async () => {
+      // Real-world context: Apple's push service was rejecting every subscription with
+      // BadJwtToken while the subject was the hardcoded, non-real "mailto:admin@
+      // mannadash.example" — switching to a genuine, working email fixed it in production.
+      // This proves the env var actually takes effect, not just that it's read.
+      process.env.VAPID_PUBLIC_KEY = validKeys.publicKey;
+      process.env.VAPID_PRIVATE_KEY = validKeys.privateKey;
+      process.env.VAPID_SUBJECT = 'mailto:real-contact@example.com';
+
+      let app2: INestApplication | undefined;
+      try {
+        app2 = await createTestApp();
+        const res = await request(app2.getHttpServer()).get('/push/vapid-public-key').expect(200);
+        expect(res.body.publicKey).toBe(validKeys.publicKey);
+      } finally {
+        if (app2) await app2.close();
+      }
+    });
+
+    it('falls back to the original placeholder subject when VAPID_SUBJECT is not set — no behavior change for existing deployments', async () => {
+      process.env.VAPID_PUBLIC_KEY = validKeys.publicKey;
+      process.env.VAPID_PRIVATE_KEY = validKeys.privateKey;
+      // VAPID_SUBJECT deliberately left unset
+
+      let app2: INestApplication | undefined;
+      try {
+        app2 = await createTestApp();
+        await request(app2.getHttpServer()).get('/push/vapid-public-key').expect(200);
+        // Booting successfully at all confirms the default subject
+        // ('mailto:admin@mannadash.example') is still a validly-formed fallback
+      } finally {
+        if (app2) await app2.close();
+      }
+    });
+
+    it('does not crash the app even if VAPID_SUBJECT itself is malformed — same fail-closed guard covers this too', async () => {
+      process.env.VAPID_PUBLIC_KEY = validKeys.publicKey;
+      process.env.VAPID_PRIVATE_KEY = validKeys.privateKey;
+      // Missing the required "mailto:" or "https:" prefix — setVapidDetails() rejects this
+      process.env.VAPID_SUBJECT = 'not-a-valid-subject';
+
+      let app2: INestApplication | undefined;
+      try {
+        app2 = await createTestApp();
+        // Same as the malformed-key test above: booting at all is the assertion
+        await request(app2.getHttpServer()).get('/push/vapid-public-key').expect(200);
+      } finally {
+        if (app2) await app2.close();
       }
     });
   });

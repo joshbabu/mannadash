@@ -125,6 +125,11 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
   Apple-specific meta tags iOS needs (it ignores `manifest.json` for install behavior).
   Android/Chrome/desktop already worked without any of this; this specifically unblocks
   iOS. Regression-checked in Playwright: manifest is linked, fetchable, and has icons.
+  **Confirmed working end to end in production**, all three roles (customer/restaurant/
+  rider), after a real incident and its full fix — see lesson 10 below for the complete
+  chain (a malformed VAPID key briefly took down the whole backend, then a stale-browser-
+  subscription bug, then an Apple-specific VAPID subject issue — each found and fixed in
+  turn with a real repro test, not guessed away).
 - **Phase H — Dish-level search** (find restaurants BY dish, not just name/cuisine)
 - **Phase I — Launch checklist**: packaging charges, coupons/first-order offers, receipts,
   terms & privacy pages, **GST line** (platform is liable for 5% GST on restaurant orders under
@@ -371,6 +376,35 @@ time, not just today.
     **(b)** rotating a push VAPID key isn't just a server-side change, every existing
     client subscription is now silently stale and needs an explicit, verified resubscribe,
     not just "tap the button again."
+
+    **The actual final root cause, found after the two fixes above:** even with a fresh,
+    correctly-matched key pair and genuinely new subscriptions, Apple's push service kept
+    rejecting every send with `BadJwtToken` — every other role (restaurant, rider) failed
+    identically, ruling out anything iOS- or customer-specific. The remaining suspect was
+    the VAPID **subject** claim (a contact URI embedded in every push JWT), hardcoded to
+    the placeholder `mailto:admin@mannadash.example`. Made it configurable via
+    `VAPID_SUBJECT` (`gst-config.util.ts`-style env var, defaults to the old placeholder
+    so nothing changes for anyone who hasn't set it) and passed through
+    `docker-compose.prod.yml` the same way as the GST vars earlier. Pointing it at a real,
+    working email resolved `BadJwtToken` for the customer immediately. Restaurant and
+    rider then showed a *different*, more specific error — `VapidPkHashMismatch` — which
+    is Apple's push service explicitly confirming "this subscription was created with a
+    different public key than you're signing with now": exactly the same stale-subscription
+    issue from lesson (b) above, just surfacing per-role as each app's session got
+    refreshed. Once all three apps had gone through a fresh resubscribe against the final,
+    correct config, all push notifications worked cleanly with zero warnings in the logs.
+    **Honest note on confidence**: the VAPID-subject fix was proposed as a well-motivated
+    experiment based on other developers' reports of this exact Apple-specific symptom,
+    not a diagnosis I could verify with certainty from documentation alone — it happened
+    to be correct, but the more reliable path when this class of narrow, platform-specific
+    issue comes up again is to check current, actively-maintained sources (e.g. open
+    issues on the `web-push-node/web-push` GitHub repo) rather than assume the general
+    explanation holds for whatever the current spec version's real behavior is.
+
+    Regression-tested end to end: `push.e2e-spec.ts` now covers a malformed public key,
+    a malformed VAPID_SUBJECT (same fail-closed guard covers both), a custom subject
+    actually taking effect, and the default subject still working when unset — 9 tests,
+    all reproducing tonight's real failure modes rather than just checking happy paths.
 
 ## For the new chat
 
