@@ -52,7 +52,14 @@ export class PushService {
         if (err?.statusCode === 410 || err?.statusCode === 404) {
           await this.subscriptionRepo.delete({ id: sub.id });
         } else {
-          this.logger.warn(`Push send failed for subscriber ${subscriberId}: ${err?.message}`);
+          // err.message alone is unhelpfully generic ("Received unexpected response
+          // code") for WebPushError — the actual reason lives in statusCode/body, which
+          // is what actually distinguishes "bad VAPID config" from "payload too large"
+          // from "subscription expired but not yet 410'd" etc.
+          this.logger.warn(
+            `Push send failed for subscriber ${subscriberId} (role: ${subscriberRole}): ` +
+              `status=${err?.statusCode} body=${err?.body} message=${err?.message}`,
+          );
         }
       }
     }
