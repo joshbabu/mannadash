@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ILike, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { Restaurant, RestaurantStatus } from './entities/restaurant.entity';
@@ -120,11 +120,18 @@ export class RestaurantsService {
     let dishesByRestaurant = new Map<string, string[]>();
     if (dish?.trim()) {
       // Case-insensitive substring match against currently-available dishes only — showing
-      // a restaurant for something it's sold out of right now would be misleading, not helpful.
-      const matches = await this.menuItemRepo.find({
-        where: { name: ILike(`%${dish.trim()}%`), isAvailable: true },
-        relations: { restaurant: true },
-      });
+      // a restaurant for something it's sold out of right now would be misleading, not
+      // helpful. Spaces stripped from BOTH sides before comparing — "Icecream" (as
+      // someone genuinely typed it) needs to match a search for "Ice Cream" (the
+      // category button's natural-reading label), and this is a recurring class of
+      // problem for compound food words generally (Butter Milk/Buttermilk, Pan Cake/
+      // Pancake), not something worth special-casing one word at a time.
+      const matches = await this.menuItemRepo
+        .createQueryBuilder('item')
+        .leftJoinAndSelect('item.restaurant', 'restaurant')
+        .where(`REPLACE(LOWER(item.name), ' ', '') LIKE :q`, { q: `%${dish.trim().toLowerCase().replace(/\s+/g, '')}%` })
+        .andWhere('item.isAvailable = true')
+        .getMany();
       matchingRestaurantIds = [...new Set(matches.map((m) => m.restaurant.id))];
       for (const m of matches) {
         const list = dishesByRestaurant.get(m.restaurant.id) ?? [];

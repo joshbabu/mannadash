@@ -168,4 +168,29 @@ describe('Dish-level search (e2e)', () => {
     expect(match.matchedDishes).toHaveLength(2);
     expect(match.matchedDishes).toEqual(expect.arrayContaining(['Chicken Biryani', 'Mutton Biryani']));
   });
+
+  it('matches "Icecream" (one word) against a search for "Ice Cream" (with a space) — a real production bug', async () => {
+    // Real-world find: the customer added "Gulab Jamun with Icecream" — the "Ice Cream"
+    // category button searches with a space (the natural way to read the button label),
+    // but a plain substring match would never find "Icecream" inside that dish name.
+    // Spaces are normalized out of both sides before comparing, fixing this and the whole
+    // class of inconsistently-spaced compound food words (Butter Milk/Buttermilk, etc).
+    const restaurant = await setupApprovedRestaurantWithDish('Gulab Jamun with Icecream');
+    const res = await request(app.getHttpServer())
+      .get('/restaurants/nearby')
+      .query({ lat: 17.45, lng: 78.39, dish: 'Ice Cream' })
+      .expect(200);
+    expect(res.body.some((r: any) => r.id === restaurant.id)).toBe(true);
+    const match = res.body.find((r: any) => r.id === restaurant.id);
+    expect(match.matchedDishes).toContain('Gulab Jamun with Icecream');
+  });
+
+  it('still matches normally when spacing is already consistent on both sides', async () => {
+    const restaurant = await setupApprovedRestaurantWithDish('Vanilla Ice Cream');
+    const res = await request(app.getHttpServer())
+      .get('/restaurants/nearby')
+      .query({ lat: 17.45, lng: 78.39, dish: 'Ice Cream' })
+      .expect(200);
+    expect(res.body.some((r: any) => r.id === restaurant.id)).toBe(true);
+  });
 });
