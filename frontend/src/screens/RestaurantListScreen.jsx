@@ -18,6 +18,10 @@ const DEFAULT_LNG = 78.3772;
 // itself, since that's the natural, expected way to read a category chip. Deliberately
 // NOT applied to "Fries" — "Fries" (not "Fry") is the natural dish-name form itself
 // (e.g. "Masala Fries"), so singularizing it would make matches worse, not better.
+// "Pastry" uses a truncated root ("pastr") instead of the full singular — English's
+// irregular y→ies plurals (Pastry/Pastries) break the "singular is a substring of the
+// plural" trick that works for regular -s plurals, since "Pastry" is NOT a substring of
+// "Pastries". A short common root sidesteps the irregularity entirely and matches both.
 const QUICK_CATEGORIES = [
   { label: 'Biryani', icon: '🍛' },
   { label: 'Pizza', icon: '🍕' },
@@ -31,7 +35,7 @@ const QUICK_CATEGORIES = [
   { label: 'Fries', icon: '🍟' },
   { label: 'Salad', icon: '🥗' },
   { label: 'Cakes', icon: '🍰', searchTerm: 'Cake' },
-  { label: 'Pastry', icon: '🥐' },
+  { label: 'Pastry', icon: '🥐', searchTerm: 'pastr' },
   { label: 'Ice Cream', icon: '🍦' },
   { label: 'Shake', icon: '🥤' },
 ];

@@ -193,4 +193,21 @@ describe('Dish-level search (e2e)', () => {
       .expect(200);
     expect(res.body.some((r: any) => r.id === restaurant.id)).toBe(true);
   });
+
+  it('a truncated root matches an irregular plural too — "pastr" finds both Pastry and Pastries', async () => {
+    // Found proactively, not from a bug report: "Pastry" (singular) is NOT a substring of
+    // "Pastries" (irregular y-to-ies plural), unlike the regular -s plurals the Cake/Burger/
+    // Momo/Noodle fix relies on. The frontend's Pastry category button uses the truncated
+    // root "pastr" specifically to sidestep this — verifying that choice actually works
+    // against both real forms a restaurant might use.
+    const singular = await setupApprovedRestaurantWithDish('Chicken Pastry', 17.46, 78.40);
+    const plural = await setupApprovedRestaurantWithDish('Assorted Pastries', 17.44, 78.38);
+    const res = await request(app.getHttpServer())
+      .get('/restaurants/nearby')
+      .query({ lat: 17.45, lng: 78.39, dish: 'pastr' })
+      .expect(200);
+    const ids = res.body.map((r: any) => r.id);
+    expect(ids).toContain(singular.id);
+    expect(ids).toContain(plural.id);
+  });
 });
