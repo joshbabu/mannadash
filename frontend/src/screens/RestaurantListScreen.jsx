@@ -11,6 +11,26 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
   const [error, setError] = useState('');
   const [sortBy, setSortBy] = useState('distance'); // 'distance' | 'rating'
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentLatLng, setCurrentLatLng] = useState({ lat: DEFAULT_LAT, lng: DEFAULT_LNG });
+  const [dishMatches, setDishMatches] = useState([]); // restaurants found by dish, not name/cuisine
+
+  // Phase H: dish-level search. The name/cuisine filter below is instant (client-side,
+  // already-loaded data); dish search needs the backend (dish names aren't in the list
+  // response at all) so it's debounced rather than fired on every keystroke.
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) {
+      setDishMatches([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      api
+        .getNearbyRestaurants(currentLatLng.lat, currentLatLng.lng, 8000, q)
+        .then(setDishMatches)
+        .catch(() => setDishMatches([]));
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery, currentLatLng]);
 
   useEffect(() => {
     load(DEFAULT_LAT, DEFAULT_LNG);
@@ -19,6 +39,7 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
   async function load(lat, lng) {
     setLoading(true);
     setError('');
+    setCurrentLatLng({ lat, lng });
     try {
       const results = await api.getNearbyRestaurants(lat, lng);
       setRestaurants(results);
@@ -43,7 +64,14 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
     return r.name.toLowerCase().includes(q) || r.cuisineType.toLowerCase().includes(q);
   });
 
-  const sortedRestaurants = [...filteredRestaurants].sort((a, b) => {
+  // Union of name/cuisine matches (instant) and dish matches (debounced, from the
+  // backend) — a restaurant found only by dish still needs to actually appear, even if
+  // its own name/cuisine never mentioned the search term at all
+  const existingIds = new Set(filteredRestaurants.map((r) => r.id));
+  const dishOnlyMatches = dishMatches.filter((r) => !existingIds.has(r.id));
+  const combinedRestaurants = [...filteredRestaurants, ...dishOnlyMatches];
+
+  const sortedRestaurants = [...combinedRestaurants].sort((a, b) => {
     if (sortBy === 'rating') return Number(b.ratingAvg || 0) - Number(a.ratingAvg || 0);
     return a.distanceMeters - b.distanceMeters;
   });
@@ -54,7 +82,7 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
         <h1 style={{ fontSize: 26 }}>Nearby restaurants</h1>
       </div>
       <input
-        placeholder="Search by name or cuisine…"
+        placeholder="Search by name, cuisine, or dish…"
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         style={{ width: '100%', background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd', marginBottom: 12 }}
@@ -107,6 +135,11 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
               {r.cuisineType} · {r.avgPrepTimeMins} min prep
               {r.costForTwo && <> · ₹{r.costForTwo} for two</>}
             </p>
+            {r.matchedDishes?.length > 0 && (
+              <p style={{ color: 'var(--chili-dark)', fontSize: 13, fontWeight: 600, margin: '4px 0 0' }}>
+                🍽️ {r.matchedDishes.join(', ')}
+              </p>
+            )}
           </button>
         ))}
       </div>

@@ -33,8 +33,8 @@ export const api = {
   login: (body) => request('/auth/login', { method: 'POST', body }),
 
   // Restaurants
-  getNearbyRestaurants: (lat, lng, radius = 8000) =>
-    request(`/restaurants/nearby?lat=${lat}&lng=${lng}&radius=${radius}`),
+  getNearbyRestaurants: (lat, lng, radius = 8000, dish) =>
+    request(`/restaurants/nearby?lat=${lat}&lng=${lng}&radius=${radius}${dish ? `&dish=${encodeURIComponent(dish)}` : ''}`),
   getRestaurant: (id) => request(`/restaurants/${id}`),
 
   // Menu

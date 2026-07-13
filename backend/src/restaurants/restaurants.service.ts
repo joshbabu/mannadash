@@ -1,9 +1,10 @@
 import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { Restaurant, RestaurantStatus } from './entities/restaurant.entity';
+import { MenuItem } from '../menu-items/entities/menu-item.entity';
 import { CreateRestaurantDto } from './dto/create-restaurant.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { NearbyQueryDto } from './dto/nearby-query.dto';
@@ -17,6 +18,8 @@ export class RestaurantsService {
   constructor(
     @InjectRepository(Restaurant)
     private readonly restaurantRepo: Repository<Restaurant>,
+    @InjectRepository(MenuItem)
+    private readonly menuItemRepo: Repository<MenuItem>,
     private readonly jwtService: JwtService,
   ) {}
 
@@ -110,10 +113,30 @@ export class RestaurantsService {
    * Find approved, open restaurants within `radius` meters of the given point,
    * ordered nearest-first. This is the core "restaurants near me" query.
    */
-  async findNearby(query: NearbyQueryDto): Promise<(Restaurant & { distanceMeters: number })[]> {
-    const { lat, lng, radius = 5000 } = query;
+  async findNearby(query: NearbyQueryDto): Promise<(Restaurant & { distanceMeters: number; matchedDishes?: string[] })[]> {
+    const { lat, lng, radius = 5000, dish } = query;
 
-    const results = await this.restaurantRepo
+    let matchingRestaurantIds: string[] | null = null;
+    let dishesByRestaurant = new Map<string, string[]>();
+    if (dish?.trim()) {
+      // Case-insensitive substring match against currently-available dishes only — showing
+      // a restaurant for something it's sold out of right now would be misleading, not helpful.
+      const matches = await this.menuItemRepo.find({
+        where: { name: ILike(`%${dish.trim()}%`), isAvailable: true },
+        relations: { restaurant: true },
+      });
+      matchingRestaurantIds = [...new Set(matches.map((m) => m.restaurant.id))];
+      for (const m of matches) {
+        const list = dishesByRestaurant.get(m.restaurant.id) ?? [];
+        list.push(m.name);
+        dishesByRestaurant.set(m.restaurant.id, list);
+      }
+      // No restaurant nearby serves this dish right now — short-circuit rather than run
+      // the geo query at all, and definitely never fall through to "show everything"
+      if (matchingRestaurantIds.length === 0) return [];
+    }
+
+    const qb = this.restaurantRepo
       .createQueryBuilder('restaurant')
       .addSelect(
         `ST_Distance(restaurant.location, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326))`,
@@ -125,8 +148,13 @@ export class RestaurantsService {
       .andWhere('restaurant.status = :status', { status: 'approved' })
       .andWhere('restaurant.isOpen = true')
       .setParameters({ lat, lng, radius })
-      .orderBy('"distanceMeters"', 'ASC')
-      .getRawAndEntities();
+      .orderBy('"distanceMeters"', 'ASC');
+
+    if (matchingRestaurantIds) {
+      qb.andWhere('restaurant.id IN (:...ids)', { ids: matchingRestaurantIds });
+    }
+
+    const results = await qb.getRawAndEntities();
 
     // Merge the computed distance ONTO the entity instance (Object.assign) rather than
     // spreading into a plain object. This distinction is security-critical: the global
@@ -136,6 +164,7 @@ export class RestaurantsService {
     return results.entities.map((entity, i) =>
       Object.assign(entity, {
         distanceMeters: Math.round(parseFloat(results.raw[i].distanceMeters)),
+        ...(dishesByRestaurant.has(entity.id) ? { matchedDishes: [...new Set(dishesByRestaurant.get(entity.id))] } : {}),
       }),
     );
   }

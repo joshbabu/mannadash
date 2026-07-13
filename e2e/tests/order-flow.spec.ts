@@ -128,7 +128,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await customerPage.getByPlaceholder('Password').fill('testpass123');
     await customerPage.locator('button[type="submit"]').click();
 
-    await customerPage.getByPlaceholder('Search by name or cuisine…').fill(restaurantName);
+    await customerPage.getByPlaceholder('Search by name, cuisine, or dish…').fill(restaurantName);
     // Phase 4: the card surfaces what onboarding captured — veg-only badge and cost for two
     await expect(customerPage.getByText('🌱 Pure Veg')).toBeVisible();
     await expect(customerPage.getByText('₹500 for two')).toBeVisible();
@@ -253,10 +253,27 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // step, since the customer is still deep inside the app from the reload above
     await customerPage.getByRole('button', { name: '← Back' }).click();
     await customerPage.getByRole('button', { name: '🍲 Browse' }).click();
-    await customerPage.getByPlaceholder('Search by name or cuisine…').fill(restaurantName);
+    await customerPage.getByPlaceholder('Search by name, cuisine, or dish…').fill(restaurantName);
     await customerPage.getByText(restaurantName).click();
     await expect(customerPage.getByText('Reply from the restaurant')).toBeVisible();
     await expect(customerPage.getByText('Thank you! Come back soon')).toBeVisible();
+  });
+
+  await test.step('Phase H: dish-level search finds this restaurant by a dish it serves', async () => {
+    // Same navigation lesson as Phase J/L1/L3 — the customer is on the menu page from
+    // the step above, and the Browse tab is hidden while a restaurant is selected.
+    await customerPage.getByRole('button', { name: '← Back' }).click();
+    await customerPage.getByRole('button', { name: '🍲 Browse' }).click();
+    // Searching the exact dish name, NOT the restaurant's own name — this restaurant is
+    // "E2E Test Restaurant {phone}", nothing about "E2E Test Dish" appears in that name,
+    // so a match here can only come from the backend's dish search, not the existing
+    // client-side name/cuisine filter
+    await customerPage.getByPlaceholder('Search by name, cuisine, or dish…').fill('E2E Test Dish');
+    await expect(customerPage.getByText(restaurantName)).toBeVisible({ timeout: 10_000 });
+    // The card explains WHY it matched — the dish name, not the restaurant's own info
+    await expect(customerPage.getByText('🍽️ E2E Test Dish')).toBeVisible();
+    await customerPage.getByText(restaurantName).click();
+    await customerPage.getByText('E2E Test Dish').first().waitFor();
   });
 
   await test.step('Phase L1: offers teaser, automatic discount, and a code overriding it', async () => {
@@ -277,7 +294,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // customer back on Browse — same lesson as the rating-persistence step above. Navigate
     // back to the restaurant explicitly rather than assuming reload preserves the screen.
     await customerPage.reload();
-    await customerPage.getByPlaceholder('Search by name or cuisine…').fill(restaurantName);
+    await customerPage.getByPlaceholder('Search by name, cuisine, or dish…').fill(restaurantName);
     await customerPage.getByText(restaurantName).click();
     await expect(customerPage.getByText(/🎉 10% OFF/)).toBeVisible();
     await expect(customerPage.getByText(/🎉 ₹40 OFF with code/)).toBeVisible();
@@ -464,7 +481,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // Browse tab has to be clicked explicitly once the bottom nav reappears.
     await customerPage.getByRole('button', { name: '← Back' }).click();
     await customerPage.getByRole('button', { name: '🍲 Browse' }).click();
-    await customerPage.getByPlaceholder('Search by name or cuisine…').fill(restaurantName);
+    await customerPage.getByPlaceholder('Search by name, cuisine, or dish…').fill(restaurantName);
     await customerPage.getByText(restaurantName).click();
     await customerPage.getByText('E2E Variant Dish').waitFor();
 
@@ -562,7 +579,7 @@ test('customer can cancel their own order before the restaurant accepts it', asy
     await customerPage.getByPlaceholder('Password').fill('testpass123');
     await customerPage.locator('button[type="submit"]').click();
 
-    await customerPage.getByPlaceholder('Search by name or cuisine…').fill(restaurantName);
+    await customerPage.getByPlaceholder('Search by name, cuisine, or dish…').fill(restaurantName);
     await customerPage.getByText(restaurantName).click();
     await customerPage.getByText('Cancel Test Dish').waitFor();
     await customerPage.getByRole('button', { name: 'Add' }).first().click();

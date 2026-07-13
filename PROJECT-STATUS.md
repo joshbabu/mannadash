@@ -130,7 +130,20 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
   chain (a malformed VAPID key briefly took down the whole backend, then a stale-browser-
   subscription bug, then an Apple-specific VAPID subject issue — each found and fixed in
   turn with a real repro test, not guessed away).
-- **Phase H — Dish-level search** (find restaurants BY dish, not just name/cuisine)
+- **Phase H — Dish-level search: DONE.** Extends the existing geo search (`findNearby`)
+  with an optional `dish` param, rather than a separate endpoint — dish search still
+  respects the same geographic/open/approved constraints a hyperlocal app needs (no use
+  surfacing a restaurant 50km away, or one that's currently closed). Case-insensitive
+  substring match against currently-*available* menu items only — a sold-out dish
+  wouldn't help anyone. Returns which dish(es) actually matched (`matchedDishes`), so the
+  UI can explain *why* a restaurant showed up for a search that doesn't match its own
+  name. Frontend: the existing instant client-side name/cuisine filter is untouched;
+  dish matches come from a debounced (350ms) backend call and get merged in — a
+  restaurant found only by dish still shows up, with a "🍽️ [dish name]" line explaining
+  the match. 8 backend tests (case-insensitivity, partial matches, sold-out exclusion,
+  radius exclusion, closed-restaurant exclusion, multi-dish matching, and confirming
+  zero behavior change when no dish search is performed) plus a real-browser Playwright
+  step searching a dish name that shares nothing with the restaurant's own name.
 - **Phase I — Launch checklist**: packaging charges, coupons/first-order offers, receipts,
   terms & privacy pages, **GST line** (platform is liable for 5% GST on restaurant orders under
   section 9(5) — touches order math, receipts, and payouts; needs its own careful session)
