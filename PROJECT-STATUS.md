@@ -144,6 +144,12 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
   radius exclusion, closed-restaurant exclusion, multi-dish matching, and confirming
   zero behavior change when no dish search is performed) plus a real-browser Playwright
   step searching a dish name that shares nothing with the restaurant's own name.
+  **Same-session follow-up**: a tappable category icon row (Biryani, Pizza, Dosa, Momos,
+  etc. — 15 curated, hand-picked for launch rather than derived from actual order volume,
+  which would be thin this early) sits above the search box, matching the Swiggy/Zomato
+  reference pattern. Tapping one just fills the same search box that already drives both
+  the instant name/cuisine filter and the debounced dish search — no new backend logic,
+  purely a faster way to trigger what's already there. Tap again to clear it.
 - **Phase I — Launch checklist**: packaging charges, coupons/first-order offers, receipts,
   terms & privacy pages, **GST line** (platform is liable for 5% GST on restaurant orders under
   section 9(5) — touches order math, receipts, and payouts; needs its own careful session)

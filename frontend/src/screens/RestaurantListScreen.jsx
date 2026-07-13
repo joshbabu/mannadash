@@ -5,6 +5,29 @@ import { api } from '../api';
 const DEFAULT_LAT = 17.4435;
 const DEFAULT_LNG = 78.3772;
 
+// Curated quick-tap categories — tapping one just fills the same search box that already
+// drives both the instant name/cuisine filter and the debounced dish search, so this adds
+// zero new backend logic, purely a faster way to trigger what's already there. Fixed,
+// hand-picked list rather than data-driven off actual order volume — at launch stage
+// with a limited restaurant base, "most popular" would be thin or empty in places.
+const QUICK_CATEGORIES = [
+  { label: 'Biryani', icon: '🍛' },
+  { label: 'Pizza', icon: '🍕' },
+  { label: 'Burgers', icon: '🍔' },
+  { label: 'Shawarma', icon: '🌯' },
+  { label: 'Momos', icon: '🥟' },
+  { label: 'Noodles', icon: '🍜' },
+  { label: 'Dosa', icon: '🫓' },
+  { label: 'Idli', icon: '🍚' },
+  { label: 'Pasta', icon: '🍝' },
+  { label: 'Fries', icon: '🍟' },
+  { label: 'Salad', icon: '🥗' },
+  { label: 'Cakes', icon: '🍰' },
+  { label: 'Pastry', icon: '🥐' },
+  { label: 'Ice Cream', icon: '🍦' },
+  { label: 'Shake', icon: '🥤' },
+];
+
 export default function RestaurantListScreen({ onSelectRestaurant }) {
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -87,6 +110,35 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
         onChange={(e) => setSearchQuery(e.target.value)}
         style={{ width: '100%', background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd', marginBottom: 12 }}
       />
+      <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 8, marginBottom: 8 }}>
+        {QUICK_CATEGORIES.map((cat) => {
+          const active = searchQuery.trim().toLowerCase() === cat.label.toLowerCase();
+          return (
+            <button
+              key={cat.label}
+              aria-label={`${cat.icon} ${cat.label}`}
+              onClick={() => setSearchQuery(active ? '' : cat.label)}
+              style={{
+                flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', minWidth: 56,
+              }}
+            >
+              <span
+                style={{
+                  width: 48, height: 48, borderRadius: '50%', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', fontSize: 22, background: active ? 'var(--chili)' : '#fdf8ef',
+                  border: active ? '2px solid var(--chili-dark)' : '1px solid #e5ddc9',
+                }}
+              >
+                {cat.icon}
+              </span>
+              <span style={{ fontSize: 11, color: active ? 'var(--chili)' : 'var(--text-secondary, #c9c2b4)', fontWeight: active ? 700 : 400, whiteSpace: 'nowrap' }}>
+                {cat.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
       <div className="row" style={{ marginBottom: 16, gap: 8 }}>
         <button className="btn-secondary" onClick={useMyLocation}>
           📍 Use my location
