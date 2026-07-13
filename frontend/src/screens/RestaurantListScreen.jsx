@@ -10,19 +10,27 @@ const DEFAULT_LNG = 78.3772;
 // zero new backend logic, purely a faster way to trigger what's already there. Fixed,
 // hand-picked list rather than data-driven off actual order volume — at launch stage
 // with a limited restaurant base, "most popular" would be thin or empty in places.
+//
+// searchTerm (when present) overrides label for the actual query, singular instead of
+// plural — a plain substring search for "Cakes" never matches a dish literally named
+// "Butterscotch Cake" (singular), but "Cake" matches both "Cake" and "Cakes" since the
+// plural always contains the singular as a substring. label stays plural for the button
+// itself, since that's the natural, expected way to read a category chip. Deliberately
+// NOT applied to "Fries" — "Fries" (not "Fry") is the natural dish-name form itself
+// (e.g. "Masala Fries"), so singularizing it would make matches worse, not better.
 const QUICK_CATEGORIES = [
   { label: 'Biryani', icon: '🍛' },
   { label: 'Pizza', icon: '🍕' },
-  { label: 'Burgers', icon: '🍔' },
+  { label: 'Burgers', icon: '🍔', searchTerm: 'Burger' },
   { label: 'Shawarma', icon: '🌯' },
-  { label: 'Momos', icon: '🥟' },
-  { label: 'Noodles', icon: '🍜' },
+  { label: 'Momos', icon: '🥟', searchTerm: 'Momo' },
+  { label: 'Noodles', icon: '🍜', searchTerm: 'Noodle' },
   { label: 'Dosa', icon: '🫓' },
   { label: 'Idli', icon: '🍚' },
   { label: 'Pasta', icon: '🍝' },
   { label: 'Fries', icon: '🍟' },
   { label: 'Salad', icon: '🥗' },
-  { label: 'Cakes', icon: '🍰' },
+  { label: 'Cakes', icon: '🍰', searchTerm: 'Cake' },
   { label: 'Pastry', icon: '🥐' },
   { label: 'Ice Cream', icon: '🍦' },
   { label: 'Shake', icon: '🥤' },
@@ -112,12 +120,13 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
       />
       <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 8, marginBottom: 8 }}>
         {QUICK_CATEGORIES.map((cat) => {
-          const active = searchQuery.trim().toLowerCase() === cat.label.toLowerCase();
+          const queryValue = cat.searchTerm || cat.label;
+          const active = searchQuery.trim().toLowerCase() === queryValue.toLowerCase();
           return (
             <button
               key={cat.label}
               aria-label={`${cat.icon} ${cat.label}`}
-              onClick={() => setSearchQuery(active ? '' : cat.label)}
+              onClick={() => setSearchQuery(active ? '' : queryValue)}
               style={{
                 flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                 background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', minWidth: 56,

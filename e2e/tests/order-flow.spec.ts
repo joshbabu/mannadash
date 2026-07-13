@@ -264,6 +264,15 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // the step above, and the Browse tab is hidden while a restaurant is selected.
     await customerPage.getByRole('button', { name: '← Back' }).click();
     await customerPage.getByRole('button', { name: '🍲 Browse' }).click();
+
+    // Tappable category chips (Biryani, Pizza, etc.) just fill the same search box — this
+    // proves the UI mechanism itself (tap fills it, tap again clears it), not the search
+    // logic, which is already covered by the backend suite and the manual-typing check below
+    await customerPage.getByRole('button', { name: '🍛 Biryani' }).click();
+    await expect(customerPage.getByPlaceholder('Search by name, cuisine, or dish…')).toHaveValue('Biryani');
+    await customerPage.getByRole('button', { name: '🍛 Biryani' }).click(); // toggles back off
+    await expect(customerPage.getByPlaceholder('Search by name, cuisine, or dish…')).toHaveValue('');
+
     // Searching the exact dish name, NOT the restaurant's own name — this restaurant is
     // "E2E Test Restaurant {phone}", nothing about "E2E Test Dish" appears in that name,
     // so a match here can only come from the backend's dish search, not the existing
@@ -274,6 +283,23 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await expect(customerPage.getByText('🍽️ E2E Test Dish')).toBeVisible();
     await customerPage.getByText(restaurantName).click();
     await customerPage.getByText('E2E Test Dish').first().waitFor();
+
+    // Regression: a real bug found in production — tapping "Cakes" (plural button label)
+    // searched the literal substring "Cakes", which never matches a dish named
+    // "Butterscotch Cake" (singular). Fixed by having the button search the singular
+    // "Cake" instead while still DISPLAYING "Cakes" — the singular is a substring of both
+    // "Cake" and "Cakes", so it matches either, while the plural only matched the plural.
+    const cakeItemRes = await api.post('/menu-items', {
+      headers: { Authorization: `Bearer ${restaurantToken}` },
+      data: { restaurantId, name: 'Butterscotch Cake', price: 250, category: 'dessert' },
+    });
+    expect(cakeItemRes.ok()).toBeTruthy();
+    await customerPage.getByRole('button', { name: '← Back' }).click();
+    await customerPage.getByRole('button', { name: '🍲 Browse' }).click();
+    await customerPage.getByRole('button', { name: '🍰 Cakes' }).click();
+    await expect(customerPage.getByPlaceholder('Search by name, cuisine, or dish…')).toHaveValue('Cake');
+    await expect(customerPage.getByText(restaurantName)).toBeVisible({ timeout: 10_000 });
+    await expect(customerPage.getByText('🍽️ Butterscotch Cake')).toBeVisible();
   });
 
   await test.step('Phase L1: offers teaser, automatic discount, and a code overriding it', async () => {
