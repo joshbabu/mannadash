@@ -16,7 +16,7 @@
      warnings) — this is a restyle of the primary visual language, not a search-and-
      replace of every color in the app. */
   --bg-gradient: linear-gradient(135deg, #6a4550 0%, #3a4468 25%, #22406e 60%, #1a3560 100%);
-  --card-gradient: linear-gradient(165deg, #fffaf3 0%, #f0e6d5 100%);
+  --card-gradient: linear-gradient(165deg, #ffffff 0%, #f4f2f0 100%);
   --accent-gradient: linear-gradient(160deg, #2e2e28 0%, #14140f 60%, #050503 100%);
 }
 
