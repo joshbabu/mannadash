@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api';
+import LegalScreen from './LegalScreen';
 
 export default function AuthScreen({ onAuthed }) {
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
@@ -8,6 +9,11 @@ export default function AuthScreen({ onAuthed }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [legalDoc, setLegalDoc] = useState(null); // null | 'terms' | 'privacy'
+
+  if (legalDoc) {
+    return <LegalScreen initialDoc={legalDoc} onBack={() => setLegalDoc(null)} />;
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -63,6 +69,28 @@ export default function AuthScreen({ onAuthed }) {
             {loading ? 'Please wait…' : mode === 'login' ? 'Log in' : 'Sign up'}
           </button>
         </form>
+
+        {mode === 'signup' && (
+          <p className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 10 }}>
+            By signing up, you agree to our{' '}
+            <button
+              type="button"
+              onClick={() => setLegalDoc('terms')}
+              style={{ background: 'none', border: 'none', padding: 0, color: 'var(--chili-dark)', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}
+            >
+              Terms of Service
+            </button>{' '}
+            and{' '}
+            <button
+              type="button"
+              onClick={() => setLegalDoc('privacy')}
+              style={{ background: 'none', border: 'none', padding: 0, color: 'var(--chili-dark)', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}
+            >
+              Privacy Policy
+            </button>
+            .
+          </p>
+        )}
 
         <button
           className="btn-secondary"

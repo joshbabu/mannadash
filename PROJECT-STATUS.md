@@ -150,18 +150,18 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
   reference pattern. Tapping one just fills the same search box that already drives both
   the instant name/cuisine filter and the debounced dish search — no new backend logic,
   purely a faster way to trigger what's already there. Tap again to clear it.
-- **Phase I — Launch checklist**: mostly DONE now — coupons/first-order offers (L1),
-  receipts, and GST are all already shipped from earlier sessions. **Packaging charges:
-  DONE.** Same dormant-by-default pattern as platform fee — flat per ORDER (not per
-  item, a deliberate simplicity choice), `PACKAGING_FEE_AMOUNT` env var, genuinely
-  independent of both platform fee and GST (tested explicitly). One real fix made while
-  building this: the toggle-gst.yml workflow had platform fee incorrectly tied to the
-  same on/off switch as GST — fixed so fee amounts apply independently of the GST
-  toggle, which is how the backend already treated them; the workflow just hadn't
-  caught up. Still open: **terms & privacy pages** (actual legal pages — content is a
-  business/legal decision, not something to invent freely; the plan is to build the
-  real pages/routing/links and draft reasonable starter content for review, not publish
-  anything sight-unseen).
+- **Phase I — Launch checklist: DONE.** Coupons/first-order offers (L1), receipts, and
+  GST were already shipped from earlier sessions. **Packaging charges: DONE** — same
+  dormant-by-default pattern as platform fee, flat per order, genuinely independent of
+  both platform fee and GST. **Terms & Privacy: DONE.** Deliberately NOT invented
+  freely — `LegalScreen.jsx` holds draft starter content (standard structure: orders,
+  cancellations, liability, data collection/sharing/retention for the Privacy side) that
+  is explicitly labeled in-code as unreviewed by a lawyer. Real legal exposure (liability
+  limits, refund obligations, India's DPDP Act) needs actual review before this should be
+  relied on in a dispute — the value delivered here is the real pages, routing, and links
+  (reachable from signup and from an in-app "Legal" link), not final legal text. Verified
+  in Playwright: both documents render, tab-switching works, and clicking through from
+  signup doesn't lose the form the customer was filling in.
 - **Phase J — Item variants & add-ons: DONE.** `MenuItemVariantGroup` (name, `required`,
   `selectionType: 'single' | 'multiple'`) owns `MenuItemVariantOption` rows (label,
   priceDelta); a dish can have several groups (Size AND Spice Level independently).

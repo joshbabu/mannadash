@@ -6,6 +6,7 @@ import MenuScreen from './screens/MenuScreen';
 import CheckoutScreen from './screens/CheckoutScreen';
 import TrackOrderScreen from './screens/TrackOrderScreen';
 import OrderHistoryScreen from './screens/OrderHistoryScreen';
+import LegalScreen from './screens/LegalScreen';
 
 export default function App() {
   const [user, setUser] = useState(api.getStoredUser());
@@ -14,6 +15,7 @@ export default function App() {
   const [reorderCart, setReorderCart] = useState(null);
   const [pendingOrder, setPendingOrder] = useState(null); // { restaurant, orderItems, menuItems }
   const [trackingOrderId, setTrackingOrderId] = useState(null);
+  const [legalDoc, setLegalDoc] = useState(null); // null | 'terms' | 'privacy'
 
   if (!user) {
     return (
@@ -58,7 +60,9 @@ export default function App() {
   }
 
   let content;
-  if (trackingOrderId) {
+  if (legalDoc) {
+    content = <LegalScreen initialDoc={legalDoc} onBack={() => setLegalDoc(null)} />;
+  } else if (trackingOrderId) {
     content = (
       <TrackOrderScreen
         orderId={trackingOrderId}
@@ -100,15 +104,20 @@ export default function App() {
     content = <RestaurantListScreen onSelectRestaurant={setSelectedRestaurant} />;
   }
 
-  const showBottomNav = !selectedRestaurant && !pendingOrder && !trackingOrderId;
+  const showBottomNav = !selectedRestaurant && !pendingOrder && !trackingOrderId && !legalDoc;
 
   return (
     <div className="app-shell">
       <div className="topbar">
         <span className="brand">MannaDash</span>
-        <button className="btn-secondary" onClick={logout} style={{ fontSize: 12, padding: '6px 10px' }}>
-          Log out
-        </button>
+        <div className="row" style={{ gap: 8 }}>
+          <button className="btn-secondary" onClick={() => setLegalDoc('terms')} style={{ fontSize: 12, padding: '6px 10px' }}>
+            Legal
+          </button>
+          <button className="btn-secondary" onClick={logout} style={{ fontSize: 12, padding: '6px 10px' }}>
+            Log out
+          </button>
+        </div>
       </div>
 
       {content}

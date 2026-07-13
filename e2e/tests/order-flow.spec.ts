@@ -123,6 +123,16 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     const manifest = await manifestRes.json();
     expect(manifest.icons.length).toBeGreaterThan(0);
     await customerPage.getByText('Create an account').click();
+
+    // Terms & Privacy Policy — reachable from signup, and clicking through doesn't lose
+    // the form the customer was filling in
+    await customerPage.getByRole('button', { name: 'Terms of Service' }).click();
+    await expect(customerPage.getByRole('heading', { name: 'Terms of Service' })).toBeVisible();
+    await customerPage.getByRole('button', { name: 'Privacy Policy' }).click();
+    await expect(customerPage.getByRole('heading', { name: 'Privacy Policy' })).toBeVisible();
+    await customerPage.getByRole('button', { name: '← Back' }).click();
+    await expect(customerPage.getByPlaceholder('Full name')).toBeVisible();
+
     await customerPage.getByPlaceholder('Full name').fill('E2E Test Customer');
     await customerPage.getByPlaceholder('Phone number').fill(customerPhone);
     await customerPage.getByPlaceholder('Password').fill('testpass123');
