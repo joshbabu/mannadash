@@ -155,7 +155,8 @@ export class OrdersService {
     const commissionAmount = Math.round(subtotal * (Number(restaurant.commissionRate) / 100) * 100) / 100;
     // Platform fee + GST — always server-computed from config (see gst-config.util.ts),
     // never from the client. Both default to 0 and stay 0 until explicitly enabled.
-    const taxesAndFees = computeTaxesAndFees(subtotal, deliveryFee);
+    // Packaging fee is the restaurant's own setting, clamped to the platform cap.
+    const taxesAndFees = computeTaxesAndFees(subtotal, deliveryFee, restaurant.packagingFee);
     // A tip is money for the rider, never discounted or commissioned — added straight to
     // what the customer pays, same as the delivery-type surcharge (or Eco's small credit).
     const total = Math.max(0, subtotal + deliveryFee + deliverySurcharge + tipAmount + taxesAndFees.total - discountAmount);

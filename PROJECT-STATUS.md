@@ -151,9 +151,21 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
   the instant name/cuisine filter and the debounced dish search — no new backend logic,
   purely a faster way to trigger what's already there. Tap again to clear it.
 - **Phase I — Launch checklist: DONE.** Coupons/first-order offers (L1), receipts, and
-  GST were already shipped from earlier sessions. **Packaging charges: DONE** — same
-  dormant-by-default pattern as platform fee, flat per order, genuinely independent of
-  both platform fee and GST. **Terms & Privacy: DONE.** Deliberately NOT invented
+  GST were already shipped from earlier sessions. **Packaging charges: DONE, redesigned
+  same session.** Originally built as a global, platform-wide flat fee (matching
+  platform fee's pattern) — then redesigned to be genuinely restaurant-configurable
+  (`Restaurant.packagingFee`, set via the restaurant's own Settings screen) after
+  realizing a single global number doesn't reflect that a biryani place needs different
+  containers than a bakery. The platform still enforces a hard ceiling
+  (`PACKAGING_FEE_CAP`, default ₹30) — a restaurant-set value above the cap is clamped
+  down, never rejected outright, so lowering the cap later can't strand an existing
+  restaurant's setting in an invalid state. This intentionally mirrors Zomato's
+  "restaurant sets it, platform caps it" model rather than Swiggy's uncapped per-item
+  accumulation. 9 dedicated tests (`packaging-fee.e2e-spec.ts`): genuinely per-restaurant
+  (two restaurants, two different fees, simultaneously), cap enforcement and
+  configurability, negative values rejected outright at the settings level, commission
+  never inflated by it, and the checkout preview showing the same clamped value before
+  the order is placed. **Terms & Privacy: DONE.** Deliberately NOT invented
   freely — `LegalScreen.jsx` holds draft starter content (standard structure: orders,
   cancellations, liability, data collection/sharing/retention for the Privacy side) that
   is explicitly labeled in-code as unreviewed by a lawyer. Real legal exposure (liability
@@ -433,6 +445,23 @@ time, not just today.
     a malformed VAPID_SUBJECT (same fail-closed guard covers both), a custom subject
     actually taking effect, and the default subject still working when unset — 9 tests,
     all reproducing tonight's real failure modes rather than just checking happy paths.
+
+10. **A second, undiscussed packaging-fee design was caught before shipping, worth naming
+    the mechanism.** While committing the (correct, discussed) global flat-fee version of
+    packaging charges, `git add -A` silently swept in a completely different, never-shipped
+    per-restaurant `Restaurant.packagingFee` design that had been sitting *uncommitted* in
+    the working directory from an earlier, separate exploration. Caught only by checking
+    `git status --short` line-by-line against what was actually intended to change, and by
+    tracing the file's full `git log` history to confirm the field existed in neither
+    Joshua's original base repo nor any legitimately-shipped commit. Reverted the two
+    unexpected files to their last real state before committing. Lesson, concretely: after
+    any `git add -A`, check the resulting `git show --stat` against a mental list of the
+    files actually touched *this turn* — anything unexpected on that list is a signal to
+    stop and investigate before committing, not an assumption that "it must be fine."
+    (Genuinely good coda: Joshua independently proposed the same per-restaurant model a
+    few messages later, for real product reasons — so the design wasn't wrong, just
+    undiscussed. Rebuilt properly this time with an explicit conversation and a platform-
+    wide cap, rather than shipping the orphaned version silently.)
 
 ## For the new chat
 

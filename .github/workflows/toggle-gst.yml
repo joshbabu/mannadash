@@ -30,11 +30,11 @@ on:
         required: false
         type: string
         default: '0'
-      packaging_fee_amount:
-        description: 'Packaging fee in rupees, flat per order (applies regardless of GST enabled)'
+      packaging_fee_cap:
+        description: 'Platform-wide max packaging fee in rupees (restaurants set their own below this)'
         required: false
         type: string
-        default: '0'
+        default: '30'
       gst_restaurant_rate:
         description: 'Restaurant GST rate, percent (only used if enabled=true)'
         required: false
@@ -55,14 +55,14 @@ jobs:
         env:
           GST_ENABLED_VALUE: ${{ inputs.enabled }}
           PLATFORM_FEE_AMOUNT_VALUE: ${{ inputs.platform_fee_amount }}
-          PACKAGING_FEE_AMOUNT_VALUE: ${{ inputs.packaging_fee_amount }}
+          PACKAGING_FEE_CAP_VALUE: ${{ inputs.packaging_fee_cap }}
           GST_RESTAURANT_RATE_VALUE: ${{ inputs.gst_restaurant_rate }}
           GST_DELIVERY_RATE_VALUE: ${{ inputs.gst_delivery_rate }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: GST_ENABLED_VALUE,PLATFORM_FEE_AMOUNT_VALUE,PACKAGING_FEE_AMOUNT_VALUE,GST_RESTAURANT_RATE_VALUE,GST_DELIVERY_RATE_VALUE
+          envs: GST_ENABLED_VALUE,PLATFORM_FEE_AMOUNT_VALUE,PACKAGING_FEE_CAP_VALUE,GST_RESTAURANT_RATE_VALUE,GST_DELIVERY_RATE_VALUE
           script: |
             set -e
             cd /root/mannadash-app
@@ -73,13 +73,14 @@ jobs:
             # Surgical: strip any existing lines for exactly these five vars (line-anchored,
             # so nothing else in .env — DB password, JWT secret, etc. — is ever touched),
             # then append the fresh values. This is the ONLY part of .env this workflow edits.
-            grep -v '^GST_ENABLED=\|^PLATFORM_FEE_AMOUNT=\|^PACKAGING_FEE_AMOUNT=\|^GST_RESTAURANT_RATE_PERCENT=\|^GST_DELIVERY_RATE_PERCENT=' .env > .env.tmp || true
+            grep -v '^GST_ENABLED=\|^PLATFORM_FEE_AMOUNT=\|^PACKAGING_FEE_CAP=\|^GST_RESTAURANT_RATE_PERCENT=\|^GST_DELIVERY_RATE_PERCENT=' .env > .env.tmp || true
             mv .env.tmp .env
 
-            # Platform fee and packaging fee are independent business decisions, not taxes —
-            # always applied, regardless of whether GST is enabled
+            # Platform fee is an independent business decision, not a tax — always applied,
+            # regardless of whether GST is enabled. Packaging fee cap is the platform-wide
+            # ceiling restaurants set their own fee under (see gst-config.util.ts).
             echo "PLATFORM_FEE_AMOUNT=${PLATFORM_FEE_AMOUNT_VALUE:-0}" >> .env
-            echo "PACKAGING_FEE_AMOUNT=${PACKAGING_FEE_AMOUNT_VALUE:-0}" >> .env
+            echo "PACKAGING_FEE_CAP=${PACKAGING_FEE_CAP_VALUE:-30}" >> .env
 
             echo "GST_ENABLED=${GST_ENABLED_VALUE}" >> .env
             if [ "${GST_ENABLED_VALUE}" = "true" ]; then
@@ -89,4 +90,4 @@ jobs:
 
             docker compose -f docker-compose.prod.yml up -d --force-recreate backend
 
-            echo "Done. GST_ENABLED=${GST_ENABLED_VALUE}, platform fee=${PLATFORM_FEE_AMOUNT_VALUE}, packaging fee=${PACKAGING_FEE_AMOUNT_VALUE}, restaurant GST=${GST_RESTAURANT_RATE_VALUE}%, delivery GST=${GST_DELIVERY_RATE_VALUE}%"
+            echo "Done. GST_ENABLED=${GST_ENABLED_VALUE}, platform fee=${PLATFORM_FEE_AMOUNT_VALUE}, packaging fee cap=${PACKAGING_FEE_CAP_VALUE}, restaurant GST=${GST_RESTAURANT_RATE_VALUE}%, delivery GST=${GST_DELIVERY_RATE_VALUE}%"

@@ -1,15 +1,10 @@
 /**
- * Platform fee, packaging fee, and GST — all OFF by default, so nothing about today's
- * pricing changes unless these env vars are explicitly set. Three genuinely different
- * things bundled under one "Taxes & Charges" umbrella in the UI, same as the
- * Swiggy/Zomato reference:
+ * Platform fee and GST — OFF by default, so nothing about today's pricing changes unless
+ * these env vars are explicitly set. Two genuinely different things bundled under one
+ * "Taxes & Charges" umbrella in the UI, same as the Swiggy/Zomato reference:
  *
  *  - PLATFORM_FEE_AMOUNT: MannaDash's own charge, not a tax. Doesn't need GST
  *    registration to turn on — it's just a business decision. Defaults to 0.
- *
- *  - PACKAGING_FEE_AMOUNT: also not a tax, also a business decision. Flat per ORDER,
- *    not per item — deliberately chosen over a per-item model for simplicity; revisit
- *    if that stops being accurate to real packaging costs. Defaults to 0.
  *
  *  - GST_ENABLED + the two rate env vars: this is real tax law (CGST Act section 9(5) —
  *    the platform, not the individual restaurant, is liable to collect and remit GST on
@@ -19,6 +14,13 @@
  *    below (5% on food, 18% on delivery) reflect the commonly-cited rates as of this
  *    writing, NOT verified tax advice — confirm the real applicable rates with an
  *    accountant before ever setting GST_ENABLED=true in production.
+ *
+ * Packaging fee is deliberately NOT here — unlike platform fee/GST, it's genuinely
+ * restaurant-specific (Restaurant.packagingFee, set via the restaurant's own Settings),
+ * not a platform-wide env var. This file still owns the platform-wide CAP on it though
+ * (PACKAGING_FEE_CAP), matching the Zomato-style "restaurant sets it, platform limits it"
+ * model — a restaurant can never stack an excessive packaging charge regardless of what
+ * they configure. See clampPackagingFee().
  */
 
 function envFlag(name: string): boolean {
@@ -32,6 +34,15 @@ function envNumber(name: string, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+// Defaults to ₹30 — a reasonable starting cap in the same range as Zomato's ₹45 ceiling,
+// not verified against any specific competitive research; adjust via PACKAGING_FEE_CAP
+// as a real business decision, not something to treat as fixed.
+export function clampPackagingFee(restaurantPackagingFee: number | null | undefined): number {
+  const cap = envNumber('PACKAGING_FEE_CAP', 30);
+  const raw = Math.max(0, Number(restaurantPackagingFee) || 0);
+  return Math.min(raw, cap);
+}
+
 export interface TaxesAndFees {
   platformFeeAmount: number;
   packagingFeeAmount: number;
@@ -40,9 +51,13 @@ export interface TaxesAndFees {
   total: number;
 }
 
-export function computeTaxesAndFees(subtotal: number, deliveryFee: number): TaxesAndFees {
+export function computeTaxesAndFees(
+  subtotal: number,
+  deliveryFee: number,
+  restaurantPackagingFee: number | null | undefined = null,
+): TaxesAndFees {
   const platformFeeAmount = Math.max(0, envNumber('PLATFORM_FEE_AMOUNT', 0));
-  const packagingFeeAmount = Math.max(0, envNumber('PACKAGING_FEE_AMOUNT', 0));
+  const packagingFeeAmount = clampPackagingFee(restaurantPackagingFee);
 
   const gstEnabled = envFlag('GST_ENABLED');
   const restaurantGstAmount = gstEnabled

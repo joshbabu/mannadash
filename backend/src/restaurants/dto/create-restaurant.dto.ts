@@ -108,4 +108,12 @@ export class CreateRestaurantDto {
   @IsInt()
   @Min(1)
   minOrderValue?: number;
+
+  // No hard @Max here — the cap (PACKAGING_FEE_CAP) is a platform-wide business decision
+  // that can change, so it's enforced at order-computation time (clamped, not rejected),
+  // not baked into this validator permanently.
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  packagingFee?: number;
 }

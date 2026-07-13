@@ -78,6 +78,7 @@ export default function SettingsScreen({ restaurant }) {
           isVegOnly: Boolean(pub.isVegOnly),
           costForTwo: pub.costForTwo ? String(pub.costForTwo) : '',
           minOrderValue: pub.minOrderValue ? String(pub.minOrderValue) : '',
+          packagingFee: pub.packagingFee ? String(pub.packagingFee) : '',
           fssaiNumber: kyc.fssaiNumber || '',
           fssaiExpiry: kyc.fssaiExpiry || '',
           pan: kyc.pan || '',
@@ -99,6 +100,7 @@ export default function SettingsScreen({ restaurant }) {
     if (!DAYS.some((d) => form.workingDays[d])) return 'Select at least one working day';
     if (form.costForTwo && (!/^\d+$/.test(form.costForTwo) || Number(form.costForTwo) < 1)) return 'Cost for two should be a positive amount';
     if (form.minOrderValue && (!/^\d+$/.test(form.minOrderValue) || Number(form.minOrderValue) < 1)) return 'Minimum order should be a positive amount';
+    if (form.packagingFee && (!/^\d+$/.test(form.packagingFee) || Number(form.packagingFee) < 0)) return 'Packaging fee should be a positive amount';
     if (form.fssaiNumber && !PATTERNS.fssai.re.test(form.fssaiNumber)) return PATTERNS.fssai.msg;
     if (form.fssaiNumber && !form.fssaiExpiry) return 'Please add the FSSAI expiry date';
     if (form.pan && !PATTERNS.pan.re.test(form.pan)) return PATTERNS.pan.msg;
@@ -140,6 +142,7 @@ export default function SettingsScreen({ restaurant }) {
       isVegOnly: form.isVegOnly,
       costForTwo: form.costForTwo ? Number(form.costForTwo) : null,
       minOrderValue: form.minOrderValue ? Number(form.minOrderValue) : null,
+      packagingFee: form.packagingFee ? Number(form.packagingFee) : null,
       fssaiNumber: orNull(form.fssaiNumber),
       fssaiExpiry: form.fssaiNumber ? form.fssaiExpiry : null,
       pan: orNull(form.pan),
@@ -270,6 +273,10 @@ export default function SettingsScreen({ restaurant }) {
         </label>
         <input placeholder="Cost for two (₹, approximate)" value={form.costForTwo} onChange={(e) => set('costForTwo', e.target.value.replace(/\D/g, ''))} maxLength={5} />
         <input placeholder="Minimum order value (₹, optional)" value={form.minOrderValue} onChange={(e) => set('minOrderValue', e.target.value.replace(/\D/g, ''))} maxLength={5} style={{ marginTop: 8 }} />
+        <input placeholder="Packaging fee (₹, optional)" value={form.packagingFee} onChange={(e) => set('packagingFee', e.target.value.replace(/\D/g, ''))} maxLength={4} style={{ marginTop: 8 }} />
+        <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+          Charged per order to cover containers/packaging. MannaDash caps this platform-wide — an amount above the cap is automatically reduced to the maximum, your order never gets rejected.
+        </p>
       </div>
 
       <div className="card" style={{ marginBottom: 14 }}>

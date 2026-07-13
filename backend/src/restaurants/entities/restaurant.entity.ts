@@ -106,6 +106,16 @@ export class Restaurant {
   @Column({ type: 'int', nullable: true })
   minOrderValue: number | null;
 
+  // Null/0 = no packaging fee. Restaurant-configurable via Settings — packaging cost
+  // genuinely varies by restaurant (a biryani place needs different containers than a
+  // bakery), unlike platform fee/GST which are platform-wide env-gated decisions. Always
+  // clamped to PACKAGING_FEE_CAP at order-computation time (orders.service.ts) as a
+  // second line of defense — a restaurant setting a value above the cap gets clamped down,
+  // not rejected outright, so a cap lowered later doesn't strand an existing setting in an
+  // invalid state.
+  @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
+  packagingFee: number | null;
+
   @Column({ default: 30 })
   avgPrepTimeMins: number;
 

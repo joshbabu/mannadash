@@ -274,15 +274,16 @@ export class OffersService {
     promoCode?: string,
   ) {
     const distanceRow = await this.restaurantRepo.manager.query(
-      `SELECT ST_Distance(location, ST_SetSRID(ST_MakePoint($1, $2), 4326)) as dist FROM restaurants WHERE id = $3`,
+      `SELECT ST_Distance(location, ST_SetSRID(ST_MakePoint($1, $2), 4326)) as dist, "packagingFee" FROM restaurants WHERE id = $3`,
       [longitude, latitude, restaurantId],
     );
     const distanceMeters = parseFloat(distanceRow[0]?.dist ?? '0');
+    const restaurantPackagingFee = distanceRow[0]?.packagingFee ?? null;
     const deliveryFee = calculateDeliveryFee(distanceMeters);
     const preview = await this.previewOffer(restaurantId, customerId, subtotal, deliveryFee, promoCode);
     // Taxes & fees — always computed, but stay genuinely zero until GST_ENABLED is set.
     // Included here so checkout can show the real breakdown live, fully dormant today.
-    return { ...preview, ...computeTaxesAndFees(subtotal, deliveryFee) };
+    return { ...preview, ...computeTaxesAndFees(subtotal, deliveryFee, restaurantPackagingFee) };
   }
 
   /**
