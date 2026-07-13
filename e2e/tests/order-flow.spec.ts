@@ -275,6 +275,12 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await customerPage.getByRole('button', { name: '← Back' }).click();
     await customerPage.getByRole('button', { name: '🍲 Browse' }).click();
 
+    // Category photos fetch — real photo URLs need network access this test env doesn't
+    // have, but what's actually worth proving is that the fetch/render doesn't break the
+    // screen either way (falls back to the emoji icon cleanly, no crash, category still
+    // tappable and searchable)
+    await expect(customerPage.getByRole('button', { name: '🍛 Biryani' })).toBeVisible();
+
     // Tappable category chips (Biryani, Pizza, etc.) just fill the same search box — this
     // proves the UI mechanism itself (tap fills it, tap again clears it), not the search
     // logic, which is already covered by the backend suite and the manual-typing check below

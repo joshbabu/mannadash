@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { IsBoolean } from 'class-validator';
 import { MenuItemsService } from './menu-items.service';
+import { CategoryPhotosService } from './category-photos.service';
 import { CreateMenuItemDto } from './dto/create-menu-item.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
 import { ListMenuItemsQueryDto } from './dto/list-menu-items-query.dto';
@@ -32,6 +33,7 @@ class SetAvailabilityDto {
 export class MenuItemsController {
   constructor(
     private readonly menuItemsService: MenuItemsService,
+    private readonly categoryPhotosService: CategoryPhotosService,
     private readonly uploadsService: UploadsService,
   ) {}
 
@@ -48,6 +50,13 @@ export class MenuItemsController {
   @Get()
   findAll(@Query() query: ListMenuItemsQueryDto) {
     return this.menuItemsService.findAll(query);
+  }
+
+  // Must come before @Get(':id') — otherwise NestJS matches "category-photos" as an :id
+  // param instead of this route. Public, no auth — same category chips for every customer.
+  @Get('category-photos')
+  getCategoryPhotos() {
+    return this.categoryPhotosService.getCategoryPhotos();
   }
 
   @Get(':id')

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MenuItemsService } from './menu-items.service';
+import { CategoryPhotosService } from './category-photos.service';
 import { MenuItemsController } from './menu-items.controller';
 import { MenuItem } from './entities/menu-item.entity';
 import { MenuItemVariantGroup } from './entities/menu-item-variant-group.entity';
@@ -15,7 +16,7 @@ import { UploadsModule } from '../uploads/uploads.module';
     AuthModule,
     UploadsModule,
   ],
-  providers: [MenuItemsService],
+  providers: [MenuItemsService, CategoryPhotosService],
   controllers: [MenuItemsController],
 })
 export class MenuItemsModule {}

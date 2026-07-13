@@ -48,6 +48,14 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentLatLng, setCurrentLatLng] = useState({ lat: DEFAULT_LAT, lng: DEFAULT_LNG });
   const [dishMatches, setDishMatches] = useState([]); // restaurants found by dish, not name/cuisine
+  const [categoryPhotos, setCategoryPhotos] = useState({}); // { 'Biryani': url | null, ... }
+
+  // Real photos per category — fetched once (backend caches these for 24h server-side too,
+  // so this is cheap even across many customers). Falls back to the existing emoji icon
+  // below for any category with no photo yet, or if this fetch itself fails.
+  useEffect(() => {
+    api.getCategoryPhotos().then(setCategoryPhotos).catch(() => {});
+  }, []);
 
   // Phase H: dish-level search. The name/cuisine filter below is instant (client-side,
   // already-loaded data); dish search needs the backend (dish names aren't in the list
@@ -139,11 +147,14 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
               <span
                 style={{
                   width: 48, height: 48, borderRadius: '50%', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', fontSize: 22, background: active ? 'var(--chili)' : '#fdf8ef',
+                  justifyContent: 'center', fontSize: 22,
+                  background: categoryPhotos[cat.label]
+                    ? `url(${categoryPhotos[cat.label]}) center/cover`
+                    : (active ? 'var(--chili)' : '#fdf8ef'),
                   border: active ? '2px solid var(--chili-dark)' : '1px solid #e5ddc9',
                 }}
               >
-                {cat.icon}
+                {!categoryPhotos[cat.label] && cat.icon}
               </span>
               <span style={{ fontSize: 11, color: active ? 'var(--chili)' : 'var(--text-secondary, #c9c2b4)', fontWeight: active ? 700 : 400, whiteSpace: 'nowrap' }}>
                 {cat.label}

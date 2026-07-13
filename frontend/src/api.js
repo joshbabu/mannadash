@@ -35,6 +35,7 @@ export const api = {
   // Restaurants
   getNearbyRestaurants: (lat, lng, radius = 8000, dish) =>
     request(`/restaurants/nearby?lat=${lat}&lng=${lng}&radius=${radius}${dish ? `&dish=${encodeURIComponent(dish)}` : ''}`),
+  getCategoryPhotos: () => request('/menu-items/category-photos'),
   getRestaurant: (id) => request(`/restaurants/${id}`),
 
   // Menu

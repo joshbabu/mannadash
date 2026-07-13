@@ -150,6 +150,25 @@ all 4 projects — GitHub Actions is now the only thing that can actually deploy
   reference pattern. Tapping one just fills the same search box that already drives both
   the instant name/cuisine filter and the debounced dish search — no new backend logic,
   purely a faster way to trigger what's already there. Tap again to clear it.
+  **Follow-up: real photos on the category chips.** Extensive design exploration this
+  session (mockups spanning heritage/royal Nizami themes, glossy gradients, several color
+  directions, playful/bold flat, 3D-illustrated icons) converged on: real dish photography,
+  matching a competitor reference Joshua shared directly. Built on the existing
+  `fetchStockPhoto` utility (already used for individual menu-item photos — Unsplash first
+  if `UNSPLASH_ACCESS_KEY` is set, Wikimedia Commons fallback if not) via a new
+  `GET /menu-items/category-photos` endpoint with a 24h in-memory cache shared across all
+  customers — without this, every customer loading the browse screen would trigger 15
+  fresh photo lookups, burning through Unsplash's free-tier rate limit fast for zero
+  benefit, since these 15 terms essentially never change. `UNSPLASH_ACCESS_KEY` is
+  confirmed NOT set on production yet — category photos currently fall back to Wikimedia
+  (works, noticeably lower quality than real Unsplash). Getting a free key from
+  unsplash.com/developers and adding it to `.env` is a real, worthwhile next step; the
+  `docker-compose.prod.yml` passthrough for it already existed from an earlier session.
+  12 tests total: caching behavior (shared fetch under concurrent cold-cache calls, TTL,
+  one failed category doesn't break the other 14) via mocked unit tests since this sandbox
+  can't reach the real photo APIs either, plus e2e coverage confirming the endpoint is
+  public and doesn't collide with the `:id` route (a real NestJS route-ordering pitfall —
+  `category-photos` must be registered before `:id` or it gets parsed as a UUID param).
 - **Phase I — Launch checklist: DONE.** Coupons/first-order offers (L1), receipts, and
   GST were already shipped from earlier sessions. **Packaging charges: DONE, redesigned
   same session.** Originally built as a global, platform-wide flat fee (matching
