@@ -48,6 +48,7 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentLatLng, setCurrentLatLng] = useState({ lat: DEFAULT_LAT, lng: DEFAULT_LNG });
   const [dishMatches, setDishMatches] = useState([]); // restaurants found by dish, not name/cuisine
+  const [showAllCategories, setShowAllCategories] = useState(false);
   const [categoryPhotos, setCategoryPhotos] = useState({}); // { 'Biryani': url | null, ... }
 
   // Real photos per category — fetched once (backend caches these for 24h server-side too,
@@ -162,7 +163,84 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
             </button>
           );
         })}
+        <button
+          key="all-categories"
+          aria-label="See all categories"
+          onClick={() => setShowAllCategories(true)}
+          style={{
+            flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+            background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', minWidth: 56,
+          }}
+        >
+          <span
+            style={{
+              width: 48, height: 48, borderRadius: '50%', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', fontSize: 20, background: '#fdf8ef', border: '1px solid #e5ddc9',
+            }}
+          >
+            ⋯
+          </span>
+          <span style={{ fontSize: 11, color: 'var(--text-secondary, #c9c2b4)' }}>All</span>
+        </button>
       </div>
+
+      {showAllCategories && (
+        <div
+          onClick={() => setShowAllCategories(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 50,
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="card"
+            id="all-categories-modal"
+            style={{ width: '100%', maxWidth: 480, maxHeight: '75vh', overflowY: 'auto', borderRadius: '24px 24px 0 0', marginBottom: 0 }}
+          >
+            <div className="row" style={{ marginBottom: 16 }}>
+              <h3 style={{ fontSize: 18 }}>All categories</h3>
+              <button className="btn-secondary" onClick={() => setShowAllCategories(false)}>✕</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+              {QUICK_CATEGORIES.map((cat) => {
+                const queryValue = cat.searchTerm || cat.label;
+                const active = searchQuery.trim().toLowerCase() === queryValue.toLowerCase();
+                return (
+                  <button
+                    key={cat.label}
+                    aria-label={`${cat.icon} ${cat.label}`}
+                    onClick={() => {
+                      setSearchQuery(active ? '' : queryValue);
+                      setShowAllCategories(false);
+                    }}
+                    style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                      background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 52, height: 52, borderRadius: '50%', display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', fontSize: 22,
+                        background: categoryPhotos[cat.label]
+                          ? `url(${categoryPhotos[cat.label]}) center/cover`
+                          : (active ? 'var(--chili)' : '#fdf8ef'),
+                        border: active ? '2px solid var(--chili-dark)' : '1px solid #e5ddc9',
+                      }}
+                    >
+                      {!categoryPhotos[cat.label] && cat.icon}
+                    </span>
+                    <span style={{ fontSize: 11, color: active ? 'var(--chili)' : '#6b6156', fontWeight: active ? 700 : 400, textAlign: 'center' }}>
+                      {cat.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="row" style={{ marginBottom: 16, gap: 8 }}>
         <button className="btn-secondary" onClick={useMyLocation}>
           📍 Use my location

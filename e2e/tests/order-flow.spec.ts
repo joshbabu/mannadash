@@ -262,7 +262,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // Customer revisits the menu — the same Back-then-Browse navigation as the Phase J
     // step, since the customer is still deep inside the app from the reload above
     await customerPage.getByRole('button', { name: '← Back' }).click();
-    await customerPage.getByRole('button', { name: '🍲 Browse' }).click();
+    await customerPage.getByRole('button', { name: '🏠 Home' }).click();
     await customerPage.getByPlaceholder('Search by name, cuisine, or dish…').fill(restaurantName);
     await customerPage.getByText(restaurantName).click();
     await expect(customerPage.getByText('Reply from the restaurant')).toBeVisible();
@@ -273,7 +273,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // Same navigation lesson as Phase J/L1/L3 — the customer is on the menu page from
     // the step above, and the Browse tab is hidden while a restaurant is selected.
     await customerPage.getByRole('button', { name: '← Back' }).click();
-    await customerPage.getByRole('button', { name: '🍲 Browse' }).click();
+    await customerPage.getByRole('button', { name: '🏠 Home' }).click();
 
     // Category photos fetch — real photo URLs need network access this test env doesn't
     // have, but what's actually worth proving is that the fetch/render doesn't break the
@@ -311,11 +311,48 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     });
     expect(cakeItemRes.ok()).toBeTruthy();
     await customerPage.getByRole('button', { name: '← Back' }).click();
-    await customerPage.getByRole('button', { name: '🍲 Browse' }).click();
+    await customerPage.getByRole('button', { name: '🏠 Home' }).click();
     await customerPage.getByRole('button', { name: '🍰 Cakes' }).click();
     await expect(customerPage.getByPlaceholder('Search by name, cuisine, or dish…')).toHaveValue('Cake');
     await expect(customerPage.getByText(restaurantName)).toBeVisible({ timeout: 10_000 });
     await expect(customerPage.getByText('🍽️ Butterscotch Cake')).toBeVisible();
+  });
+
+  await test.step('All-categories grid, and My Account with real saved addresses', async () => {
+    // Still on the home/browse screen from the step above
+    await customerPage.getByRole('button', { name: 'See all categories' }).click();
+    await expect(customerPage.getByRole('heading', { name: 'All categories' })).toBeVisible();
+    // Scoped to the modal specifically — the background category row behind it still has
+    // its own "Pastry" button in the DOM (this overlay doesn't remove it), so an
+    // unscoped query would ambiguously match both
+    const categoryModal = customerPage.locator('#all-categories-modal');
+    await categoryModal.getByRole('button', { name: '🥐 Pastry' }).click();
+    await expect(customerPage.getByRole('heading', { name: 'All categories' })).toHaveCount(0);
+    await expect(customerPage.getByPlaceholder('Search by name, cuisine, or dish…')).toHaveValue('pastr');
+    await customerPage.getByPlaceholder('Search by name, cuisine, or dish…').fill('');
+
+    // Profile icon in the topbar opens My Account
+    await customerPage.getByRole('button', { name: 'My account' }).click();
+    await expect(customerPage.getByText('E2E Test Customer')).toBeVisible();
+    await expect(customerPage.getByText(customerPhone)).toBeVisible();
+    await expect(customerPage.getByText('₹0')).toBeVisible(); // wallet placeholder
+    await expect(customerPage.getByText('No vouchers yet')).toBeVisible();
+    await expect(customerPage.getByText('No saved addresses yet')).toBeVisible();
+
+    // Add a real saved address — proves the backend that already existed (but had no
+    // test coverage and no frontend caller) actually works end to end
+    await customerPage.getByRole('button', { name: '+ Add' }).click();
+    await customerPage.getByPlaceholder('Label it (e.g. Home, Work)').fill('Home');
+    await customerPage.getByPlaceholder('Flat / house number, street, landmark').fill('2-129/2/a Test Colony');
+    await customerPage.getByRole('button', { name: 'Save address' }).click();
+    await expect(customerPage.getByText('📍 Home')).toBeVisible({ timeout: 10_000 });
+    await expect(customerPage.getByText('2-129/2/a Test Colony')).toBeVisible();
+
+    // Remove it, confirm it's actually gone (not just visually hidden)
+    await customerPage.getByRole('button', { name: 'Remove' }).click();
+    await expect(customerPage.getByText('📍 Home')).toHaveCount(0);
+    await expect(customerPage.getByText('No saved addresses yet')).toBeVisible();
+    await customerPage.getByRole('button', { name: '← Back' }).click();
   });
 
   await test.step('Phase L1: offers teaser, automatic discount, and a code overriding it', async () => {
@@ -522,7 +559,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // is active. So Back alone lands on Order History again, not the search screen; the
     // Browse tab has to be clicked explicitly once the bottom nav reappears.
     await customerPage.getByRole('button', { name: '← Back' }).click();
-    await customerPage.getByRole('button', { name: '🍲 Browse' }).click();
+    await customerPage.getByRole('button', { name: '🏠 Home' }).click();
     await customerPage.getByPlaceholder('Search by name, cuisine, or dish…').fill(restaurantName);
     await customerPage.getByText(restaurantName).click();
     await customerPage.getByText('E2E Variant Dish').waitFor();

@@ -7,6 +7,7 @@ import CheckoutScreen from './screens/CheckoutScreen';
 import TrackOrderScreen from './screens/TrackOrderScreen';
 import OrderHistoryScreen from './screens/OrderHistoryScreen';
 import LegalScreen from './screens/LegalScreen';
+import MyAccountScreen from './screens/MyAccountScreen';
 
 export default function App() {
   const [user, setUser] = useState(api.getStoredUser());
@@ -16,6 +17,7 @@ export default function App() {
   const [pendingOrder, setPendingOrder] = useState(null); // { restaurant, orderItems, menuItems }
   const [trackingOrderId, setTrackingOrderId] = useState(null);
   const [legalDoc, setLegalDoc] = useState(null); // null | 'terms' | 'privacy'
+  const [showMyAccount, setShowMyAccount] = useState(false);
 
   if (!user) {
     return (
@@ -60,7 +62,16 @@ export default function App() {
   }
 
   let content;
-  if (legalDoc) {
+  if (showMyAccount) {
+    content = (
+      <MyAccountScreen
+        onBack={() => setShowMyAccount(false)}
+        onViewOrders={() => { setShowMyAccount(false); setTab('orders'); }}
+        onViewLegal={() => { setShowMyAccount(false); setLegalDoc('terms'); }}
+        onLogout={logout}
+      />
+    );
+  } else if (legalDoc) {
     content = <LegalScreen initialDoc={legalDoc} onBack={() => setLegalDoc(null)} />;
   } else if (trackingOrderId) {
     content = (
@@ -104,13 +115,24 @@ export default function App() {
     content = <RestaurantListScreen onSelectRestaurant={setSelectedRestaurant} />;
   }
 
-  const showBottomNav = !selectedRestaurant && !pendingOrder && !trackingOrderId && !legalDoc;
+  const showBottomNav = !selectedRestaurant && !pendingOrder && !trackingOrderId && !legalDoc && !showMyAccount;
 
   return (
     <div className="app-shell">
       <div className="topbar">
         <span className="brand">MannaDash</span>
         <div className="row" style={{ gap: 8 }}>
+          <button
+            onClick={() => setShowMyAccount(true)}
+            aria-label="My account"
+            style={{
+              width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-gradient)',
+              color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 14, fontWeight: 800, cursor: 'pointer',
+            }}
+          >
+            {(user?.name || '?').trim().charAt(0).toUpperCase()}
+          </button>
           <button className="btn-secondary" onClick={() => setLegalDoc('terms')} style={{ fontSize: 12, padding: '6px 10px' }}>
             Legal
           </button>
@@ -125,7 +147,7 @@ export default function App() {
       {showBottomNav && (
         <div className="bottom-nav">
           <button className={tab === 'browse' ? 'active' : ''} onClick={() => setTab('browse')}>
-            🍲 Browse
+            🏠 Home
           </button>
           <button className={tab === 'orders' ? 'active' : ''} onClick={() => setTab('orders')}>
             📋 Orders

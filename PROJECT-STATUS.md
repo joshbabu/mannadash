@@ -482,6 +482,31 @@ time, not just today.
     undiscussed. Rebuilt properly this time with an explicit conversation and a platform-
     wide cap, rather than shipping the orphaned version silently.)
 
+- **Customer app: My Account, category grid, saved addresses (completed a
+  half-built feature) — DONE.** Profile icon in the topbar (initial-letter avatar,
+  matching the new theme's accent gradient) opens a real My Account screen: wallet and
+  vouchers as honest placeholders (₹0 / "No vouchers yet" — MannaDash has neither built
+  yet, so these show genuinely accurate empty states rather than fake numbers), a real
+  saved-addresses manager, and links to order history and legal. Also added a "See all
+  categories" button to the category row, opening a 4-column grid of all 15 — same
+  tap-to-search behavior as the row itself.
+
+  **The saved-addresses backend was already fully built** — `Customer.savedLocations`
+  JSONB column, all three endpoints (`GET/POST/DELETE /customers/me/addresses`), real
+  service logic — from an earlier session, but had zero test coverage and the
+  checkout screen had a complete, unused `savedAddresses` state with full render/pick
+  logic that nothing ever populated (no `useEffect` calling `getSavedAddresses()`).
+  Fixed both gaps: 6 new backend tests, and checkout now actually loads the list on
+  mount, so the quick-pick row that's been sitting dead in the UI finally works.
+
+  Bottom nav "Browse" renamed to "Home" (Swiggy convention) — label change only, the
+  internal tab state value stays `'browse'` to avoid touching working logic elsewhere.
+  Real regression caught while testing the category grid: the background category row
+  stays in the DOM (and the accessibility tree) behind the modal overlay, so an
+  unscoped "Pastry" button query ambiguously matched both — fixed by giving the modal
+  a stable id and scoping the query to it, which is also just correct modal practice
+  generally, not a testing-only fix.
+
 ## For the new chat
 
 Paste this file's contents, or just reference "MannaDash" — Claude's memory system should also

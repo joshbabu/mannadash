@@ -43,6 +43,12 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
   const [customTip, setCustomTip] = useState('');
   const [activeTab, setActiveTab] = useState('deliveryType');
   const [selectedChips, setSelectedChips] = useState(new Set());
+
+  // This was always missing — savedAddresses had full render/pick logic but nothing ever
+  // populated it, so the whole "saved address" quick-pick row silently never appeared.
+  useEffect(() => {
+    api.getSavedAddresses().then(setSavedAddresses).catch(() => {});
+  }, []);
   // A local, checkout-owned copy of the cart so quantities can be adjusted right here —
   // MenuScreen's own cart is untouched, so hitting Back still shows what was originally
   // added there. Seeded once from the prop; array index is a stable enough key since this
