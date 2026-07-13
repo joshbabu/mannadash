@@ -1,10 +1,15 @@
 /**
- * Platform fee and GST — both OFF by default, so nothing about today's pricing changes
- * unless these env vars are explicitly set. Two genuinely different things bundled under
- * one "Taxes & Charges" umbrella in the UI, same as the Swiggy/Zomato reference:
+ * Platform fee, packaging fee, and GST — all OFF by default, so nothing about today's
+ * pricing changes unless these env vars are explicitly set. Three genuinely different
+ * things bundled under one "Taxes & Charges" umbrella in the UI, same as the
+ * Swiggy/Zomato reference:
  *
  *  - PLATFORM_FEE_AMOUNT: MannaDash's own charge, not a tax. Doesn't need GST
  *    registration to turn on — it's just a business decision. Defaults to 0.
+ *
+ *  - PACKAGING_FEE_AMOUNT: also not a tax, also a business decision. Flat per ORDER,
+ *    not per item — deliberately chosen over a per-item model for simplicity; revisit
+ *    if that stops being accurate to real packaging costs. Defaults to 0.
  *
  *  - GST_ENABLED + the two rate env vars: this is real tax law (CGST Act section 9(5) —
  *    the platform, not the individual restaurant, is liable to collect and remit GST on
@@ -29,6 +34,7 @@ function envNumber(name: string, fallback: number): number {
 
 export interface TaxesAndFees {
   platformFeeAmount: number;
+  packagingFeeAmount: number;
   restaurantGstAmount: number;
   deliveryGstAmount: number;
   total: number;
@@ -36,6 +42,7 @@ export interface TaxesAndFees {
 
 export function computeTaxesAndFees(subtotal: number, deliveryFee: number): TaxesAndFees {
   const platformFeeAmount = Math.max(0, envNumber('PLATFORM_FEE_AMOUNT', 0));
+  const packagingFeeAmount = Math.max(0, envNumber('PACKAGING_FEE_AMOUNT', 0));
 
   const gstEnabled = envFlag('GST_ENABLED');
   const restaurantGstAmount = gstEnabled
@@ -47,8 +54,9 @@ export function computeTaxesAndFees(subtotal: number, deliveryFee: number): Taxe
 
   return {
     platformFeeAmount,
+    packagingFeeAmount,
     restaurantGstAmount,
     deliveryGstAmount,
-    total: platformFeeAmount + restaurantGstAmount + deliveryGstAmount,
+    total: platformFeeAmount + packagingFeeAmount + restaurantGstAmount + deliveryGstAmount,
   };
 }

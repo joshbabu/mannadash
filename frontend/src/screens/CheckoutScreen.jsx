@@ -106,7 +106,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
   const subtotal = lines.reduce((sum, l) => sum + l.price * l.quantity, 0);
   const deliveryTypeSurcharge = DELIVERY_TYPES.find((d) => d.value === deliveryType)?.surcharge ?? 0;
   const taxesAndFeesTotal = taxesAndFees
-    ? taxesAndFees.platformFeeAmount + taxesAndFees.restaurantGstAmount + taxesAndFees.deliveryGstAmount
+    ? taxesAndFees.platformFeeAmount + taxesAndFees.packagingFeeAmount + taxesAndFees.restaurantGstAmount + taxesAndFees.deliveryGstAmount
     : 0;
   const grandTotal =
     deliveryFee == null
@@ -130,6 +130,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
         setDeliveryFee(res.deliveryFee);
         setTaxesAndFees({
           platformFeeAmount: res.platformFeeAmount || 0,
+          packagingFeeAmount: res.packagingFeeAmount || 0,
           restaurantGstAmount: res.restaurantGstAmount || 0,
           deliveryGstAmount: res.deliveryGstAmount || 0,
         });
@@ -151,6 +152,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
       setDeliveryFee(res.deliveryFee);
       setTaxesAndFees({
         platformFeeAmount: res.platformFeeAmount || 0,
+        packagingFeeAmount: res.packagingFeeAmount || 0,
         restaurantGstAmount: res.restaurantGstAmount || 0,
         deliveryGstAmount: res.deliveryGstAmount || 0,
       });
@@ -309,6 +311,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
         {showBillDetails && taxesAndFeesTotal > 0 && (
           <div className="muted" style={{ fontSize: 12, marginTop: 4, marginLeft: 12 }}>
             {taxesAndFees.platformFeeAmount > 0 && <div>Platform fee: ₹{taxesAndFees.platformFeeAmount.toFixed(2)}</div>}
+            {taxesAndFees.packagingFeeAmount > 0 && <div>Packaging fee: ₹{taxesAndFees.packagingFeeAmount.toFixed(2)}</div>}
             {taxesAndFees.restaurantGstAmount > 0 && <div>Restaurant GST: ₹{taxesAndFees.restaurantGstAmount.toFixed(2)}</div>}
             {taxesAndFees.deliveryGstAmount > 0 && <div>GST on delivery: ₹{taxesAndFees.deliveryGstAmount.toFixed(2)}</div>}
           </div>

@@ -187,6 +187,7 @@ export class OrdersService {
         deliveryType,
         tipAmount,
         platformFeeAmount: taxesAndFees.platformFeeAmount,
+        packagingFeeAmount: taxesAndFees.packagingFeeAmount,
         restaurantGstAmount: taxesAndFees.restaurantGstAmount,
         deliveryGstAmount: taxesAndFees.deliveryGstAmount,
         deliveryAddress: dto.deliveryAddress,

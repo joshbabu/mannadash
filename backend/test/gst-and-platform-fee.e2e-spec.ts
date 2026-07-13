@@ -21,6 +21,7 @@ describe('Platform fee & GST (e2e)', () => {
 
   afterEach(() => {
     delete process.env.PLATFORM_FEE_AMOUNT;
+    delete process.env.PACKAGING_FEE_AMOUNT;
     delete process.env.GST_ENABLED;
     delete process.env.GST_RESTAURANT_RATE_PERCENT;
     delete process.env.GST_DELIVERY_RATE_PERCENT;
@@ -65,6 +66,7 @@ describe('Platform fee & GST (e2e)', () => {
     const customer = await signUpCustomer(app);
     const order = await placeOrder(restaurant.id, customer, menuItemId).expect(201);
     expect(Number(order.body.platformFeeAmount)).toBe(0);
+    expect(Number(order.body.packagingFeeAmount)).toBe(0);
     expect(Number(order.body.restaurantGstAmount)).toBe(0);
     expect(Number(order.body.deliveryGstAmount)).toBe(0);
     expect(Number(order.body.total)).toBe(Number(order.body.subtotal) + Number(order.body.deliveryFee));
@@ -74,13 +76,34 @@ describe('Platform fee & GST (e2e)', () => {
     const { restaurant, menuItemId } = await setupApprovedRestaurantWithDish(200);
     const customer = await signUpCustomer(app);
     // forbidNonWhitelisted on the ValidationPipe rejects any property CreateOrderDto
-    // doesn't declare — these three simply aren't fields a client can set at all, which is
+    // doesn't declare — these four simply aren't fields a client can set at all, which is
     // a stronger guarantee than "computed server-side, client value silently ignored"
     await placeOrder(restaurant.id, customer, menuItemId, {
       platformFeeAmount: 999,
+      packagingFeeAmount: 999,
       restaurantGstAmount: 999,
       deliveryGstAmount: 999,
     }).expect(400);
+  });
+
+  it('packaging fee is flat per order, independent of both platform fee and GST', async () => {
+    process.env.PACKAGING_FEE_AMOUNT = '6';
+    const { restaurant, menuItemId } = await setupApprovedRestaurantWithDish(200);
+    const customer = await signUpCustomer(app);
+    const order = await placeOrder(restaurant.id, customer, menuItemId).expect(201);
+    expect(Number(order.body.packagingFeeAmount)).toBe(6);
+    expect(Number(order.body.platformFeeAmount)).toBe(0); // unset, proves independence
+    expect(Number(order.body.total)).toBe(Number(order.body.subtotal) + Number(order.body.deliveryFee) + 6);
+  });
+
+  it('packaging fee stays the same flat amount regardless of how many items are in the order', async () => {
+    process.env.PACKAGING_FEE_AMOUNT = '6';
+    const { restaurant, menuItemId } = await setupApprovedRestaurantWithDish(200);
+    const customer = await signUpCustomer(app);
+    const order = await placeOrder(restaurant.id, customer, menuItemId, {
+      items: [{ menuItemId, quantity: 5 }],
+    }).expect(201);
+    expect(Number(order.body.packagingFeeAmount)).toBe(6); // flat, not 6 × 5
   });
 
   it('platform fee can be enabled independently of GST — it is not a tax', async () => {

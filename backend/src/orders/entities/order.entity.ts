@@ -100,11 +100,15 @@ export class Order {
   @Column({ type: 'decimal', precision: 8, scale: 2, default: 0 })
   tipAmount: number;
 
-  // Platform fee + GST — see gst-config.util.ts. Always server-computed from config, NEVER
-  // accepted from the client (unlike deliveryType/tipAmount, which are real customer
-  // choices). All default to 0 and stay 0 until explicitly enabled — see that file for why.
+  // Platform fee + packaging fee + GST — see gst-config.util.ts. Always server-computed
+  // from config, NEVER accepted from the client (unlike deliveryType/tipAmount, which are
+  // real customer choices). All default to 0 and stay 0 until explicitly enabled — see
+  // that file for why.
   @Column({ type: 'decimal', precision: 8, scale: 2, default: 0 })
   platformFeeAmount: number;
+
+  @Column({ type: 'decimal', precision: 8, scale: 2, default: 0 })
+  packagingFeeAmount: number;
 
   @Column({ type: 'decimal', precision: 8, scale: 2, default: 0 })
   restaurantGstAmount: number;

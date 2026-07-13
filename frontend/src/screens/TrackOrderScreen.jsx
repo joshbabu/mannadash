@@ -63,6 +63,7 @@ function printReceipt(order) {
     })() : ''}
     ${Number(order.tipAmount) > 0 ? `<tr><td class="muted">Tip for rider</td><td class="r">+₹${Number(order.tipAmount).toFixed(0)}</td></tr>` : ''}
     ${Number(order.platformFeeAmount) > 0 ? `<tr><td class="muted">Platform fee</td><td class="r">+₹${Number(order.platformFeeAmount).toFixed(2)}</td></tr>` : ''}
+    ${Number(order.packagingFeeAmount) > 0 ? `<tr><td class="muted">Packaging fee</td><td class="r">+₹${Number(order.packagingFeeAmount).toFixed(2)}</td></tr>` : ''}
     ${Number(order.restaurantGstAmount) > 0 ? `<tr><td class="muted">Restaurant GST</td><td class="r">+₹${Number(order.restaurantGstAmount).toFixed(2)}</td></tr>` : ''}
     ${Number(order.deliveryGstAmount) > 0 ? `<tr><td class="muted">GST on delivery</td><td class="r">+₹${Number(order.deliveryGstAmount).toFixed(2)}</td></tr>` : ''}
     ${order.discountAmount != null && Number(order.discountAmount) > 0 ? `<tr style="color:#2e7d32"><td>🎉 ${esc(order.appliedOfferName)}</td><td class="r">-₹${Number(order.discountAmount).toFixed(0)}</td></tr>` : ''}
@@ -344,6 +345,12 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
               <div className="row">
                 <span className="muted">Platform fee</span>
                 <span>+₹{Number(order.platformFeeAmount).toFixed(2)}</span>
+              </div>
+            )}
+            {Number(order.packagingFeeAmount) > 0 && (
+              <div className="row">
+                <span className="muted">Packaging fee</span>
+                <span>+₹{Number(order.packagingFeeAmount).toFixed(2)}</span>
               </div>
             )}
             {Number(order.restaurantGstAmount) > 0 && (

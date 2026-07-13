@@ -1,20 +1,24 @@
-name: Toggle GST & platform fee
+name: Toggle GST, platform fee & packaging fee
 
 # Manual only — never runs on a push, only when you click "Run workflow" in the
 # Actions tab. This is deliberate: GST going live is a compliance decision, not
 # something that should ever fire automatically as a side effect of a code change.
 #
-# All four values are typed in on the Run workflow form itself — no GitHub secrets
+# All values are typed in on the Run workflow form itself — no GitHub secrets
 # needed. That's a deliberate testing-phase choice: quick to tweak run to run while
 # nothing's live yet. Once real customers are on the platform and these numbers stop
-# changing, switch platform_fee_amount/gst_restaurant_rate/gst_delivery_rate back to
-# repo secrets (Settings → Secrets and variables → Actions) so they're not sitting in
-# every workflow run's visible history.
+# changing, switch them back to repo secrets (Settings → Secrets and variables →
+# Actions) so they're not sitting in every workflow run's visible history.
+#
+# "enabled" only gates GST specifically (the real compliance decision — see
+# gst-config.util.ts for why). Platform fee and packaging fee are NOT taxes and were
+# incorrectly tied to the same toggle in an earlier version of this workflow — fixed
+# here so they apply independently, matching how the backend actually treats them.
 on:
   workflow_dispatch:
     inputs:
       enabled:
-        description: 'Turn GST + platform fee on or off'
+        description: 'Turn GST on or off (does NOT affect platform/packaging fee below)'
         required: true
         type: choice
         options:
@@ -22,7 +26,12 @@ on:
           - 'false'
         default: 'false'
       platform_fee_amount:
-        description: 'Platform fee in rupees (only used if enabled=true)'
+        description: 'Platform fee in rupees (applies regardless of GST enabled)'
+        required: false
+        type: string
+        default: '0'
+      packaging_fee_amount:
+        description: 'Packaging fee in rupees, flat per order (applies regardless of GST enabled)'
         required: false
         type: string
         default: '0'
@@ -46,13 +55,14 @@ jobs:
         env:
           GST_ENABLED_VALUE: ${{ inputs.enabled }}
           PLATFORM_FEE_AMOUNT_VALUE: ${{ inputs.platform_fee_amount }}
+          PACKAGING_FEE_AMOUNT_VALUE: ${{ inputs.packaging_fee_amount }}
           GST_RESTAURANT_RATE_VALUE: ${{ inputs.gst_restaurant_rate }}
           GST_DELIVERY_RATE_VALUE: ${{ inputs.gst_delivery_rate }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: GST_ENABLED_VALUE,PLATFORM_FEE_AMOUNT_VALUE,GST_RESTAURANT_RATE_VALUE,GST_DELIVERY_RATE_VALUE
+          envs: GST_ENABLED_VALUE,PLATFORM_FEE_AMOUNT_VALUE,PACKAGING_FEE_AMOUNT_VALUE,GST_RESTAURANT_RATE_VALUE,GST_DELIVERY_RATE_VALUE
           script: |
             set -e
             cd /root/mannadash-app
@@ -60,19 +70,23 @@ jobs:
             # Back up before touching anything real
             cp .env .env.backup-$(date +%Y%m%d-%H%M%S)
 
-            # Surgical: strip any existing lines for exactly these four vars (line-anchored,
+            # Surgical: strip any existing lines for exactly these five vars (line-anchored,
             # so nothing else in .env — DB password, JWT secret, etc. — is ever touched),
             # then append the fresh values. This is the ONLY part of .env this workflow edits.
-            grep -v '^GST_ENABLED=\|^PLATFORM_FEE_AMOUNT=\|^GST_RESTAURANT_RATE_PERCENT=\|^GST_DELIVERY_RATE_PERCENT=' .env > .env.tmp || true
+            grep -v '^GST_ENABLED=\|^PLATFORM_FEE_AMOUNT=\|^PACKAGING_FEE_AMOUNT=\|^GST_RESTAURANT_RATE_PERCENT=\|^GST_DELIVERY_RATE_PERCENT=' .env > .env.tmp || true
             mv .env.tmp .env
+
+            # Platform fee and packaging fee are independent business decisions, not taxes —
+            # always applied, regardless of whether GST is enabled
+            echo "PLATFORM_FEE_AMOUNT=${PLATFORM_FEE_AMOUNT_VALUE:-0}" >> .env
+            echo "PACKAGING_FEE_AMOUNT=${PACKAGING_FEE_AMOUNT_VALUE:-0}" >> .env
 
             echo "GST_ENABLED=${GST_ENABLED_VALUE}" >> .env
             if [ "${GST_ENABLED_VALUE}" = "true" ]; then
-              echo "PLATFORM_FEE_AMOUNT=${PLATFORM_FEE_AMOUNT_VALUE:-0}" >> .env
               echo "GST_RESTAURANT_RATE_PERCENT=${GST_RESTAURANT_RATE_VALUE:-5}" >> .env
               echo "GST_DELIVERY_RATE_PERCENT=${GST_DELIVERY_RATE_VALUE:-18}" >> .env
             fi
 
             docker compose -f docker-compose.prod.yml up -d --force-recreate backend
 
-            echo "Done. GST_ENABLED=${GST_ENABLED_VALUE}, platform fee=${PLATFORM_FEE_AMOUNT_VALUE}, restaurant GST=${GST_RESTAURANT_RATE_VALUE}%, delivery GST=${GST_DELIVERY_RATE_VALUE}%"
+            echo "Done. GST_ENABLED=${GST_ENABLED_VALUE}, platform fee=${PLATFORM_FEE_AMOUNT_VALUE}, packaging fee=${PACKAGING_FEE_AMOUNT_VALUE}, restaurant GST=${GST_RESTAURANT_RATE_VALUE}%, delivery GST=${GST_DELIVERY_RATE_VALUE}%"
