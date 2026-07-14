@@ -90,10 +90,18 @@ describe('GET /menu-items/category-photos (e2e)', () => {
     expect(Object.keys(res.body)).toHaveLength(15);
     expect(res.body).toHaveProperty('Biryani');
     expect(res.body).toHaveProperty('Ice Cream');
-    // Real network is blocked in this sandbox (no UNSPLASH_ACCESS_KEY, Wikimedia unreachable),
-    // so every value is genuinely null here — that's the correct, safe fallback behavior,
-    // not a broken test. The mocked unit tests above prove the actual photo-URL path works.
-    expect(res.body['Biryani']).toBeNull();
+    // Each value is either a real photo URL (string) or null — which one depends on
+    // whether Wikimedia is actually reachable from wherever this test runs, which
+    // genuinely differs by environment (this sandbox's network is restricted to an
+    // allowlist that excludes it; CI runners have normal internet access and do fetch
+    // a real photo). Asserting "always null" was a real bug in this test — it baked in
+    // an assumption from one specific environment rather than the feature's actual
+    // contract. The mocked unit tests above already prove the real-photo-URL path
+    // works; this one just proves the endpoint's shape is correct regardless of network.
+    for (const url of Object.values(res.body)) {
+      expect(url === null || typeof url === 'string').toBe(true);
+      if (typeof url === 'string') expect(url).toMatch(/^https?:\/\//);
+    }
   });
 
   it('does not 404 or break the route for :id lookups on real menu item IDs', async () => {
