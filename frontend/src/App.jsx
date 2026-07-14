@@ -8,6 +8,8 @@ import TrackOrderScreen from './screens/TrackOrderScreen';
 import OrderHistoryScreen from './screens/OrderHistoryScreen';
 import LegalScreen from './screens/LegalScreen';
 import MyAccountScreen from './screens/MyAccountScreen';
+import FavoritesScreen from './screens/FavoritesScreen';
+import AccountStatementScreen from './screens/AccountStatementScreen';
 
 export default function App() {
   const [user, setUser] = useState(api.getStoredUser());
@@ -18,6 +20,8 @@ export default function App() {
   const [trackingOrderId, setTrackingOrderId] = useState(null);
   const [legalDoc, setLegalDoc] = useState(null); // null | 'terms' | 'privacy'
   const [showMyAccount, setShowMyAccount] = useState(false);
+  const [showFavorites, setShowFavorites] = useState(false);
+  const [showStatement, setShowStatement] = useState(false);
 
   if (!user) {
     return (
@@ -68,9 +72,20 @@ export default function App() {
         onBack={() => setShowMyAccount(false)}
         onViewOrders={() => { setShowMyAccount(false); setTab('orders'); }}
         onViewLegal={() => { setShowMyAccount(false); setLegalDoc('terms'); }}
+        onViewFavorites={() => { setShowMyAccount(false); setShowFavorites(true); }}
+        onViewStatement={() => { setShowMyAccount(false); setShowStatement(true); }}
         onLogout={logout}
       />
     );
+  } else if (showFavorites) {
+    content = (
+      <FavoritesScreen
+        onBack={() => { setShowFavorites(false); setShowMyAccount(true); }}
+        onSelectRestaurant={(restaurant) => { setShowFavorites(false); setSelectedRestaurant(restaurant); }}
+      />
+    );
+  } else if (showStatement) {
+    content = <AccountStatementScreen onBack={() => { setShowStatement(false); setShowMyAccount(true); }} />;
   } else if (legalDoc) {
     content = <LegalScreen initialDoc={legalDoc} onBack={() => setLegalDoc(null)} />;
   } else if (trackingOrderId) {
@@ -115,7 +130,7 @@ export default function App() {
     content = <RestaurantListScreen onSelectRestaurant={setSelectedRestaurant} />;
   }
 
-  const showBottomNav = !selectedRestaurant && !pendingOrder && !trackingOrderId && !legalDoc && !showMyAccount;
+  const showBottomNav = !selectedRestaurant && !pendingOrder && !trackingOrderId && !legalDoc && !showMyAccount && !showFavorites && !showStatement;
 
   return (
     <div className="app-shell">

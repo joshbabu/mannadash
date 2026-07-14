@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { createTestApp, signUpCustomer } from './test-helpers';
+import { adminLogin, createTestApp, signUpCustomer, signUpRestaurant } from './test-helpers';
 
 /**
  * Saved addresses — this backend (Customer.savedLocations JSONB + the three endpoints)
@@ -95,5 +95,124 @@ describe('Saved addresses (e2e)', () => {
 
   it('requires authentication — no token means no access', async () => {
     await request(app.getHttpServer()).get('/customers/me/addresses').expect(401);
+  });
+});
+
+describe('Favorite restaurants (e2e)', () => {
+  let app: INestApplication;
+
+  beforeAll(async () => {
+    app = await createTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  async function approvedRestaurant() {
+    const restaurant = await signUpRestaurant(app);
+    const admin = await adminLogin(app);
+    await request(app.getHttpServer())
+      .patch(`/restaurants/${restaurant.id}/status`)
+      .set('Authorization', `Bearer ${admin}`)
+      .send({ status: 'approved' })
+      .expect(200);
+    return restaurant;
+  }
+
+  it('a new customer starts with no favorites', async () => {
+    const customer = await signUpCustomer(app);
+    const res = await request(app.getHttpServer())
+      .get('/customers/me/favorites')
+      .set('Authorization', `Bearer ${customer.token}`)
+      .expect(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('can favorite a restaurant and see its full details in the list, not just an id', async () => {
+    const customer = await signUpCustomer(app);
+    const restaurant = await approvedRestaurant();
+    await request(app.getHttpServer())
+      .post(`/customers/me/favorites/${restaurant.id}`)
+      .set('Authorization', `Bearer ${customer.token}`)
+      .expect(201);
+
+    const res = await request(app.getHttpServer())
+      .get('/customers/me/favorites')
+      .set('Authorization', `Bearer ${customer.token}`)
+      .expect(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].id).toBe(restaurant.id);
+    expect(res.body[0].name).toBeTruthy();
+  });
+
+  it('favoriting the same restaurant twice does not create a duplicate', async () => {
+    const customer = await signUpCustomer(app);
+    const restaurant = await approvedRestaurant();
+    await request(app.getHttpServer())
+      .post(`/customers/me/favorites/${restaurant.id}`)
+      .set('Authorization', `Bearer ${customer.token}`)
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/customers/me/favorites/${restaurant.id}`)
+      .set('Authorization', `Bearer ${customer.token}`)
+      .expect(201);
+
+    const res = await request(app.getHttpServer())
+      .get('/customers/me/favorites')
+      .set('Authorization', `Bearer ${customer.token}`)
+      .expect(200);
+    expect(res.body).toHaveLength(1);
+  });
+
+  it('can remove a favorite', async () => {
+    const customer = await signUpCustomer(app);
+    const restaurant = await approvedRestaurant();
+    await request(app.getHttpServer())
+      .post(`/customers/me/favorites/${restaurant.id}`)
+      .set('Authorization', `Bearer ${customer.token}`)
+      .expect(201);
+    await request(app.getHttpServer())
+      .delete(`/customers/me/favorites/${restaurant.id}`)
+      .set('Authorization', `Bearer ${customer.token}`)
+      .expect(200);
+
+    const res = await request(app.getHttpServer())
+      .get('/customers/me/favorites')
+      .set('Authorization', `Bearer ${customer.token}`)
+      .expect(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('one customer never sees another customer\'s favorites', async () => {
+    const customerA = await signUpCustomer(app);
+    const customerB = await signUpCustomer(app);
+    const restaurant = await approvedRestaurant();
+    await request(app.getHttpServer())
+      .post(`/customers/me/favorites/${restaurant.id}`)
+      .set('Authorization', `Bearer ${customerA.token}`)
+      .expect(201);
+
+    const bList = await request(app.getHttpServer())
+      .get('/customers/me/favorites')
+      .set('Authorization', `Bearer ${customerB.token}`)
+      .expect(200);
+    expect(bList.body).toEqual([]);
+  });
+
+  it('the favorite restaurant response never leaks sensitive fields (passwordHash, bank details)', async () => {
+    const customer = await signUpCustomer(app);
+    const restaurant = await approvedRestaurant();
+    await request(app.getHttpServer())
+      .post(`/customers/me/favorites/${restaurant.id}`)
+      .set('Authorization', `Bearer ${customer.token}`)
+      .expect(201);
+
+    const res = await request(app.getHttpServer())
+      .get('/customers/me/favorites')
+      .set('Authorization', `Bearer ${customer.token}`)
+      .expect(200);
+    expect(res.body[0]).not.toHaveProperty('passwordHash');
+    expect(res.body[0]).not.toHaveProperty('bankAccountNumber');
   });
 });

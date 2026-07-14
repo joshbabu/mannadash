@@ -24,4 +24,22 @@ export class CustomersController {
   removeAddress(@Req() req: any, @Param('id') id: string) {
     return this.customersService.removeAddress(req.user.userId, id);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/favorites')
+  getFavorites(@Req() req: any) {
+    return this.customersService.getFavoriteRestaurants(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me/favorites/:restaurantId')
+  addFavorite(@Req() req: any, @Param('restaurantId') restaurantId: string) {
+    return this.customersService.addFavorite(req.user.userId, restaurantId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('me/favorites/:restaurantId')
+  removeFavorite(@Req() req: any, @Param('restaurantId') restaurantId: string) {
+    return this.customersService.removeFavorite(req.user.userId, restaurantId);
+  }
 }

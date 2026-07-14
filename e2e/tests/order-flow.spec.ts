@@ -355,6 +355,36 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await customerPage.getByRole('button', { name: '← Back' }).click();
   });
 
+  await test.step('New All chip clears filters inline, and favorites + account statement work end to end', async () => {
+    // Still on the home/browse screen. "All" (exact match — otherwise this could
+    // ambiguously match "See all categories" too, since that also contains "all")
+    await customerPage.getByRole('button', { name: '🍛 Biryani' }).click();
+    await expect(customerPage.getByPlaceholder('Search by name, cuisine, or dish…')).toHaveValue('Biryani');
+    await customerPage.getByRole('button', { name: 'All', exact: true }).click();
+    await expect(customerPage.getByPlaceholder('Search by name, cuisine, or dish…')).toHaveValue('');
+    // The grid popup still exists separately, now labeled "See all"
+    await expect(customerPage.getByText('See all')).toBeVisible();
+
+    // Favorite this restaurant right from its card on the browse screen
+    await customerPage.getByRole('button', { name: 'Add to favorites' }).first().click();
+    await expect(customerPage.getByRole('button', { name: 'Remove from favorites' }).first()).toBeVisible();
+
+    await customerPage.getByRole('button', { name: 'My account' }).click();
+    await customerPage.getByRole('button', { name: '❤️ Favorites' }).click();
+    await expect(customerPage.getByText(restaurantName)).toBeVisible({ timeout: 10_000 });
+    await customerPage.getByRole('button', { name: 'Remove from favorites' }).click();
+    await expect(customerPage.getByText('No favorites yet')).toBeVisible();
+    await customerPage.getByRole('button', { name: '← Back' }).click();
+
+    // Account statement — real order data, not fake numbers. This customer placed a
+    // real order earlier in this test, so the statement must show it and a nonzero total
+    await customerPage.getByRole('button', { name: '🧾 Account statement' }).click();
+    await expect(customerPage.getByText('Total spent')).toBeVisible();
+    await expect(customerPage.getByText(restaurantName)).toBeVisible();
+    await customerPage.getByRole('button', { name: '← Back' }).click();
+    await customerPage.getByRole('button', { name: '← Back' }).click();
+  });
+
   await test.step('Phase L1: offers teaser, automatic discount, and a code overriding it', async () => {
     // A modest automatic offer and a bigger code-based one — the code should win even
     // though it's worth more, proving precedence in a real browser, not just the API

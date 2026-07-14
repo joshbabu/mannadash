@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 
-export default function MyAccountScreen({ onBack, onViewOrders, onViewLegal, onLogout }) {
+export default function MyAccountScreen({ onBack, onViewOrders, onViewLegal, onViewFavorites, onViewStatement, onLogout }) {
   const user = api.getStoredUser();
   const [addresses, setAddresses] = useState([]);
   const [loadingAddresses, setLoadingAddresses] = useState(true);
@@ -129,6 +129,14 @@ export default function MyAccountScreen({ onBack, onViewOrders, onViewLegal, onL
       <div className="card">
         <button className="row" style={{ width: '100%', background: 'none', border: 'none', padding: '10px 0', cursor: 'pointer' }} onClick={onViewOrders}>
           <span style={{ color: 'var(--charcoal)', fontWeight: 600 }}>📋 Your orders</span>
+          <span className="muted">›</span>
+        </button>
+        <button className="row" style={{ width: '100%', background: 'none', border: 'none', padding: '10px 0', borderTop: '1px solid #e5ddc9', cursor: 'pointer' }} onClick={onViewFavorites}>
+          <span style={{ color: 'var(--charcoal)', fontWeight: 600 }}>❤️ Favorites</span>
+          <span className="muted">›</span>
+        </button>
+        <button className="row" style={{ width: '100%', background: 'none', border: 'none', padding: '10px 0', borderTop: '1px solid #e5ddc9', cursor: 'pointer' }} onClick={onViewStatement}>
+          <span style={{ color: 'var(--charcoal)', fontWeight: 600 }}>🧾 Account statement</span>
           <span className="muted">›</span>
         </button>
         <button className="row" style={{ width: '100%', background: 'none', border: 'none', padding: '10px 0', borderTop: '1px solid #e5ddc9', cursor: 'pointer' }} onClick={onViewLegal}>

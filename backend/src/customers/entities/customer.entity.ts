@@ -17,6 +17,12 @@ export class Customer {
   @Column({ type: 'jsonb', default: [] })
   savedLocations: Record<string, any>[];
 
+  // Favorited restaurant IDs — simple list, not per-dish. Restaurant-level favorites are
+  // what most customers actually mean by "favorites" (a place they order from again),
+  // and keeps this simple rather than a second favorites concept for individual dishes.
+  @Column({ type: 'jsonb', default: [] })
+  favoriteRestaurantIds: string[];
+
   @CreateDateColumn()
   createdAt: Date;
 }

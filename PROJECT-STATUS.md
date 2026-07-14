@@ -507,6 +507,42 @@ time, not just today.
   a stable id and scoping the query to it, which is also just correct modal practice
   generally, not a testing-only fix.
 
+- **Customer app: All chip, Favorites, Account Statement — DONE.** Split into two
+  separate things after clarifying with Joshua: a new "All" chip at the *start* of the
+  category row that just clears the active filter inline (default/reset state, like
+  tapping Home), and the existing grid popup relabeled "See all" at the end — not
+  merged into one control like the first pass did.
+
+  **Favorites**: new `Customer.favoriteRestaurantIds` (same JSONB-array pattern as
+  `savedLocations`), full CRUD, `/customers/me/favorites` returns real restaurant
+  objects (not just ids) so the frontend doesn't need N+1 calls. Heart icon on every
+  restaurant card, optimistic toggle (flips instantly, reverts only if the request
+  actually fails). **Account Statement**: deliberately not a new backend concept —
+  reuses the existing `/orders` endpoint, presented as a chronological list with a real
+  total (cancelled orders excluded from the total but still shown, greyed out).
+
+  **A genuine, subtle accessibility bug caught while testing, not a test-only fix.**
+  The restaurant card is a `<div role="button">` (can't nest a real `<button>` inside
+  a `<button>`) with a nested heart-favorite `<button>`. Without its own explicit
+  `aria-label`, the outer div's *computed* accessible name pulled in the nested
+  button's "Add to favorites" label as substring content — so Playwright's `.first()`
+  (and any real screen reader) would ambiguously match the whole card instead of the
+  heart specifically. Confirmed via direct diagnostic: the "button" being clicked had a
+  380×116px bounding box (the whole card), not a small heart icon. Fixed by giving the
+  outer div its own explicit `aria-label` ("View menu for {name}") — correct
+  accessibility practice generally, not something that only mattered for testing.
+
+  **Second real bug caught, this one navigational**: opening Favorites or Account
+  Statement from My Account cleared `showMyAccount`, so tapping "← Back" from either
+  landed on Home instead of returning to My Account — broke the natural drill-down
+  expectation. Fixed so Back from a My-Account sub-screen returns to My Account, not
+  the root.
+
+  6 new backend tests (favorites: creation, idempotent re-favoriting, removal, per-
+  customer isolation, no sensitive-field leakage) alongside the existing addresses
+  suite (now 12 total in that file). Full flow re-verified against the real running
+  app via Playwright twice on a clean database.
+
 ## For the new chat
 
 Paste this file's contents, or just reference "MannaDash" — Claude's memory system should also

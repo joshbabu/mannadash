@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Customer } from './entities/customer.entity';
+import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { SaveAddressDto } from './dto/save-address.dto';
 
 @Injectable()
@@ -9,6 +10,8 @@ export class CustomersService {
   constructor(
     @InjectRepository(Customer)
     private readonly customerRepo: Repository<Customer>,
+    @InjectRepository(Restaurant)
+    private readonly restaurantRepo: Repository<Restaurant>,
   ) {}
 
   private async findByUserId(userId: string): Promise<Customer> {
@@ -37,5 +40,34 @@ export class CustomersService {
     customer.savedLocations = (customer.savedLocations || []).filter((a: any) => a.id !== addressId);
     await this.customerRepo.save(customer);
     return customer.savedLocations;
+  }
+
+  async getFavoriteRestaurants(userId: string) {
+    const customer = await this.findByUserId(userId);
+    const ids = customer.favoriteRestaurantIds || [];
+    if (ids.length === 0) return [];
+    // In() with an empty array is invalid SQL, hence the guard above. Order isn't
+    // guaranteed to match favoriteRestaurantIds' order — acceptable for a favorites
+    // list, not worth a second pass to re-sort for now.
+    return this.restaurantRepo.find({ where: { id: In(ids) } });
+  }
+
+  async addFavorite(userId: string, restaurantId: string) {
+    const customer = await this.findByUserId(userId);
+    const current = customer.favoriteRestaurantIds || [];
+    // Idempotent — favoriting an already-favorited restaurant just returns the same list,
+    // doesn't create a duplicate entry
+    if (!current.includes(restaurantId)) {
+      customer.favoriteRestaurantIds = [...current, restaurantId];
+      await this.customerRepo.save(customer);
+    }
+    return customer.favoriteRestaurantIds;
+  }
+
+  async removeFavorite(userId: string, restaurantId: string) {
+    const customer = await this.findByUserId(userId);
+    customer.favoriteRestaurantIds = (customer.favoriteRestaurantIds || []).filter((id) => id !== restaurantId);
+    await this.customerRepo.save(customer);
+    return customer.favoriteRestaurantIds;
   }
 }

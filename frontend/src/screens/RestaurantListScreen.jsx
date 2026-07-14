@@ -49,6 +49,33 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
   const [currentLatLng, setCurrentLatLng] = useState({ lat: DEFAULT_LAT, lng: DEFAULT_LNG });
   const [dishMatches, setDishMatches] = useState([]); // restaurants found by dish, not name/cuisine
   const [showAllCategories, setShowAllCategories] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState(new Set());
+
+  useEffect(() => {
+    api.getFavorites().then((favs) => setFavoriteIds(new Set(favs.map((f) => f.id)))).catch(() => {});
+  }, []);
+
+  function toggleFavorite(restaurantId) {
+    const isFavorited = favoriteIds.has(restaurantId);
+    // Optimistic update — the heart should flip instantly, not wait on a round trip.
+    // Reverted if the request actually fails, rather than left in a state that lies
+    // about what's really saved server-side.
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (isFavorited) next.delete(restaurantId);
+      else next.add(restaurantId);
+      return next;
+    });
+    const request = isFavorited ? api.removeFavorite(restaurantId) : api.addFavorite(restaurantId);
+    request.catch(() => {
+      setFavoriteIds((prev) => {
+        const reverted = new Set(prev);
+        if (isFavorited) reverted.add(restaurantId);
+        else reverted.delete(restaurantId);
+        return reverted;
+      });
+    });
+  }
   const [categoryPhotos, setCategoryPhotos] = useState({}); // { 'Biryani': url | null, ... }
 
   // Real photos per category — fetched once (backend caches these for 24h server-side too,
@@ -132,6 +159,29 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
         style={{ width: '100%', background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd', marginBottom: 12 }}
       />
       <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 8, marginBottom: 8 }}>
+        <button
+          key="clear-all"
+          aria-label="All"
+          onClick={() => setSearchQuery('')}
+          style={{
+            flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+            background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', minWidth: 56,
+          }}
+        >
+          <span
+            style={{
+              width: 48, height: 48, borderRadius: '50%', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', fontSize: 20,
+              background: !searchQuery.trim() ? 'var(--chili)' : '#fdf8ef',
+              border: !searchQuery.trim() ? '2px solid var(--chili-dark)' : '1px solid #e5ddc9',
+            }}
+          >
+            🍽️
+          </span>
+          <span style={{ fontSize: 11, color: !searchQuery.trim() ? 'var(--chili)' : 'var(--text-secondary, #c9c2b4)', fontWeight: !searchQuery.trim() ? 700 : 400 }}>
+            All
+          </span>
+        </button>
         {QUICK_CATEGORIES.map((cat) => {
           const queryValue = cat.searchTerm || cat.label;
           const active = searchQuery.trim().toLowerCase() === queryValue.toLowerCase();
@@ -180,7 +230,7 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
           >
             ⋯
           </span>
-          <span style={{ fontSize: 11, color: 'var(--text-secondary, #c9c2b4)' }}>All</span>
+          <span style={{ fontSize: 11, color: 'var(--text-secondary, #c9c2b4)' }}>See all</span>
         </button>
       </div>
 
@@ -265,12 +315,26 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
 
       <div className="stack">
         {sortedRestaurants.map((r) => (
-          <button
+          <div
             key={r.id}
             className="card"
-            style={{ textAlign: 'left', width: '100%' }}
+            role="button"
+            aria-label={`View menu for ${r.name}`}
+            tabIndex={0}
             onClick={() => onSelectRestaurant(r)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelectRestaurant(r); }}
+            style={{ textAlign: 'left', width: '100%', cursor: 'pointer', position: 'relative' }}
           >
+            <button
+              aria-label={favoriteIds.has(r.id) ? 'Remove from favorites' : 'Add to favorites'}
+              onClick={(e) => { e.stopPropagation(); toggleFavorite(r.id); }}
+              style={{
+                position: 'absolute', top: 14, right: 14, background: 'none', border: 'none',
+                fontSize: 20, cursor: 'pointer', lineHeight: 1, zIndex: 1,
+              }}
+            >
+              {favoriteIds.has(r.id) ? '❤️' : '🤍'}
+            </button>
             <div className="row">
               <h3 style={{ fontSize: 17 }}>
                 {r.name}
@@ -294,7 +358,7 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
                 🍽️ {r.matchedDishes.join(', ')}
               </p>
             )}
-          </button>
+          </div>
         ))}
       </div>
     </div>
