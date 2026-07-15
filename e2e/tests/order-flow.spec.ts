@@ -139,8 +139,10 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await customerPage.locator('button[type="submit"]').click();
 
     await customerPage.getByPlaceholder('Search by name, cuisine, or dish…').fill(restaurantName);
-    // Phase 4: the card surfaces what onboarding captured — veg-only badge and cost for two
-    await expect(customerPage.getByText('🌱 Pure Veg')).toBeVisible();
+    // Phase 4: the card surfaces what onboarding captured — veg-only badge and cost for two.
+    // Scoped to a <span> specifically — the quick-filter pill added later uses the exact
+    // same text on a <button>, and an unscoped getByText would now ambiguously match both
+    await expect(customerPage.locator('span', { hasText: '🌱 Pure Veg' })).toBeVisible();
     await expect(customerPage.getByText('₹500 for two')).toBeVisible();
     await customerPage.getByText(restaurantName).click();
     await customerPage.getByText('E2E Test Dish').waitFor();
