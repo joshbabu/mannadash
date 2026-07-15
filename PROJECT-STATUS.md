@@ -543,6 +543,19 @@ time, not just today.
   suite (now 12 total in that file). Full flow re-verified against the real running
   app via Playwright twice on a clean database.
 
+- **Customer app: quick filter pills — DONE (1 of 3).** First piece of a larger
+  Swiggy-reference feature set (quick filters → full Filters & Sorting modal →
+  Recommended For You grid, being built one at a time). Four combinable pills — Near &
+  Fast (≤3km and ≤30min prep), No packaging charges (reads the real per-restaurant
+  packaging fee from tonight's earlier work), Pure Veg (`isVegOnly`, already existed as
+  a badge but was never filterable), Rated 4.0+ — every one reads a real field already
+  on the restaurant object, deliberately no fake promotional badges like the raw
+  Swiggy reference has. Filters combine with AND, matching the reference's own
+  narrowing behavior. Distinct empty state ("No restaurants match your filters" with a
+  one-tap clear) from the existing "no restaurants nearby at all" state — these are
+  genuinely different situations and were conflated before. Still open: the full
+  Filters & Sorting modal, and the Recommended For You section.
+
 ## For the new chat
 
 Paste this file's contents, or just reference "MannaDash" — Claude's memory system should also

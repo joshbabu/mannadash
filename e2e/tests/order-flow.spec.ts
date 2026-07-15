@@ -385,6 +385,15 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await customerPage.getByRole('button', { name: '← Back' }).click();
   });
 
+  await test.step('Quick filter pills — real fields, not fake badges', async () => {
+    // Still on home/browse. This restaurant is isVegOnly: true (set at signup above),
+    // so "Pure Veg" must still show it, and clearing filters must bring back everything
+    await customerPage.getByRole('button', { name: '🌱 Pure Veg' }).click();
+    await expect(customerPage.getByText(restaurantName)).toBeVisible();
+    await customerPage.getByRole('button', { name: '🌱 Pure Veg' }).click(); // toggle off
+    await expect(customerPage.getByText(restaurantName)).toBeVisible();
+  });
+
   await test.step('Phase L1: offers teaser, automatic discount, and a code overriding it', async () => {
     // A modest automatic offer and a bigger code-based one — the code should win even
     // though it's worth more, proving precedence in a real browser, not just the API

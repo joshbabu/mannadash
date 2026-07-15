@@ -50,6 +50,16 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
   const [dishMatches, setDishMatches] = useState([]); // restaurants found by dish, not name/cuisine
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState(new Set());
+  const [activeFilters, setActiveFilters] = useState(new Set());
+
+  function toggleFilter(key) {
+    setActiveFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   useEffect(() => {
     api.getFavorites().then((favs) => setFavoriteIds(new Set(favs.map((f) => f.id)))).catch(() => {});
@@ -142,7 +152,19 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
   const dishOnlyMatches = dishMatches.filter((r) => !existingIds.has(r.id));
   const combinedRestaurants = [...filteredRestaurants, ...dishOnlyMatches];
 
-  const sortedRestaurants = [...combinedRestaurants].sort((a, b) => {
+  // Every filter reads a real field already on the restaurant object — no fake/placeholder
+  // badges. Filters combine with AND (each one narrows further), matching the reference.
+  const QUICK_FILTERS = {
+    nearFast: (r) => r.distanceMeters <= 3000 && r.avgPrepTimeMins <= 30,
+    noPackaging: (r) => !r.packagingFee || Number(r.packagingFee) === 0,
+    pureVeg: (r) => r.isVegOnly === true,
+    topRated: (r) => Number(r.ratingAvg || 0) >= 4.0,
+  };
+  const filteredByQuickFilters = combinedRestaurants.filter((r) =>
+    [...activeFilters].every((key) => QUICK_FILTERS[key](r)),
+  );
+
+  const sortedRestaurants = [...filteredByQuickFilters].sort((a, b) => {
     if (sortBy === 'rating') return Number(b.ratingAvg || 0) - Number(a.ratingAvg || 0);
     return a.distanceMeters - b.distanceMeters;
   });
@@ -291,6 +313,33 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
           </div>
         </div>
       )}
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, marginBottom: 8 }}>
+        {[
+          { key: 'nearFast', icon: '⚡', label: 'Near & Fast' },
+          { key: 'noPackaging', icon: '📦', label: 'No packaging charges' },
+          { key: 'pureVeg', icon: '🌱', label: 'Pure Veg' },
+          { key: 'topRated', icon: '⭐', label: 'Rated 4.0+' },
+        ].map((f) => {
+          const isActive = activeFilters.has(f.key);
+          return (
+            <button
+              key={f.key}
+              onClick={() => toggleFilter(f.key)}
+              aria-pressed={isActive}
+              style={{
+                flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 6,
+                padding: '8px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+                whiteSpace: 'nowrap', cursor: 'pointer',
+                background: isActive ? 'var(--chili)' : '#fdf8ef',
+                color: isActive ? '#fff' : 'var(--charcoal)',
+                border: isActive ? '1px solid var(--chili-dark)' : '1px solid #e5ddc9',
+              }}
+            >
+              {f.icon} {f.label}
+            </button>
+          );
+        })}
+      </div>
       <div className="row" style={{ marginBottom: 16, gap: 8 }}>
         <button className="btn-secondary" onClick={useMyLocation}>
           📍 Use my location
@@ -310,6 +359,14 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
         <div className="card" style={{ textAlign: 'center' }}>
           <p>No restaurants nearby yet.</p>
           <p className="muted" style={{ color: '#6b6156' }}>Try widening the search or check back soon — MannaDash is just getting started here.</p>
+        </div>
+      )}
+      {!loading && restaurants.length > 0 && sortedRestaurants.length === 0 && !error && (
+        <div className="card" style={{ textAlign: 'center' }}>
+          <p>No restaurants match your filters.</p>
+          <button className="btn-secondary" onClick={() => setActiveFilters(new Set())} style={{ marginTop: 8 }}>
+            Clear filters
+          </button>
         </div>
       )}
 
