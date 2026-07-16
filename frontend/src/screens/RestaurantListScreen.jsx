@@ -412,19 +412,9 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
             tabIndex={0}
             onClick={() => onSelectRestaurant(r)}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelectRestaurant(r); }}
-            style={{ textAlign: 'left', width: '100%', cursor: 'pointer', position: 'relative' }}
+            style={{ textAlign: 'left', width: '100%', cursor: 'pointer' }}
           >
-            <button
-              aria-label={favoriteIds.has(r.id) ? 'Remove from favorites' : 'Add to favorites'}
-              onClick={(e) => { e.stopPropagation(); toggleFavorite(r.id); }}
-              style={{
-                position: 'absolute', top: 14, right: 14, background: 'none', border: 'none',
-                fontSize: 20, cursor: 'pointer', lineHeight: 1, zIndex: 1,
-              }}
-            >
-              {favoriteIds.has(r.id) ? '❤️' : '🤍'}
-            </button>
-            <div className="row">
+            <div className="row" style={{ alignItems: 'flex-start' }}>
               <h3 style={{ fontSize: 17 }}>
                 {r.name}
                 {r.isVegOnly && (
@@ -435,7 +425,16 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
                   </span>
                 )}
               </h3>
-              <span className="pill">{(r.distanceMeters / 1000).toFixed(1)} km</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                <button
+                  aria-label={favoriteIds.has(r.id) ? 'Remove from favorites' : 'Add to favorites'}
+                  onClick={(e) => { e.stopPropagation(); toggleFavorite(r.id); }}
+                  style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: 0 }}
+                >
+                  {favoriteIds.has(r.id) ? '❤️' : '🤍'}
+                </button>
+                <span className="pill">{(r.distanceMeters / 1000).toFixed(1)} km</span>
+              </div>
             </div>
             <p className="muted" style={{ color: '#6b6156' }}>
               {Number(r.ratingAvg) > 0 && <>★ {Number(r.ratingAvg).toFixed(1)} ({r.ratingCount}) · </>}
