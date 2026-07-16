@@ -592,6 +592,33 @@ time, not just today.
   directly in the database. 28 suites, 207 backend tests, real Playwright coverage
   passing twice on a clean database.
 
+- **L2 (customer complaints inbox) — backend done, frontend still open.** New
+  `Complaint` entity (order-linked, lives in the `orders` module alongside Rating since
+  it's the same kind of order-derived record). Modeled directly on the existing
+  `Rating`/`replyToRating` pattern — same "one response, updated in place, not a
+  thread" shape — but unlike ratings, multiple complaints are allowed per order (a
+  missing item and a quality issue are genuinely separate things worth tracking
+  separately). Customer can file a complaint only once an order is delivered or
+  cancelled (an order still in flight has other tools — cancel, contacting the
+  restaurant). Endpoints: `POST /orders/:id/complaints` (file), `GET
+  /orders/complaints/mine` (customer's own), `GET /orders/complaints/restaurant/mine`
+  (restaurant's own, ownership enforced through `complaint.order.restaurant`, same
+  pattern as `replyToRating`), `GET /orders/complaints/admin` (everything, role-gated),
+  `PATCH /orders/complaints/:id/respond` (restaurant or admin, routed to different
+  service methods since their authorization checks are genuinely different — ownership
+  vs. role — not a shared "is staff" check).
+
+  **A real, instructive bug caught immediately by testing**: `TypeOrmModule.forFeature()`
+  in the owning module (`orders.module.ts`) is not enough on its own — the root
+  `TypeOrmModule.forRootAsync()` in `app.module.ts` uses an explicit `entities: [...]`
+  array, not a glob pattern, so a brand new entity needs to be added there too or
+  TypeORM throws `EntityMetadataNotFoundError` at the first real query. Worth
+  remembering for L4/L5 if either needs a new entity.
+
+  12 new backend tests. 29 suites, 219 tests total, all passing. Frontend still needed:
+  customer-side filing + viewing complaints, a restaurant dashboard complaints screen,
+  and an admin panel view — building those next.
+
 ## For the new chat
 
 Paste this file's contents, or just reference "MannaDash" — Claude's memory system should also

@@ -24,6 +24,7 @@ import { Order } from './orders/entities/order.entity';
 import { OrderItem } from './orders/entities/order-item.entity';
 import { OrderItemOption } from './orders/entities/order-item-option.entity';
 import { Rating } from './orders/entities/rating.entity';
+import { Complaint } from './orders/entities/complaint.entity';
 import { Payout } from './delivery-partners/entities/payout.entity';
 import { PushSubscription } from './push/entities/push-subscription.entity';
 import { Offer } from './offers/entities/offer.entity';
@@ -56,6 +57,7 @@ import { OffersModule } from './offers/offers.module';
           OrderItem,
           OrderItemOption,
           Rating,
+          Complaint,
           Payout,
           PushSubscription,
           Offer,

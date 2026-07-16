@@ -9,6 +9,7 @@ import { Order, OrderStatus, PaymentMethod, PaymentStatus, RefundStatus } from '
 import { OrderItem } from './entities/order-item.entity';
 import { OrderItemOption } from './entities/order-item-option.entity';
 import { Rating } from './entities/rating.entity';
+import { Complaint } from './entities/complaint.entity';
 import { Payout } from '../delivery-partners/entities/payout.entity';
 import { Restaurant, RestaurantStatus } from '../restaurants/entities/restaurant.entity';
 import { isWithinRestaurantHours, WEEK_DAYS } from '../restaurants/operating-hours.util';
@@ -17,6 +18,8 @@ import { Customer } from '../customers/entities/customer.entity';
 import { RestaurantHistoryQueryDto } from './dto/restaurant-history-query.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { CreateRatingDto } from './dto/create-rating.dto';
+import { CreateComplaintDto } from './dto/create-complaint.dto';
+import { RespondToComplaintDto } from './dto/respond-to-complaint.dto';
 import { DeliveryPartnersService } from '../delivery-partners/delivery-partners.service';
 import { RestaurantsService } from '../restaurants/restaurants.service';
 import { PushService } from '../push/push.service';
@@ -50,6 +53,8 @@ export class OrdersService {
     private readonly customerRepo: Repository<Customer>,
     @InjectRepository(Rating)
     private readonly ratingRepo: Repository<Rating>,
+    @InjectRepository(Complaint)
+    private readonly complaintRepo: Repository<Complaint>,
     @InjectRepository(Payout)
     private readonly payoutRepo: Repository<Payout>,
     private readonly deliveryPartnersService: DeliveryPartnersService,
@@ -756,6 +761,97 @@ export class OrdersService {
     }
 
     return rating;
+  }
+
+  /**
+   * A customer can file a complaint against any order that's actually finished (delivered
+   * or cancelled) — an order still in flight has other tools for that (cancel, contacting
+   * the restaurant), and "complaint" specifically means something already happened that
+   * needs following up on. Unlike ratings, multiple complaints per order are allowed — a
+   * missing item and a quality issue are genuinely separate things worth tracking on their
+   * own, not edits to one review.
+   */
+  async fileComplaint(orderId: string, userId: string, dto: CreateComplaintDto): Promise<Complaint> {
+    const order = await this.findOne(orderId, userId); // enforces ownership, throws 403/404 as needed
+
+    if (order.status !== OrderStatus.DELIVERED && order.status !== OrderStatus.CANCELLED) {
+      throw new BadRequestException('You can only file a complaint once an order has been delivered or cancelled');
+    }
+
+    return this.complaintRepo.save(
+      this.complaintRepo.create({
+        order: { id: orderId } as Order,
+        category: dto.category,
+        description: dto.description,
+      }),
+    );
+  }
+
+  async getMyComplaints(userId: string): Promise<Complaint[]> {
+    return this.complaintRepo.find({
+      where: { order: { customer: { user: { id: userId } } } },
+      relations: { order: { restaurant: true } },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async getRestaurantComplaints(restaurantId: string): Promise<Complaint[]> {
+    return this.complaintRepo.find({
+      where: { order: { restaurant: { id: restaurantId } } },
+      relations: { order: { customer: { user: true } } },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async getAllComplaintsForAdmin(): Promise<Complaint[]> {
+    return this.complaintRepo.find({
+      relations: { order: { restaurant: true, customer: { user: true } } },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  /**
+   * Restaurant responds to a complaint against one of their own orders. Ownership runs
+   * through complaint.order.restaurant, same pattern as replyToRating — Complaint has no
+   * direct restaurant FK of its own. Responding again overwrites the previous response
+   * rather than stacking a thread, matching how replies work everywhere else in this app.
+   */
+  async respondToComplaintAsRestaurant(complaintId: string, restaurantId: string, dto: RespondToComplaintDto): Promise<Complaint> {
+    const complaint = await this.complaintRepo.findOne({
+      where: { id: complaintId },
+      relations: { order: { restaurant: true } },
+    });
+    if (!complaint) {
+      throw new NotFoundException(`Complaint ${complaintId} not found`);
+    }
+    if (complaint.order.restaurant.id !== restaurantId) {
+      throw new ForbiddenException('You can only respond to complaints about your own restaurant');
+    }
+    return this.applyComplaintResponse(complaint, dto);
+  }
+
+  // Admin can update/resolve any complaint platform-wide — no ownership check needed,
+  // authorization already happened at the controller (role === 'admin')
+  async respondToComplaintAsAdmin(complaintId: string, dto: RespondToComplaintDto): Promise<Complaint> {
+    const complaint = await this.complaintRepo.findOne({ where: { id: complaintId } });
+    if (!complaint) {
+      throw new NotFoundException(`Complaint ${complaintId} not found`);
+    }
+    return this.applyComplaintResponse(complaint, dto);
+  }
+
+  private async applyComplaintResponse(complaint: Complaint, dto: RespondToComplaintDto): Promise<Complaint> {
+    if (dto.responseText) {
+      complaint.restaurantResponse = dto.responseText;
+      complaint.respondedAt = new Date();
+    }
+    if (dto.status) {
+      complaint.status = dto.status;
+      if (dto.status === 'resolved') {
+        complaint.resolvedAt = new Date();
+      }
+    }
+    return this.complaintRepo.save(complaint);
   }
 
   private async recomputeRestaurantRating(restaurantId: string): Promise<void> {

@@ -7,6 +7,7 @@ import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { OrderItemOption } from './entities/order-item-option.entity';
 import { Rating } from './entities/rating.entity';
+import { Complaint } from './entities/complaint.entity';
 import { Payout } from '../delivery-partners/entities/payout.entity';
 import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { MenuItem } from '../menu-items/entities/menu-item.entity';
@@ -26,6 +27,7 @@ import { OffersModule } from '../offers/offers.module';
       OrderItem,
       OrderItemOption,
       Rating,
+      Complaint,
       Payout,
       Restaurant,
       MenuItem,

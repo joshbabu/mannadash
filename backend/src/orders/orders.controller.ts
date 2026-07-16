@@ -6,6 +6,8 @@ import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
 import { CreateRatingDto } from './dto/create-rating.dto';
 import { ReplyToRatingDto } from './dto/reply-to-rating.dto';
+import { CreateComplaintDto } from './dto/create-complaint.dto';
+import { RespondToComplaintDto } from './dto/respond-to-complaint.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('orders')
@@ -193,5 +195,50 @@ export class OrdersController {
       throw new ForbiddenException('Only an admin can run this');
     }
     return this.ordersService.backfillAllRatingStats();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/complaints')
+  fileComplaint(@Req() req: any, @Param('id', ParseUUIDPipe) id: string, @Body() dto: CreateComplaintDto) {
+    return this.ordersService.fileComplaint(id, req.user.userId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('complaints/mine')
+  getMyComplaints(@Req() req: any) {
+    return this.ordersService.getMyComplaints(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('complaints/restaurant/mine')
+  getRestaurantComplaints(@Req() req: any) {
+    if (req.user.role !== 'restaurant') {
+      throw new ForbiddenException('Only restaurants can view their own complaints');
+    }
+    return this.ordersService.getRestaurantComplaints(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('complaints/admin')
+  getAllComplaintsForAdmin(@Req() req: any) {
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Only an admin can view all complaints');
+    }
+    return this.ordersService.getAllComplaintsForAdmin();
+  }
+
+  // Both a restaurant (about their own orders) and an admin (about anything) can respond
+  // to a complaint — routed to different service methods since their authorization checks
+  // are genuinely different (ownership vs. role), not just a shared "is staff" check
+  @UseGuards(JwtAuthGuard)
+  @Patch('complaints/:complaintId/respond')
+  respondToComplaint(@Req() req: any, @Param('complaintId', ParseUUIDPipe) complaintId: string, @Body() dto: RespondToComplaintDto) {
+    if (req.user.role === 'admin') {
+      return this.ordersService.respondToComplaintAsAdmin(complaintId, dto);
+    }
+    if (req.user.role === 'restaurant') {
+      return this.ordersService.respondToComplaintAsRestaurant(complaintId, req.user.userId, dto);
+    }
+    throw new ForbiddenException('Only a restaurant or an admin can respond to a complaint');
   }
 }
