@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsBoolean, IsNumber, IsString, IsUUID, Max, Min, ValidateNested, IsIn, IsOptional, MaxLength } from 'class-validator';
+import { ArrayMinSize, IsArray, IsBoolean, IsISO8601, IsNumber, IsString, IsUUID, Max, Min, ValidateNested, IsIn, IsOptional, MaxLength } from 'class-validator';
 import { OrderItemInputDto } from './order-item-input.dto';
 
 export class CreateOrderDto {
@@ -55,4 +55,11 @@ export class CreateOrderDto {
   @IsNumber()
   @Min(0)
   tipAmount?: number;
+
+  // Order-for-later. Omitted (or null) means "as soon as possible" — today's only
+  // behavior. "Must actually be in the future" is checked in the service, not here,
+  // since that's a business rule about the current moment rather than a shape check.
+  @IsOptional()
+  @IsISO8601()
+  scheduledFor?: string;
 }

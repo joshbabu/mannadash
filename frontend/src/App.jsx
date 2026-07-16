@@ -22,6 +22,7 @@ export default function App() {
   const [showMyAccount, setShowMyAccount] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
   const [showStatement, setShowStatement] = useState(false);
+  const [scheduledFor, setScheduledFor] = useState(null); // ISO string | null
 
   if (!user) {
     return (
@@ -102,8 +103,9 @@ export default function App() {
         restaurant={pendingOrder.restaurant}
         orderItems={pendingOrder.orderItems}
         menuItems={pendingOrder.menuItems}
+        scheduledFor={scheduledFor}
         onBack={() => setPendingOrder(null)}
-        onOrderPlaced={handleOrderPlaced}
+        onOrderPlaced={(order) => { setScheduledFor(null); handleOrderPlaced(order); }}
       />
     );
   } else if (selectedRestaurant) {
@@ -127,7 +129,7 @@ export default function App() {
       />
     );
   } else {
-    content = <RestaurantListScreen onSelectRestaurant={setSelectedRestaurant} />;
+    content = <RestaurantListScreen onSelectRestaurant={setSelectedRestaurant} scheduledFor={scheduledFor} onSetScheduledFor={setScheduledFor} />;
   }
 
   const showBottomNav = !selectedRestaurant && !pendingOrder && !trackingOrderId && !legalDoc && !showMyAccount && !showFavorites && !showStatement;

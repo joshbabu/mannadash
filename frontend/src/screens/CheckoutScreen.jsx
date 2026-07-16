@@ -18,7 +18,7 @@ const INSTRUCTION_CHIPS = [
   { id: 'leave_with_security', icon: '🛡️', label: 'Leave with security' },
 ];
 
-export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBack, onOrderPlaced }) {
+export default function CheckoutScreen({ restaurant, orderItems, menuItems, scheduledFor, onBack, onOrderPlaced }) {
   const orderingForUser = api.getStoredUser();
   const [address, setAddress] = useState('');
   const [latitude, setLatitude] = useState(DEFAULT_LAT);
@@ -207,6 +207,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
         tipAmount,
         ...(finalInstructions ? { instructions: finalInstructions.slice(0, 300) } : {}),
         ...(appliedOffer?.fromCode ? { promoCode: promoCodeInput.trim() } : {}),
+        ...(scheduledFor ? { scheduledFor } : {}),
       });
       onOrderPlaced(order);
     } catch (err) {
@@ -222,6 +223,15 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, onBa
         ← Back to menu
       </button>
       <h1 style={{ fontSize: 24, marginBottom: 12 }}>Your order</h1>
+
+      {scheduledFor && (
+        <div className="card" style={{ marginBottom: 14, background: '#fdf8ef' }}>
+          <p style={{ fontWeight: 700, color: 'var(--charcoal)' }}>
+            🕐 Scheduled for {new Date(scheduledFor).toLocaleString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+          </p>
+          <p className="muted" style={{ fontSize: 12 }}>The restaurant will start preparing your order closer to this time.</p>
+        </div>
+      )}
 
       {orderingForUser && (
         <div className="card" style={{ marginBottom: 14, fontSize: 14 }}>

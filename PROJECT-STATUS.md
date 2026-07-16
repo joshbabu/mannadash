@@ -556,6 +556,42 @@ time, not just today.
   genuinely different situations and were conflated before. Still open: the full
   Filters & Sorting modal, and the Recommended For You section.
 
+- **Customer app: full Filters & Sorting modal, order scheduling — DONE (2 and 3 of
+  3).** Sort by (Distance/Rating/Delivery time), Time (Near & Fast + real Schedule-for-
+  later), Restaurant Rating (3.5+/4.0+), Offers (has an active automatic offer), Dish
+  Price (Under ₹200/₹200–400/Above ₹400, keyed off each restaurant's real minimum
+  available price), Trust Markers (FSSAI Certified, a real 14-digit number collected at
+  signup). Quick pills and the modal now share one unified filter state
+  (`{nearFast, noPackaging, pureVeg, ratingMin, hasOffer, priceRange, fssaiCertified}`)
+  instead of the Set-based approach from the quick-pills-only pass, since the reference
+  showed them as genuinely connected, not two separate systems.
+
+  **A real, honest discovery mid-build**: `priceRange` and `hasActiveOffer` turned out
+  to already be fully computed and tested in `findNearby` (`price-range-and-offers.e2e-
+  spec.ts` already existed and passed) — but `git log` shows this was never actually
+  committed as part of any shipped patch; it was sitting as an uncommitted diff in the
+  working tree, likely from earlier in tonight's marathon. Verified it was complete and
+  correct (full suite already includes and passes it), then shipped it properly as part
+  of this patch since the new Offers/Dish Price filter sections genuinely depend on it.
+  Worth knowing this shipped later than it should have.
+
+  **Order scheduling ("order for later") — deliberately minimal, honest scope.** Records
+  what the customer asked for (`Order.scheduledFor`, 30min–7day bounds, checked against
+  the restaurant's actual hours *at that future time*, not the moment the request is
+  made) and surfaces it to the restaurant on their own order list. Does **not** auto-
+  trigger anything at the scheduled time — acceptance, prep, and dispatch stay exactly
+  as manual as every other order today. That's a real, separate, much bigger feature
+  (background job scheduling, auto-notifications) if it's ever wanted; this just captures
+  and displays intent honestly rather than faking automation that isn't there.
+
+  8 new backend tests for scheduling (asap-still-works, valid future time, too-soon
+  rejected, too-far rejected, past rejected, hours-checked-at-scheduled-time-not-now,
+  malformed input rejected, restaurant sees it on their list). Full frontend flow
+  verified against the real running app end to end — scheduled via the modal, banner
+  shown on both browse and checkout, order placed, `scheduledFor` confirmed correct
+  directly in the database. 28 suites, 207 backend tests, real Playwright coverage
+  passing twice on a clean database.
+
 ## For the new chat
 
 Paste this file's contents, or just reference "MannaDash" — Claude's memory system should also

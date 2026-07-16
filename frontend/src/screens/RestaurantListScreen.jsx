@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import FilterModal from './FilterModal';
 
 // Hitech City, Hyderabad — reasonable default center for the MVP demo area
 const DEFAULT_LAT = 17.4435;
@@ -40,7 +41,7 @@ const QUICK_CATEGORIES = [
   { label: 'Shake', icon: '🥤' },
 ];
 
-export default function RestaurantListScreen({ onSelectRestaurant }) {
+export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor, onSetScheduledFor }) {
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -50,15 +51,12 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
   const [dishMatches, setDishMatches] = useState([]); // restaurants found by dish, not name/cuisine
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState(new Set());
-  const [activeFilters, setActiveFilters] = useState(new Set());
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const EMPTY_FILTERS = { nearFast: false, noPackaging: false, pureVeg: false, ratingMin: null, hasOffer: false, priceRange: null, fssaiCertified: false };
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
 
-  function toggleFilter(key) {
-    setActiveFilters((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+  function toggleBooleanFilter(key) {
+    setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
   useEffect(() => {
@@ -154,20 +152,36 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
 
   // Every filter reads a real field already on the restaurant object — no fake/placeholder
   // badges. Filters combine with AND (each one narrows further), matching the reference.
-  const QUICK_FILTERS = {
-    nearFast: (r) => r.distanceMeters <= 3000 && r.avgPrepTimeMins <= 30,
-    noPackaging: (r) => !r.packagingFee || Number(r.packagingFee) === 0,
-    pureVeg: (r) => r.isVegOnly === true,
-    topRated: (r) => Number(r.ratingAvg || 0) >= 4.0,
+  // Price buckets use the restaurant's minimum available price ("starting from"), not a
+  // requirement that every single item fall in the bucket — matches how this kind of
+  // filter reads elsewhere (a restaurant "under ₹200" means you *can* eat there for that,
+  // not that everything on the menu is).
+  const passesFilters = (r) => {
+    if (filters.nearFast && !(r.distanceMeters <= 3000 && r.avgPrepTimeMins <= 30)) return false;
+    if (filters.noPackaging && !(!r.packagingFee || Number(r.packagingFee) === 0)) return false;
+    if (filters.pureVeg && r.isVegOnly !== true) return false;
+    if (filters.ratingMin && Number(r.ratingAvg || 0) < filters.ratingMin) return false;
+    if (filters.hasOffer && !r.hasActiveOffer) return false;
+    if (filters.fssaiCertified && !r.fssaiNumber) return false;
+    if (filters.priceRange && r.priceRange) {
+      const min = Number(r.priceRange.minPrice);
+      if (filters.priceRange === 'under200' && !(min <= 200)) return false;
+      if (filters.priceRange === '200to400' && !(min > 200 && min <= 400)) return false;
+      if (filters.priceRange === 'above400' && !(min > 400)) return false;
+    } else if (filters.priceRange) {
+      return false; // no price data at all — can't confirm it matches, so don't include it
+    }
+    return true;
   };
-  const filteredByQuickFilters = combinedRestaurants.filter((r) =>
-    [...activeFilters].every((key) => QUICK_FILTERS[key](r)),
-  );
+  const filteredByQuickFilters = combinedRestaurants.filter(passesFilters);
 
   const sortedRestaurants = [...filteredByQuickFilters].sort((a, b) => {
     if (sortBy === 'rating') return Number(b.ratingAvg || 0) - Number(a.ratingAvg || 0);
+    if (sortBy === 'deliveryTime') return a.avgPrepTimeMins - b.avgPrepTimeMins;
     return a.distanceMeters - b.distanceMeters;
   });
+
+  const activeFilterCount = Object.entries(filters).filter(([, v]) => v).length;
 
   return (
     <div className="screen">
@@ -314,32 +328,50 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
         </div>
       )}
       <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, marginBottom: 8 }}>
+        <button
+          onClick={() => setShowFilterModal(true)}
+          style={{
+            flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 6,
+            padding: '8px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+            whiteSpace: 'nowrap', cursor: 'pointer', background: '#fdf8ef', color: 'var(--charcoal)',
+            border: '1px solid #e5ddc9',
+          }}
+        >
+          ⚙️ Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+        </button>
         {[
-          { key: 'nearFast', icon: '⚡', label: 'Near & Fast' },
-          { key: 'noPackaging', icon: '📦', label: 'No packaging charges' },
-          { key: 'pureVeg', icon: '🌱', label: 'Pure Veg' },
-          { key: 'topRated', icon: '⭐', label: 'Rated 4.0+' },
-        ].map((f) => {
-          const isActive = activeFilters.has(f.key);
-          return (
-            <button
-              key={f.key}
-              onClick={() => toggleFilter(f.key)}
-              aria-pressed={isActive}
-              style={{
-                flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 6,
-                padding: '8px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
-                whiteSpace: 'nowrap', cursor: 'pointer',
-                background: isActive ? 'var(--chili)' : '#fdf8ef',
-                color: isActive ? '#fff' : 'var(--charcoal)',
-                border: isActive ? '1px solid var(--chili-dark)' : '1px solid #e5ddc9',
-              }}
-            >
-              {f.icon} {f.label}
-            </button>
-          );
-        })}
+          { key: 'nearFast', icon: '⚡', label: 'Near & Fast', isActive: filters.nearFast, onToggle: () => toggleBooleanFilter('nearFast') },
+          { key: 'noPackaging', icon: '📦', label: 'No packaging charges', isActive: filters.noPackaging, onToggle: () => toggleBooleanFilter('noPackaging') },
+          { key: 'pureVeg', icon: '🌱', label: 'Pure Veg', isActive: filters.pureVeg, onToggle: () => toggleBooleanFilter('pureVeg') },
+          { key: 'topRated', icon: '⭐', label: 'Rated 4.0+', isActive: filters.ratingMin === 4.0, onToggle: () => setFilters((prev) => ({ ...prev, ratingMin: prev.ratingMin === 4.0 ? null : 4.0 })) },
+        ].map((f) => (
+          <button
+            key={f.key}
+            onClick={f.onToggle}
+            aria-pressed={f.isActive}
+            style={{
+              flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 6,
+              padding: '8px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+              whiteSpace: 'nowrap', cursor: 'pointer',
+              background: f.isActive ? 'var(--chili)' : '#fdf8ef',
+              color: f.isActive ? '#fff' : 'var(--charcoal)',
+              border: f.isActive ? '1px solid var(--chili-dark)' : '1px solid #e5ddc9',
+            }}
+          >
+            {f.icon} {f.label}
+          </button>
+        ))}
       </div>
+      {scheduledFor && (
+        <div className="row" style={{ background: '#fdf8ef', borderRadius: 12, padding: '10px 14px', marginBottom: 12 }}>
+          <span style={{ color: 'var(--charcoal)', fontSize: 13, fontWeight: 600 }}>
+            🕐 Scheduled for {new Date(scheduledFor).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+          </span>
+          <button className="btn-secondary" onClick={() => onSetScheduledFor(null)} style={{ fontSize: 12, padding: '4px 10px' }}>
+            Cancel
+          </button>
+        </div>
+      )}
       <div className="row" style={{ marginBottom: 16, gap: 8 }}>
         <button className="btn-secondary" onClick={useMyLocation}>
           📍 Use my location
@@ -364,7 +396,7 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
       {!loading && restaurants.length > 0 && sortedRestaurants.length === 0 && !error && (
         <div className="card" style={{ textAlign: 'center' }}>
           <p>No restaurants match your filters.</p>
-          <button className="btn-secondary" onClick={() => setActiveFilters(new Set())} style={{ marginTop: 8 }}>
+          <button className="btn-secondary" onClick={() => setFilters(EMPTY_FILTERS)} style={{ marginTop: 8 }}>
             Clear filters
           </button>
         </div>
@@ -418,6 +450,18 @@ export default function RestaurantListScreen({ onSelectRestaurant }) {
           </div>
         ))}
       </div>
+      {showFilterModal && (
+        <FilterModal
+          filters={filters}
+          onChangeFilters={setFilters}
+          sortBy={sortBy}
+          onChangeSortBy={setSortBy}
+          scheduledFor={scheduledFor}
+          onSetScheduledFor={onSetScheduledFor}
+          onClose={() => setShowFilterModal(false)}
+          resultCount={sortedRestaurants.length}
+        />
+      )}
     </div>
   );
 }

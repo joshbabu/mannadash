@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { Restaurant, RestaurantStatus } from './entities/restaurant.entity';
 import { MenuItem } from '../menu-items/entities/menu-item.entity';
+import { Offer } from '../offers/entities/offer.entity';
 import { CreateRestaurantDto } from './dto/create-restaurant.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { NearbyQueryDto } from './dto/nearby-query.dto';
@@ -20,6 +21,8 @@ export class RestaurantsService {
     private readonly restaurantRepo: Repository<Restaurant>,
     @InjectRepository(MenuItem)
     private readonly menuItemRepo: Repository<MenuItem>,
+    @InjectRepository(Offer)
+    private readonly offerRepo: Repository<Offer>,
     private readonly jwtService: JwtService,
   ) {}
 
@@ -162,6 +165,49 @@ export class RestaurantsService {
     }
 
     const results = await qb.getRawAndEntities();
+    const candidateIds = results.entities.map((e) => e.id);
+
+    // Price range and "has an offer" — computed for the candidate set only (post geo/
+    // approval/open filtering), not every restaurant in the table, and via their own
+    // aggregate queries rather than per-row subqueries in the main geo query above.
+    let priceRangeByRestaurant = new Map<string, { minPrice: number; maxPrice: number }>();
+    let offerRestaurantIds = new Set<string>();
+    if (candidateIds.length > 0) {
+      const priceRows = await this.menuItemRepo
+        .createQueryBuilder('item')
+        .select('item.restaurantId', 'restaurantId')
+        .addSelect('MIN(item.price)', 'minPrice')
+        .addSelect('MAX(item.price)', 'maxPrice')
+        .where('item.restaurantId IN (:...ids)', { ids: candidateIds })
+        .andWhere('item.isAvailable = true')
+        .groupBy('item.restaurantId')
+        .getRawMany();
+      for (const row of priceRows) {
+        priceRangeByRestaurant.set(row.restaurantId, {
+          minPrice: parseFloat(row.minPrice),
+          maxPrice: parseFloat(row.maxPrice),
+        });
+      }
+
+      // Deliberately simplified vs. the full per-customer eligibility engine in
+      // OffersService (day-of-week, time-of-day, usage limits, audience) — running that
+      // for every restaurant on a list view would be expensive and is more precision
+      // than a list badge needs. "Has an offer" here means a real, currently-active,
+      // automatic (no-code) offer within its date window, if it has one — the exact
+      // discount is still confirmed honestly at checkout via the existing preview
+      // endpoint, same as every other offer in the app already works.
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const offerRows = await this.offerRepo
+        .createQueryBuilder('offer')
+        .select('offer.restaurantId', 'restaurantId')
+        .where('offer.restaurantId IN (:...ids)', { ids: candidateIds })
+        .andWhere('offer.active = true')
+        .andWhere('offer.code IS NULL')
+        .andWhere('(offer.startDate IS NULL OR offer.startDate <= :today)', { today: todayStr })
+        .andWhere('(offer.endDate IS NULL OR offer.endDate >= :today)', { today: todayStr })
+        .getRawMany();
+      offerRestaurantIds = new Set(offerRows.map((r) => r.restaurantId));
+    }
 
     // Merge the computed distance ONTO the entity instance (Object.assign) rather than
     // spreading into a plain object. This distinction is security-critical: the global
@@ -172,6 +218,8 @@ export class RestaurantsService {
       Object.assign(entity, {
         distanceMeters: Math.round(parseFloat(results.raw[i].distanceMeters)),
         ...(dishesByRestaurant.has(entity.id) ? { matchedDishes: [...new Set(dishesByRestaurant.get(entity.id))] } : {}),
+        ...(priceRangeByRestaurant.has(entity.id) ? { priceRange: priceRangeByRestaurant.get(entity.id) } : {}),
+        hasActiveOffer: offerRestaurantIds.has(entity.id),
       }),
     );
   }

@@ -396,6 +396,32 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await expect(customerPage.getByText(restaurantName)).toBeVisible();
   });
 
+  await test.step('Filters & Sorting modal: sort options, and Schedule for later', async () => {
+    // Still on home/browse
+    await customerPage.getByRole('button', { name: /Filters/ }).click();
+    await expect(customerPage.getByRole('heading', { name: 'Filters and sorting' })).toBeVisible();
+
+    // Delivery time sort doesn't depend on any specific rating existing yet, unlike the
+    // rating filter — a safer choice this deep into a shared test flow
+    await customerPage.getByRole('button', { name: 'Delivery time' }).click();
+    await expect(customerPage.getByRole('button', { name: 'Delivery time' })).toHaveAttribute('aria-pressed', 'true');
+
+    // Schedule for later — real validation, mirroring the backend's own 30min/7day bounds
+    await customerPage.getByRole('button', { name: '📅 Schedule' }).click();
+    const future = new Date(Date.now() + 3 * 60 * 60 * 1000);
+    await customerPage.locator('input[type="datetime-local"]').fill(future.toISOString().slice(0, 16));
+    await customerPage.getByRole('button', { name: 'Confirm time' }).click();
+
+    await customerPage.getByRole('button', { name: /Show \d+ result/ }).click();
+    await expect(customerPage.getByText(/Scheduled for/)).toBeVisible();
+
+    // Clear All genuinely resets everything, not just the filters
+    await customerPage.getByRole('button', { name: /Filters/ }).click();
+    await customerPage.getByRole('button', { name: 'Clear All' }).click();
+    await customerPage.getByRole('button', { name: /Show \d+ result/ }).click();
+    await expect(customerPage.getByText(/Scheduled for/)).toHaveCount(0);
+  });
+
   await test.step('Phase L1: offers teaser, automatic discount, and a code overriding it', async () => {
     // A modest automatic offer and a bigger code-based one — the code should win even
     // though it's worth more, proving precedence in a real browser, not just the API

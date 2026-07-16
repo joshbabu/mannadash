@@ -129,6 +129,13 @@ export class Order {
   @Column({ type: 'varchar', nullable: true })
   appliedOfferName: string | null;
 
+  // "Schedule for later" — deliberately minimal scope: this records what the customer
+  // asked for and shows it to the restaurant/rider, but doesn't (yet) auto-trigger
+  // anything at that time. Acceptance, prep, and dispatch stay exactly as manual as
+  // every other order today. Null means "as soon as possible" (today's only behavior).
+  @Column({ type: 'timestamptz', nullable: true })
+  scheduledFor: Date | null;
+
   // Set the moment the halfway-to-timeout nudge fires, so the cron sends it exactly once
   // per order rather than every time it sweeps
   @Column({ type: 'timestamptz', nullable: true })

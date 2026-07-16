@@ -73,16 +73,40 @@ export class OrdersService {
     if (restaurant.status !== RestaurantStatus.APPROVED || !restaurant.isOpen) {
       throw new BadRequestException('This restaurant is not currently accepting orders');
     }
-    if (!isWithinRestaurantHours(restaurant)) {
+
+    // Order-for-later: validate the requested time is genuinely usable before doing
+    // anything else, and check the restaurant's hours AT that time, not right now —
+    // an order scheduled for 8pm shouldn't be blocked by the restaurant being closed
+    // at 3pm when the request happens to be made.
+    let scheduledFor: Date | null = null;
+    if (dto.scheduledFor) {
+      scheduledFor = new Date(dto.scheduledFor);
+      const minLeadMs = 30 * 60 * 1000; // 30 minutes — enough that "scheduled" means something real, not indistinguishable from ASAP
+      const maxLeadMs = 7 * 24 * 60 * 60 * 1000; // 7 days — a bound that keeps this a near-term feature, not open-ended
+      const msUntil = scheduledFor.getTime() - Date.now();
+      if (msUntil < minLeadMs) {
+        throw new BadRequestException('Scheduled time must be at least 30 minutes from now');
+      }
+      if (msUntil > maxLeadMs) {
+        throw new BadRequestException('Scheduled time cannot be more than 7 days from now');
+      }
+    }
+
+    const hoursCheckTime = scheduledFor ?? new Date();
+    if (!isWithinRestaurantHours(restaurant, hoursCheckTime)) {
       // Craft the message from whichever hours scheme this restaurant uses — per-day (new
       // onboarding wizard) or the legacy single daily window
-      const todayHours = restaurant.weeklyHours?.[WEEK_DAYS[new Date().getDay()]];
+      const todayHours = restaurant.weeklyHours?.[WEEK_DAYS[hoursCheckTime.getDay()]];
       const hoursText = restaurant.weeklyHours
         ? todayHours
-          ? `today's hours are ${todayHours.open}\u2013${todayHours.close}`
-          : 'it is closed today'
+          ? `${scheduledFor ? "that day's" : "today's"} hours are ${todayHours.open}\u2013${todayHours.close}`
+          : `it is closed ${scheduledFor ? 'on that day' : 'today'}`
         : `hours are ${restaurant.openTime}\u2013${restaurant.closeTime}`;
-      throw new BadRequestException(`This restaurant is currently closed \u2014 ${hoursText}`);
+      throw new BadRequestException(
+        scheduledFor
+          ? `This restaurant won't be open at that time \u2014 ${hoursText}`
+          : `This restaurant is currently closed \u2014 ${hoursText}`,
+      );
     }
 
     const menuItemIds = dto.items.map((i) => i.menuItemId);
@@ -200,6 +224,7 @@ export class OrdersService {
         discountAmount: discountAmount || null,
         appliedOfferName,
         estimatedDeliveryAt,
+        scheduledFor,
       } as any)
       .returning('*')
       .execute();
