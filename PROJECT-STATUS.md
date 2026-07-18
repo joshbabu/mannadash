@@ -702,6 +702,39 @@ time, not just today.
   restaurant dashboard this way; rider app uses the identical pattern. 30 suites, 231
   backend tests, full Playwright suite still 2/2 clean.
 
+- **Customer app enhancement: ETA/distance indicator on the live map — DONE.** Worth
+  documenting the surprising discovery this session started with: Joshua asked for
+  "live map tracking for order delivery," assuming it didn't exist — it actually
+  already did, completely, end to end. A real Leaflet component (`LiveMap.jsx`) with
+  colored rider/destination markers and auto-fit-bounds, fed by a real WebSocket
+  pipeline (rider app emits GPS → `orders.gateway.ts` relays to that order's room →
+  customer's `TrackOrderScreen` listens and updates). None of it was new; it just
+  hadn't been noticed/tested since it needs both apps active with real location
+  permission granted, a fairly specific scenario. Verified this directly rather than
+  taking the code at face value — real order, real rider going online with a mocked
+  GPS position (Playwright's `permissions: ['geolocation']` + a fixed lat/lng), watched
+  the customer's map genuinely pick up the live position and plot two distinct markers.
+
+  What actually got built on top: a distance-remaining + ETA readout under the map
+  (`🛵 X km away · ~Y min`), computed client-side via haversine distance between the
+  live rider position and the delivery point. Deliberately reuses the exact same
+  `AVG_DELIVERY_SPEED_MPS` (5.56 m/s, ~20km/h) the backend already uses for the
+  order-creation ETA estimate, so the two numbers a customer might see don't quietly
+  disagree with each other. Labeled honestly as straight-line/estimate, not real road
+  distance. One real contrast bug caught and fixed along the way — the new text
+  initially looked washed out against the dark background in a screenshot; turned out
+  to be a rendering/preview-scaling artifact, not an actual bug — confirmed by
+  literally sampling pixel colors directly rather than trusting visual impression, which
+  showed the color was correct all along.
+
+  No new automated test added for this specific indicator — the underlying live-map
+  feature itself has no existing Playwright coverage (a genuine pre-existing gap,
+  requires real multi-app geolocation-permission choreography that doesn't fit cleanly
+  into the existing suite), and manual diagnostic verification here was thorough
+  (JS-level state checks plus direct pixel-level color confirmation). Worth building
+  proper automated coverage for the whole live-map feature at some point, not just this
+  addition to it.
+
 ## For the new chat
 
 Paste this file's contents, or just reference "MannaDash" — Claude's memory system should also

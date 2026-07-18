@@ -21,6 +21,22 @@ function parseGeoPoint(geo) {
   return { lng: geo.coordinates[0], lat: geo.coordinates[1] };
 }
 
+// Straight-line distance, not real road distance — same honest simplification the
+// backend's own ETA estimate already makes (see AVG_DELIVERY_SPEED_MPS in
+// orders.service.ts), reusing that exact same speed constant here so the two numbers
+// a customer might see (order-creation ETA vs this live one) don't quietly disagree.
+const AVG_DELIVERY_SPEED_MPS = 5.56; // ~20km/h average city delivery speed
+function haversineMeters(a, b) {
+  const R = 6371000;
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 // Prints (or saves as PDF) a clean, branded, single-page receipt. A dedicated window is
 // used instead of printing the app page: printing the SPA directly captured the dark app
 // background and paginated hidden content into a blank second page.
@@ -186,6 +202,15 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
     }
   }
 
+  const destination = order ? parseGeoPoint(order.deliveryLocation) : null;
+  let distanceRemainingKm = null;
+  let etaMinutes = null;
+  if (riderPosition && destination) {
+    const meters = haversineMeters(riderPosition, destination);
+    distanceRemainingKm = meters / 1000;
+    etaMinutes = Math.max(1, Math.round(meters / AVG_DELIVERY_SPEED_MPS / 60));
+  }
+
   return (
     <div className="screen">
       <button className="btn-secondary" onClick={onBack} style={{ marginTop: 12, marginBottom: 12 }}>
@@ -266,9 +291,18 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
         <div style={{ marginBottom: 14 }}>
           <LiveMap
             riderPosition={riderPosition}
-            destination={parseGeoPoint(order.deliveryLocation)}
+            destination={destination}
           />
-          {!riderPosition && <p className="muted" style={{ marginTop: 6, fontSize: 13 }}>Waiting for your rider's live location…</p>}
+          {riderPosition ? (
+            <p style={{ marginTop: 8, fontSize: 14, fontWeight: 700, textAlign: 'center', color: 'var(--paper)' }}>
+              🛵 {distanceRemainingKm.toFixed(1)} km away · ~{etaMinutes} min
+              <span className="muted" style={{ fontSize: 11, fontWeight: 400, display: 'block', marginTop: 2 }}>
+                Straight-line distance and an estimate — actual roads and traffic will vary
+              </span>
+            </p>
+          ) : (
+            <p className="muted" style={{ marginTop: 6, fontSize: 13 }}>Waiting for your rider's live location…</p>
+          )}
         </div>
       )}
 
