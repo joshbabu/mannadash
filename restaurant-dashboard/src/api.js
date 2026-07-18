@@ -67,6 +67,8 @@ export const api = {
   updateOrderStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PATCH', body: { status }, auth: true }),
   getVapidPublicKey: () => request('/push/vapid-public-key'),
   subscribeToPush: (subscription) => request('/push/subscribe', { method: 'POST', body: { subscription }, auth: true }),
+  unsubscribeFromPush: () => request('/push/subscribe', { method: 'DELETE', auth: true }),
+  getPushStatus: () => request('/push/status', { auth: true }),
   assignRider: (id) => request(`/orders/${id}/assign-rider`, { method: 'POST', auth: true }),
   assignSpecificRider: (orderId, riderId) => request(`/orders/${orderId}/assign-rider/${riderId}`, { method: 'POST', auth: true }),
 

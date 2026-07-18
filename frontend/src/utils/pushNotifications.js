@@ -77,3 +77,25 @@ export async function enablePushNotifications() {
   await api.subscribeToPush(subscription.toJSON());
   return true;
 }
+
+/**
+ * L5: the actual opt-out. Two things need to happen — the browser's own push subscription
+ * torn down (so it stops being able to receive pushes at all) and the backend record
+ * removed (so sendToSubscriber has nothing to send to even if the browser one somehow
+ * survives). Worth being honest about a real browser limitation here: JS cannot revoke
+ * Notification.permission itself once granted — only the person can do that from their
+ * browser's own site settings. This function genuinely stops notifications from arriving,
+ * but the browser will still report permission as "granted" afterward; the UI should say
+ * "notifications off" rather than implying permission itself was revoked.
+ */
+export async function disablePushNotifications() {
+  if ('serviceWorker' in navigator) {
+    const registration = await navigator.serviceWorker.getRegistration();
+    const subscription = await registration?.pushManager.getSubscription();
+    if (subscription) {
+      await subscription.unsubscribe();
+    }
+  }
+  await api.unsubscribeFromPush();
+  return true;
+}

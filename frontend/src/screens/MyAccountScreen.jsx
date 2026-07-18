@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { disablePushNotifications, enablePushNotifications, isPushSupported } from '../utils/pushNotifications';
 
 export default function MyAccountScreen({ onBack, onViewOrders, onViewLegal, onViewFavorites, onViewStatement, onLogout }) {
   const user = api.getStoredUser();
@@ -10,10 +11,40 @@ export default function MyAccountScreen({ onBack, onViewOrders, onViewLegal, onV
   const [newAddress, setNewAddress] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [pushEnabled, setPushEnabled] = useState(null); // null = loading, then true/false
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState('');
 
   useEffect(() => {
     api.getSavedAddresses().then(setAddresses).catch(() => {}).finally(() => setLoadingAddresses(false));
   }, []);
+
+  useEffect(() => {
+    if (!isPushSupported()) {
+      setPushEnabled(false);
+      return;
+    }
+    // Server-side truth, not just browser permission — those two can genuinely disagree
+    api.getPushStatus().then((s) => setPushEnabled(s.subscribed)).catch(() => setPushEnabled(false));
+  }, []);
+
+  async function togglePush() {
+    setPushError('');
+    setPushBusy(true);
+    try {
+      if (pushEnabled) {
+        await disablePushNotifications();
+        setPushEnabled(false);
+      } else {
+        await enablePushNotifications();
+        setPushEnabled(true);
+      }
+    } catch (err) {
+      setPushError(err.message);
+    } finally {
+      setPushBusy(false);
+    }
+  }
 
   async function addAddress() {
     if (!newLabel.trim() || !newAddress.trim()) return;
@@ -76,6 +107,29 @@ export default function MyAccountScreen({ onBack, onViewOrders, onViewLegal, onV
           <p className="muted" style={{ fontSize: 12, marginBottom: 4 }}>🎟️ Vouchers</p>
           <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--charcoal)' }}>No vouchers yet</p>
         </div>
+      </div>
+
+      <div className="card">
+        <div className="row">
+          <div>
+            <p style={{ fontWeight: 700, color: 'var(--charcoal)' }}>🔔 Order notifications</p>
+            <p className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+              {pushEnabled === null
+                ? 'Checking…'
+                : pushEnabled
+                  ? 'On — you\'ll be notified when your order is accepted, on the way, or delivered'
+                  : 'Off — you won\'t get notified about order updates'}
+            </p>
+          </div>
+          {isPushSupported() ? (
+            <button className="btn-secondary" onClick={togglePush} disabled={pushEnabled === null || pushBusy}>
+              {pushBusy ? '…' : pushEnabled ? 'Turn off' : 'Turn on'}
+            </button>
+          ) : (
+            <span className="muted" style={{ fontSize: 12 }}>Not supported here</span>
+          )}
+        </div>
+        {pushError && <div className="error-banner" style={{ marginTop: 8 }}>{pushError}</div>}
       </div>
 
       <div className="card">

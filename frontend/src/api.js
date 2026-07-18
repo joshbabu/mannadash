@@ -68,6 +68,8 @@ export const api = {
   clearStoredUser: () => localStorage.removeItem('dabba_user'),
   getVapidPublicKey: () => request('/push/vapid-public-key'),
   subscribeToPush: (subscription) => request('/push/subscribe', { method: 'POST', body: { subscription }, auth: true }),
+  unsubscribeFromPush: () => request('/push/subscribe', { method: 'DELETE', auth: true }),
+  getPushStatus: () => request('/push/status', { auth: true }),
   getStoredUser: () => {
     const raw = localStorage.getItem('dabba_user');
     return raw ? JSON.parse(raw) : null;

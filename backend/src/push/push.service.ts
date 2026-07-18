@@ -57,6 +57,23 @@ export class PushService {
     return this.subscriptionRepo.save(this.subscriptionRepo.create({ subscriberId, subscriberRole, subscription }));
   }
 
+  // L5: a real opt-out. Before this, there was no way to turn push back off from inside
+  // the app once granted — the "Enable notifications" card just permanently disappears
+  // once browser permission is granted, with nothing to reverse it short of digging into
+  // the browser's own site settings, which most people never find.
+  async removeSubscription(subscriberId: string, subscriberRole: string) {
+    await this.subscriptionRepo.delete({ subscriberId, subscriberRole });
+    return { unsubscribed: true };
+  }
+
+  // Server-side truth, not browser permission — those two can genuinely disagree (e.g.
+  // right after removeSubscription above, browser permission is still "granted" until the
+  // person changes it themselves, but there's no longer a real subscription on file).
+  async hasSubscription(subscriberId: string, subscriberRole: string) {
+    const count = await this.subscriptionRepo.count({ where: { subscriberId, subscriberRole } });
+    return { subscribed: count > 0 };
+  }
+
   /**
    * Sends a push notification to every subscription on file for this subscriber. Silently
    * no-ops if push isn't configured yet (see constructor) or the subscriber has no subscription

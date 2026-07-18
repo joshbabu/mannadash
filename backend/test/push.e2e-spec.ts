@@ -167,4 +167,118 @@ describe('Push notifications (e2e)', () => {
       }
     });
   });
+
+  describe('L5: real opt-out (e2e)', () => {
+    it('a fresh subscriber has no subscription on file', async () => {
+      const rider = await signUpRider(app);
+      const res = await request(app.getHttpServer())
+        .get('/push/status')
+        .set('Authorization', `Bearer ${rider.token}`)
+        .expect(200);
+      expect(res.body.subscribed).toBe(false);
+    });
+
+    it('status reflects a real subscription once one is saved', async () => {
+      const rider = await signUpRider(app);
+      await request(app.getHttpServer())
+        .post('/push/subscribe')
+        .set('Authorization', `Bearer ${rider.token}`)
+        .send({ subscription: { endpoint: 'https://example.com/status-test', keys: { p256dh: 'x', auth: 'y' } } })
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get('/push/status')
+        .set('Authorization', `Bearer ${rider.token}`)
+        .expect(200);
+      expect(res.body.subscribed).toBe(true);
+    });
+
+    it('can genuinely unsubscribe — status reflects it immediately afterward', async () => {
+      const rider = await signUpRider(app);
+      await request(app.getHttpServer())
+        .post('/push/subscribe')
+        .set('Authorization', `Bearer ${rider.token}`)
+        .send({ subscription: { endpoint: 'https://example.com/unsub-test', keys: { p256dh: 'x', auth: 'y' } } })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .delete('/push/subscribe')
+        .set('Authorization', `Bearer ${rider.token}`)
+        .expect(200);
+
+      const res = await request(app.getHttpServer())
+        .get('/push/status')
+        .set('Authorization', `Bearer ${rider.token}`)
+        .expect(200);
+      expect(res.body.subscribed).toBe(false);
+    });
+
+    it('unsubscribing when there was never a subscription is a safe no-op, not an error', async () => {
+      const rider = await signUpRider(app);
+      await request(app.getHttpServer())
+        .delete('/push/subscribe')
+        .set('Authorization', `Bearer ${rider.token}`)
+        .expect(200);
+    });
+
+    it('one subscriber never affects another\'s subscription or status', async () => {
+      const riderA = await signUpRider(app);
+      const riderB = await signUpRider(app);
+      await request(app.getHttpServer())
+        .post('/push/subscribe')
+        .set('Authorization', `Bearer ${riderA.token}`)
+        .send({ subscription: { endpoint: 'https://example.com/rider-a', keys: { p256dh: 'x', auth: 'y' } } })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post('/push/subscribe')
+        .set('Authorization', `Bearer ${riderB.token}`)
+        .send({ subscription: { endpoint: 'https://example.com/rider-b', keys: { p256dh: 'x', auth: 'y' } } })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .delete('/push/subscribe')
+        .set('Authorization', `Bearer ${riderA.token}`)
+        .expect(200);
+
+      const bStatus = await request(app.getHttpServer())
+        .get('/push/status')
+        .set('Authorization', `Bearer ${riderB.token}`)
+        .expect(200);
+      expect(bStatus.body.subscribed).toBe(true);
+    });
+
+    it('requires authentication for both new endpoints', async () => {
+      await request(app.getHttpServer()).delete('/push/subscribe').expect(401);
+      await request(app.getHttpServer()).get('/push/status').expect(401);
+    });
+
+    it('a customer and a restaurant can independently subscribe/unsubscribe under the same underlying user id without interfering — role is part of the identity, not just an add-on', async () => {
+      // Extremely unlikely in practice (a customer id and restaurant id colliding), but the
+      // schema keys on (subscriberId, subscriberRole) together specifically to make this
+      // safe regardless — worth actually proving rather than just trusting the column design
+      const customer = await signUpCustomer(app);
+      const restaurant = await signUpRestaurant(app);
+      await request(app.getHttpServer())
+        .post('/push/subscribe')
+        .set('Authorization', `Bearer ${customer.token}`)
+        .send({ subscription: { endpoint: 'https://example.com/customer-role', keys: { p256dh: 'x', auth: 'y' } } })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post('/push/subscribe')
+        .set('Authorization', `Bearer ${restaurant.token}`)
+        .send({ subscription: { endpoint: 'https://example.com/restaurant-role', keys: { p256dh: 'x', auth: 'y' } } })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .delete('/push/subscribe')
+        .set('Authorization', `Bearer ${customer.token}`)
+        .expect(200);
+
+      const restaurantStatus = await request(app.getHttpServer())
+        .get('/push/status')
+        .set('Authorization', `Bearer ${restaurant.token}`)
+        .expect(200);
+      expect(restaurantStatus.body.subscribed).toBe(true);
+    });
+  });
 });

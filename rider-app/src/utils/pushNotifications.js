@@ -77,3 +77,21 @@ export async function enablePushNotifications() {
   await api.subscribeToPush(subscription.toJSON());
   return true;
 }
+
+/**
+ * L5: the actual opt-out. Same two-part teardown as the other apps — browser subscription,
+ * then backend record. Worth being especially clear about this one for riders specifically:
+ * turning this off means missing the "New delivery!" push entirely if the app isn't open,
+ * which is a real, meaningful thing to opt out of, not a minor preference.
+ */
+export async function disablePushNotifications() {
+  if ('serviceWorker' in navigator) {
+    const registration = await navigator.serviceWorker.getRegistration();
+    const subscription = await registration?.pushManager.getSubscription();
+    if (subscription) {
+      await subscription.unsubscribe();
+    }
+  }
+  await api.unsubscribeFromPush();
+  return true;
+}

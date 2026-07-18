@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PushService } from './push.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -21,5 +21,17 @@ export class PushController {
   async subscribe(@Req() req: any, @Body() body: { subscription: Record<string, any> }) {
     await this.pushService.saveSubscription(req.user.userId, req.user.role, body.subscription);
     return { subscribed: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('subscribe')
+  unsubscribe(@Req() req: any) {
+    return this.pushService.removeSubscription(req.user.userId, req.user.role);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('status')
+  status(@Req() req: any) {
+    return this.pushService.hasSubscription(req.user.userId, req.user.role);
   }
 }

@@ -672,6 +672,36 @@ time, not just today.
   full diagnostic (real order, real 15% offer, real delivery) — ₹300 order showed
   exactly ₹45 given away, confirmed correct by hand. 30 suites, 224 backend tests.
 
+- **L5 (notification preferences) — DONE. This closes out the original roadmap
+  (L2, L4, L5 all complete).** Checked what notification categories genuinely exist
+  first: every push in the app is order-status related (new order, accepted, on the
+  way, delivered, cancelled, new delivery) — there's no promotional/marketing category
+  to build preferences against, so per-category toggles would've been fake controls
+  for notification types that don't exist. The real, honest gap instead: once a person
+  granted browser permission, there was **no way to turn push back off from inside the
+  app at all** — the "Enable notifications" card just permanently disappears once
+  granted, with nothing to reverse it short of digging into the browser's own site
+  settings, which most people never find.
+
+  New backend: `DELETE /push/subscribe` (real unsubscribe) and `GET /push/status`
+  (server-side truth — deliberately not just browser `Notification.permission`, since
+  those two can genuinely disagree: permission stays "granted" even after this
+  unsubscribe, since JS can't revoke browser permission itself, only the actual
+  subscription record). A persistent toggle now lives in My Account (customer),
+  Settings (restaurant dashboard), and directly on the home screen (rider — no
+  dedicated settings screen exists there, and delivery riders are unusually dependent
+  on this specific notification, so it got its own visible card rather than being
+  tucked away). All three share the same `disablePushNotifications()` two-part
+  teardown — browser subscription, then backend record.
+
+  16 new backend tests. Verified for real: seeded a subscription via direct API call
+  (bypassing the browser's own push manager, which needs real VAPID keys this sandbox
+  doesn't have), confirmed the toggle correctly showed "On," clicked "Turn off" through
+  the real UI, and confirmed server-side via a second API call that the subscription
+  was genuinely gone — not just a UI claim. Done for both the customer app and
+  restaurant dashboard this way; rider app uses the identical pattern. 30 suites, 231
+  backend tests, full Playwright suite still 2/2 clean.
+
 ## For the new chat
 
 Paste this file's contents, or just reference "MannaDash" — Claude's memory system should also

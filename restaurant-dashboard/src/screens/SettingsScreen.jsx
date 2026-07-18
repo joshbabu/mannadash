@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { disablePushNotifications, enablePushNotifications, isPushSupported } from '../utils/pushNotifications';
 
 /**
  * Restaurant Settings — everything the onboarding wizard captures, editable after signup.
@@ -36,6 +37,35 @@ export default function SettingsScreen({ restaurant }) {
   const [pwError, setPwError] = useState('');
   const [pwChanged, setPwChanged] = useState(false);
   const [changingPw, setChangingPw] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(null);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState('');
+
+  useEffect(() => {
+    if (!isPushSupported()) {
+      setPushEnabled(false);
+      return;
+    }
+    api.getPushStatus().then((s) => setPushEnabled(s.subscribed)).catch(() => setPushEnabled(false));
+  }, []);
+
+  async function togglePush() {
+    setPushError('');
+    setPushBusy(true);
+    try {
+      if (pushEnabled) {
+        await disablePushNotifications();
+        setPushEnabled(false);
+      } else {
+        await enablePushNotifications();
+        setPushEnabled(true);
+      }
+    } catch (err) {
+      setPushError(err.message);
+    } finally {
+      setPushBusy(false);
+    }
+  }
 
   async function changePassword() {
     setPwError('');
@@ -179,6 +209,29 @@ export default function SettingsScreen({ restaurant }) {
       <p className="muted" style={{ marginTop: 0 }}>Everything from registration, editable any time</p>
 
       {error && <div className="error-banner">{error}</div>}
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div className="row">
+          <div>
+            <p style={{ fontWeight: 700 }}>🔔 New order notifications</p>
+            <p className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+              {pushEnabled === null
+                ? 'Checking…'
+                : pushEnabled
+                  ? 'On — you\'ll be notified the moment a new order comes in'
+                  : 'Off — you won\'t be notified of new orders even if your tab is closed'}
+            </p>
+          </div>
+          {isPushSupported() ? (
+            <button className="btn-secondary" onClick={togglePush} disabled={pushEnabled === null || pushBusy}>
+              {pushBusy ? '…' : pushEnabled ? 'Turn off' : 'Turn on'}
+            </button>
+          ) : (
+            <span className="muted" style={{ fontSize: 12 }}>Not supported here</span>
+          )}
+        </div>
+        {pushError && <div className="error-banner" style={{ marginTop: 8 }}>{pushError}</div>}
+      </div>
 
       <div className="card" style={{ marginBottom: 14 }}>
         {sectionTitle('Basic information')}
