@@ -121,6 +121,62 @@ export default function InsightsScreen() {
           </div>
         </div>
       </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <h3 style={{ fontSize: 15, marginBottom: 4 }}>Are your offers actually working?</h3>
+        <p className="muted" style={{ marginBottom: 12 }}>
+          Whether orders using an offer are genuinely bigger than ones that aren't — not just how many times it's been used.
+        </p>
+
+        {insights.discountEffectiveness.avgOrderValueWithOffer === null ? (
+          <p className="muted">No orders have used an offer yet — nothing to compare.</p>
+        ) : (
+          <div className="grid-2" style={{ marginBottom: 16 }}>
+            <div style={{ textAlign: 'center' }}>
+              <p className="muted" style={{ marginBottom: 4 }}>Avg. order with an offer</p>
+              <p style={{ fontSize: 22, fontWeight: 700, margin: 0, color: 'var(--curry)' }}>
+                ₹{insights.discountEffectiveness.avgOrderValueWithOffer.toFixed(0)}
+              </p>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <p className="muted" style={{ marginBottom: 4 }}>Avg. order without one</p>
+              <p style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>
+                {insights.discountEffectiveness.avgOrderValueWithoutOffer !== null
+                  ? `₹${insights.discountEffectiveness.avgOrderValueWithoutOffer.toFixed(0)}`
+                  : '—'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {insights.discountEffectiveness.liftPercent !== null && (
+          <p style={{ textAlign: 'center', marginBottom: 16 }}>
+            <span style={{ color: insights.discountEffectiveness.liftPercent >= 0 ? 'var(--curry)' : 'var(--chili)', fontWeight: 700 }}>
+              {insights.discountEffectiveness.liftPercent >= 0 ? '▲' : '▼'} {Math.abs(insights.discountEffectiveness.liftPercent)}%
+            </span>
+            <span className="muted"> {insights.discountEffectiveness.liftPercent >= 0 ? 'bigger' : 'smaller'} orders when an offer's used</span>
+          </p>
+        )}
+
+        {insights.discountEffectiveness.perOffer.length === 0 ? (
+          <p className="muted">No offers created yet.</p>
+        ) : (
+          <div className="stack" style={{ gap: 8 }}>
+            {insights.discountEffectiveness.perOffer.map((o) => (
+              <div key={o.id} className="row">
+                <div>
+                  <span>{o.name}</span>
+                  {!o.active && <span className="muted" style={{ marginLeft: 6, fontSize: 11 }}>(paused)</span>}
+                  <p className="muted" style={{ margin: '2px 0 0', fontSize: 12 }}>
+                    {o.redemptionCount} use{o.redemptionCount === 1 ? '' : 's'} · ₹{o.totalDiscountGiven.toFixed(0)} given away
+                  </p>
+                </div>
+                <strong>₹{o.revenueFromOffer.toFixed(0)}</strong>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

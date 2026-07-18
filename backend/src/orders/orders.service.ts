@@ -1067,6 +1067,7 @@ export class OrdersService {
       weekOverWeek: await this.getWeekOverWeek(restaurantId),
       cancellationRate: await this.getCancellationRate(restaurantId),
       repeatCustomerRate: await this.getRepeatCustomerRate(restaurantId),
+      discountEffectiveness: await this.getDiscountEffectiveness(restaurantId),
     };
   }
 
@@ -1130,6 +1131,71 @@ export class OrdersService {
     const r = rows[0];
     const totalCustomers = parseInt(r.total_customers);
     return totalCustomers > 0 ? Math.round((parseInt(r.repeat_customers) / totalCustomers) * 1000) / 10 : 0;
+  }
+
+  /**
+   * L4: does this restaurant's discounting actually work, or is it just giving away margin
+   * on orders that would have happened anyway? Two pieces: per-offer performance (so a
+   * restaurant can see which specific offers pull their weight), and the one question that
+   * actually answers "effectiveness" — is the average order value genuinely higher on
+   * orders that used an offer than on ones that didn't? Revenue/AOV both use `subtotal`,
+   * matching every other insights metric above, and both stay scoped to delivered orders —
+   * a redemption on a cancelled order never actually became real revenue.
+   */
+  private async getDiscountEffectiveness(restaurantId: string) {
+    const perOfferRows = await this.orderRepo.manager.query(
+      `SELECT
+         o.id, o.name, o.code, o.active,
+         COUNT(red.id) as redemption_count,
+         COALESCE(SUM(red."discountAmount"), 0) as total_discount_given,
+         COALESCE(SUM(ord.subtotal) FILTER (WHERE ord.status = 'delivered'), 0) as revenue_from_offer,
+         COALESCE(AVG(ord.subtotal) FILTER (WHERE ord.status = 'delivered'), 0) as avg_order_value
+       FROM offers o
+       LEFT JOIN offer_redemptions red ON red."offerId" = o.id
+       LEFT JOIN orders ord ON ord.id = red."orderId"
+       WHERE o."restaurantId" = $1
+       GROUP BY o.id, o.name, o.code, o.active
+       ORDER BY redemption_count DESC`,
+      [restaurantId],
+    );
+
+    const comparisonRows = await this.orderRepo.manager.query(
+      `SELECT
+         AVG(ord.subtotal) FILTER (WHERE red.id IS NOT NULL) as avg_with_offer,
+         AVG(ord.subtotal) FILTER (WHERE red.id IS NULL) as avg_without_offer,
+         COUNT(*) FILTER (WHERE red.id IS NOT NULL) as orders_with_offer,
+         COUNT(*) as total_orders
+       FROM orders ord
+       LEFT JOIN offer_redemptions red ON red."orderId" = ord.id
+       WHERE ord."restaurantId" = $1 AND ord.status = 'delivered'`,
+      [restaurantId],
+    );
+    const c = comparisonRows[0];
+    const avgWithOffer = c.avg_with_offer !== null ? Math.round(Number(c.avg_with_offer) * 100) / 100 : null;
+    const avgWithoutOffer = c.avg_without_offer !== null ? Math.round(Number(c.avg_without_offer) * 100) / 100 : null;
+
+    return {
+      perOffer: perOfferRows.map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        code: row.code,
+        active: row.active,
+        redemptionCount: parseInt(row.redemption_count),
+        totalDiscountGiven: Math.round(Number(row.total_discount_given) * 100) / 100,
+        revenueFromOffer: Math.round(Number(row.revenue_from_offer) * 100) / 100,
+        avgOrderValue: Math.round(Number(row.avg_order_value) * 100) / 100,
+      })),
+      avgOrderValueWithOffer: avgWithOffer,
+      avgOrderValueWithoutOffer: avgWithoutOffer,
+      // Null rather than 0 when there's not enough data either side to compare honestly —
+      // a restaurant with zero non-offer orders can't meaningfully answer "does it help"
+      liftPercent:
+        avgWithOffer !== null && avgWithoutOffer !== null && avgWithoutOffer > 0
+          ? Math.round(((avgWithOffer - avgWithoutOffer) / avgWithoutOffer) * 1000) / 10
+          : null,
+      ordersWithOffer: parseInt(c.orders_with_offer),
+      totalOrders: parseInt(c.total_orders),
+    };
   }
 
   /**

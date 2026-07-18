@@ -645,6 +645,33 @@ time, not just today.
   separate manual diagnostic confirming the admin panel path end to end with direct
   database verification. 29 suites, 219 backend tests, all passing.
 
+- **L4 (deeper analytics) — discount effectiveness done, the rest of the original scope
+  turned out to already exist.** Checked the existing `InsightsScreen`/`getRestaurantInsights`
+  before building anything — revenue (today/lifetime), week-over-week, repeat customer
+  rate, cancellation rate, hourly order chart, top-selling items, and real accept/prep
+  timing were all already there. The one explicitly-named gap from the original L4 note
+  — "discount effectiveness" — genuinely didn't exist, so that's what got built.
+
+  Two pieces: per-offer performance (real redemption count, total discount given away,
+  revenue attributed to that offer), and the actual effectiveness question — is average
+  order value genuinely higher on orders that used an offer than ones that didn't, not
+  just "how many times has it been used." Both use `subtotal` and stay scoped to
+  delivered orders, matching every other insights metric already in place — a
+  redemption on a cancelled order never became real revenue, so it's tracked (the
+  discount was still genuinely given) but contributes zero to the comparison.
+
+  **A real assumption caught by testing, not by inspection**: my first version of the
+  with-vs-without comparison test assumed I could create one "control" order that
+  didn't get an automatic offer — but automatic (no-code) offers apply themselves to
+  *every* eligible order by design, so both orders ended up "with offer" and the test's
+  premise was simply wrong. Fixed by using a code-based offer for the comparison
+  instead, since a code only applies when a customer actually types it — genuine
+  control, not a workaround.
+
+  5 new backend tests. Verified against the real running restaurant dashboard with a
+  full diagnostic (real order, real 15% offer, real delivery) — ₹300 order showed
+  exactly ₹45 given away, confirmed correct by hand. 30 suites, 224 backend tests.
+
 ## For the new chat
 
 Paste this file's contents, or just reference "MannaDash" — Claude's memory system should also
