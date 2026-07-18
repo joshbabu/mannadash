@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import AdminComplaintsScreen from './AdminComplaintsScreen';
 
 export default function DashboardScreen({ onLogout }) {
   const [tab, setTab] = useState('restaurants');
@@ -130,6 +131,9 @@ export default function DashboardScreen({ onLogout }) {
         </button>
         <button className={tab === 'riders' ? 'active' : ''} onClick={() => setTab('riders')}>
           Riders {unverifiedRiders.length > 0 && `(${unverifiedRiders.length} unverified)`}
+        </button>
+        <button className={tab === 'complaints' ? 'active' : ''} onClick={() => setTab('complaints')}>
+          Complaints
         </button>
       </div>
 
@@ -298,6 +302,8 @@ export default function DashboardScreen({ onLogout }) {
           </div>
         </div>
       )}
+
+      {tab === 'complaints' && <AdminComplaintsScreen />}
     </div>
   );
 }

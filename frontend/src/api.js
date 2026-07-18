@@ -44,6 +44,8 @@ export const api = {
   // Orders
   placeOrder: (body) => request('/orders', { method: 'POST', body, auth: true }),
   getMyOrders: () => request('/orders', { auth: true }),
+  fileComplaint: (orderId, body) => request(`/orders/${orderId}/complaints`, { method: 'POST', body, auth: true }),
+  getMyComplaints: () => request('/orders/complaints/mine', { auth: true }),
   getOrder: (id) => request(`/orders/${id}`, { auth: true }),
   cancelOrder: (id) => request(`/orders/${id}/status`, { method: 'PATCH', body: { status: 'cancelled' }, auth: true }),
   createPayment: (orderId) => request(`/orders/${orderId}/create-payment`, { method: 'POST', auth: true }),

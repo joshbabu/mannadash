@@ -33,6 +33,8 @@ export const api = {
   getRestaurants: () => request('/restaurants'),
   setRestaurantStatus: (id, status) => request(`/restaurants/${id}/status`, { method: 'PATCH', body: { status }, auth: true }),
   getRestaurantKyc: (id) => request(`/restaurants/${id}/kyc`, { auth: true }),
+  getAllComplaints: () => request('/orders/complaints/admin', { auth: true }),
+  respondToComplaint: (complaintId, body) => request(`/orders/complaints/${complaintId}/respond`, { method: 'PATCH', body, auth: true }),
   resetPassword: (role, phone) => request('/admin/reset-password', { method: 'POST', body: { role, phone }, auth: true }),
   getStaleUnassignedOrders: () => request('/admin/stale-unassigned-orders', { auth: true }),
 

@@ -619,6 +619,32 @@ time, not just today.
   customer-side filing + viewing complaints, a restaurant dashboard complaints screen,
   and an admin panel view — building those next.
 
+- **L2 (complaints) — frontend done across all three apps. L2 is now fully complete.**
+  Customer: "🚩 Report an issue" on delivered/cancelled orders in Order History, opens a
+  category-picker + description modal (`ComplaintModal.jsx`), status and any restaurant
+  response shown inline once filed. Restaurant dashboard: new "Complaints" tab, modeled
+  directly on the existing Reviews tab's card/reply pattern — respond and set status
+  from the same form. Admin panel: new "Complaints" tab, sees every complaint platform-
+  wide with a status filter row, can update status directly (no separate "edit mode"
+  needed, unlike the restaurant side).
+
+  **Two real bugs caught by actually testing each app, not just building and assuming**:
+  (1) `TypeOrmModule.forFeature()` alone isn't enough for a new entity — same lesson
+  from the backend patch, now proven the hard way against a live app: `Complaint`
+  needed adding to `app.module.ts`'s explicit entity array too, or every complaint
+  request 500'd. (2) The admin panel's `AdminComplaintsScreen` had two separate button
+  rows both literally labeled "resolved" — a status *filter* row at the top and a
+  per-complaint *action* row below it, visually distinct but accessibly identical.
+  Confirmed directly: clicking "resolved" was hitting the filter button, and the
+  complaint's real status never changed server-side despite the button appearing to
+  work. Fixed with explicit `aria-label`s ("Filter: resolved" vs "Mark resolved") —
+  correct accessibility practice, not a testing-only patch.
+
+  Extended the real Playwright suite with a full cross-app complaint flow (customer
+  files → restaurant responds and resolves, verified in both apps' real UI), plus a
+  separate manual diagnostic confirming the admin panel path end to end with direct
+  database verification. 29 suites, 219 backend tests, all passing.
+
 ## For the new chat
 
 Paste this file's contents, or just reference "MannaDash" — Claude's memory system should also

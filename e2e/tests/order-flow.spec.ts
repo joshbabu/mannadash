@@ -669,6 +669,36 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await expect(customerPage.locator('#checkout-cart-summary .muted').first()).toHaveCSS('color', 'rgb(107, 97, 86)');
   });
 
+  await test.step('L2: customer files a complaint, restaurant sees and responds to it', async () => {
+    // Coming from checkout (previous step) — checkout and the menu screen both hide the
+    // bottom nav (selectedRestaurant/pendingOrder), so it takes two Back taps to reach
+    // browse, where "📋 Orders" actually becomes visible again
+    await customerPage.getByRole('button', { name: '← Back' }).click();
+    await customerPage.getByRole('button', { name: '← Back' }).click().catch(() => {});
+    await customerPage.getByRole('button', { name: '📋 Orders' }).click();
+    await expect(customerPage.getByText('🚩 Report an issue').first()).toBeVisible({ timeout: 10_000 });
+    await customerPage.getByText('🚩 Report an issue').first().click();
+
+    await expect(customerPage.getByRole('heading', { name: 'Report an issue' })).toBeVisible();
+    await customerPage.getByRole('button', { name: '👎 Quality issue' }).click();
+    await customerPage.getByPlaceholder('Tell us more about what happened…').fill('The biryani arrived lukewarm and the raita had clearly separated.');
+    await customerPage.getByRole('button', { name: 'Submit report' }).click();
+    await expect(customerPage.getByText(/quality issue.*Open/i)).toBeVisible({ timeout: 10_000 });
+
+    // Switch to the restaurant dashboard and respond to it there — scoped to the specific
+    // card by its description text, not .first(), since more than one complaint card can
+    // legitimately exist on screen by this point and .first() wouldn't guarantee picking
+    // the one just filed
+    await restaurantPage.getByRole('button', { name: 'Complaints' }).click();
+    const complaintCard = restaurantPage.locator('.card', { hasText: 'lukewarm' });
+    await expect(complaintCard).toBeVisible({ timeout: 10_000 });
+    await complaintCard.getByRole('button', { name: 'Respond' }).click();
+    await complaintCard.getByPlaceholder('Explain what happened, or how you\'ve resolved it…').fill('Very sorry — refunded in full and spoke with the kitchen team.');
+    await complaintCard.getByRole('button', { name: 'resolved', exact: true }).click();
+    await complaintCard.getByRole('button', { name: 'Save' }).click();
+    await expect(complaintCard.getByText('Very sorry — refunded in full', { exact: false })).toBeVisible({ timeout: 10_000 });
+  });
+
   await customerContext.close();
   await restaurantContext.close();
   await riderContext.close();

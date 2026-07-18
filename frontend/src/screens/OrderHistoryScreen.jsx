@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { isRestaurantOpenNow } from '../utils/restaurant-hours';
+import ComplaintModal from './ComplaintModal';
 
 export default function OrderHistoryScreen({ onSelectOrder, onReorder, onViewRestaurant }) {
   const [orders, setOrders] = useState([]);
@@ -11,6 +12,8 @@ export default function OrderHistoryScreen({ onSelectOrder, onReorder, onViewRes
   const [pwError, setPwError] = useState('');
   const [pwChanged, setPwChanged] = useState(false);
   const [changingPw, setChangingPw] = useState(false);
+  const [complaintModalOrderId, setComplaintModalOrderId] = useState(null);
+  const [complaintsByOrderId, setComplaintsByOrderId] = useState({});
 
   async function changePassword() {
     setPwError('');
@@ -35,7 +38,23 @@ export default function OrderHistoryScreen({ onSelectOrder, onReorder, onViewRes
       .then(setOrders)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+    api.getMyComplaints().then((complaints) => {
+      const grouped = {};
+      for (const c of complaints) {
+        const orderId = c.order.id;
+        if (!grouped[orderId]) grouped[orderId] = [];
+        grouped[orderId].push(c);
+      }
+      setComplaintsByOrderId(grouped);
+    }).catch(() => {});
   }, []);
+
+  function handleComplaintFiled(complaint) {
+    setComplaintsByOrderId((prev) => ({
+      ...prev,
+      [complaintModalOrderId]: [...(prev[complaintModalOrderId] || []), complaint],
+    }));
+  }
 
   return (
     <div className="screen">
@@ -86,6 +105,25 @@ export default function OrderHistoryScreen({ onSelectOrder, onReorder, onViewRes
             >
               🔁 Reorder
             </button>
+            {(o.status === 'delivered' || o.status === 'cancelled') && (
+              <button
+                className="btn-secondary"
+                style={{ marginTop: 10, marginLeft: 8 }}
+                onClick={() => setComplaintModalOrderId(o.id)}
+              >
+                🚩 Report an issue
+              </button>
+            )}
+            {complaintsByOrderId[o.id]?.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                {complaintsByOrderId[o.id].map((c) => (
+                  <p key={c.id} className="muted" style={{ fontSize: 12 }}>
+                    🚩 {c.category.replaceAll('_', ' ')} — <span style={{ textTransform: 'capitalize' }}>{c.status.replaceAll('_', ' ')}</span>
+                    {c.restaurantResponse && <> · Response: "{c.restaurantResponse}"</>}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -104,6 +142,13 @@ export default function OrderHistoryScreen({ onSelectOrder, onReorder, onViewRes
           </div>
         </div>
       </div>
+      {complaintModalOrderId && (
+        <ComplaintModal
+          orderId={complaintModalOrderId}
+          onClose={() => setComplaintModalOrderId(null)}
+          onFiled={handleComplaintFiled}
+        />
+      )}
     </div>
   );
 }
