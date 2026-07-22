@@ -1,6 +1,23 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import FilterModal from './FilterModal';
+import { isRestaurantOpenNow } from '../utils/restaurant-hours';
+
+// Warm food-toned gradients for the card banner when no real photo matches the cuisine.
+// Picked deterministically per restaurant (by name) so a given place always looks the same.
+const BANNER_GRADIENTS = [
+  'linear-gradient(135deg, #f4a200 0%, #e4572e 100%)',
+  'linear-gradient(135deg, #e4572e 0%, #a3341f 100%)',
+  'linear-gradient(135deg, #4c7a52 0%, #2e5a3a 100%)',
+  'linear-gradient(135deg, #d98324 0%, #8c4a1e 100%)',
+  'linear-gradient(135deg, #c1432e 0%, #6a2a55 100%)',
+];
+
+function hashString(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i += 1) h = (h * 31 + str.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
 
 // Hitech City, Hyderabad — reasonable default center for the MVP demo area
 const DEFAULT_LAT = 17.4435;
@@ -182,6 +199,21 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
   });
 
   const activeFilterCount = Object.entries(filters).filter(([, v]) => v).length;
+
+  // Pick a hero banner for a card: a real food photo when the cuisine maps to one of the
+  // known categories (reusing the same photos the category row already loaded), otherwise
+  // a deterministic warm gradient + emoji so every card still reads as image-forward.
+  function bannerFor(r) {
+    const cuisine = (r.cuisineType || '').toLowerCase();
+    const matched = QUICK_CATEGORIES.find((cat) => {
+      const term = (cat.searchTerm || cat.label).toLowerCase();
+      return cuisine.includes(cat.label.toLowerCase()) || cuisine.includes(term);
+    });
+    const photo = matched ? categoryPhotos[matched.label] : null;
+    if (photo) return { style: { backgroundImage: `url(${photo})` }, emoji: null };
+    const grad = BANNER_GRADIENTS[hashString(r.name || '') % BANNER_GRADIENTS.length];
+    return { style: { background: grad }, emoji: matched ? matched.icon : '🍽️' };
+  }
 
   return (
     <div className="screen">
@@ -403,51 +435,66 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
       )}
 
       <div className="stack">
-        {sortedRestaurants.map((r) => (
-          <div
-            key={r.id}
-            className="card"
-            role="button"
-            aria-label={`View menu for ${r.name}`}
-            tabIndex={0}
-            onClick={() => onSelectRestaurant(r)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelectRestaurant(r); }}
-            style={{ textAlign: 'left', width: '100%', cursor: 'pointer' }}
-          >
-            <div className="row" style={{ alignItems: 'flex-start' }}>
-              <h3 style={{ fontSize: 17 }}>
-                {r.name}
-                {r.isVegOnly && (
-                  <span
-                    style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#2e6b34', background: '#e3edd8', padding: '2px 8px', borderRadius: 10, verticalAlign: 'middle' }}
-                  >
-                    🌱 Pure Veg
-                  </span>
-                )}
-              </h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        {sortedRestaurants.map((r) => {
+          const banner = bannerFor(r);
+          const openNow = isRestaurantOpenNow(r);
+          const rating = Number(r.ratingAvg || 0);
+          const prep = r.avgPrepTimeMins;
+          return (
+            <div
+              key={r.id}
+              className="rest-card"
+              role="button"
+              aria-label={`View menu for ${r.name}`}
+              tabIndex={0}
+              onClick={() => onSelectRestaurant(r)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelectRestaurant(r); }}
+            >
+              <div className="rest-card__banner" style={banner.style}>
+                {banner.emoji && <span className="rest-card__banner-emoji">{banner.emoji}</span>}
                 <button
+                  className="rest-card__fav"
                   aria-label={favoriteIds.has(r.id) ? 'Remove from favorites' : 'Add to favorites'}
                   onClick={(e) => { e.stopPropagation(); toggleFavorite(r.id); }}
-                  style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: 0 }}
                 >
                   {favoriteIds.has(r.id) ? '❤️' : '🤍'}
                 </button>
-                <span className="pill">{(r.distanceMeters / 1000).toFixed(1)} km</span>
+                {r.hasActiveOffer && <span className="rest-card__offer">🏷️ Offers available</span>}
+                {!openNow && <div className="rest-card__closed">Currently closed</div>}
+              </div>
+              <div className="rest-card__body">
+                <div className="rest-card__title-row">
+                  <span className="rest-card__name">{r.name}</span>
+                  {rating > 0 ? (
+                    <span className="rating-badge">{rating.toFixed(1)} ★</span>
+                  ) : (
+                    <span className="rating-badge rating-badge--new">New</span>
+                  )}
+                </div>
+                <p className="rest-card__cuisine">
+                  {r.cuisineType}
+                  {r.costForTwo ? ` · ₹${r.costForTwo} for two` : ''}
+                </p>
+                <div className="rest-card__meta">
+                  {r.isVegOnly && <span className="veg-badge">🌱 Pure Veg</span>}
+                  {r.isVegOnly && <span className="dot" />}
+                  <span>⏱ {prep}–{prep + 10} min</span>
+                  <span className="dot" />
+                  <span>{(r.distanceMeters / 1000).toFixed(1)} km</span>
+                  {rating > 0 && (
+                    <>
+                      <span className="dot" />
+                      <span>{r.ratingCount} {r.ratingCount === 1 ? 'rating' : 'ratings'}</span>
+                    </>
+                  )}
+                </div>
+                {r.matchedDishes?.length > 0 && (
+                  <p className="rest-card__dish-hit">🍽️ {r.matchedDishes.join(', ')}</p>
+                )}
               </div>
             </div>
-            <p className="muted" style={{ color: '#6b6156' }}>
-              {Number(r.ratingAvg) > 0 && <>★ {Number(r.ratingAvg).toFixed(1)} ({r.ratingCount}) · </>}
-              {r.cuisineType} · {r.avgPrepTimeMins} min prep
-              {r.costForTwo && <> · ₹{r.costForTwo} for two</>}
-            </p>
-            {r.matchedDishes?.length > 0 && (
-              <p style={{ color: 'var(--chili-dark)', fontSize: 13, fontWeight: 600, margin: '4px 0 0' }}>
-                🍽️ {r.matchedDishes.join(', ')}
-              </p>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
       {showFilterModal && (
         <FilterModal
