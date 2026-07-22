@@ -84,4 +84,40 @@ describe('Weekly operating hours', () => {
       expect(isWithinRestaurantHours(r, at('2026-07-06T03:00:00'))).toBe(true);
     });
   });
+
+  // Regression: operating hours are India wall-clock times, but production runs in UTC.
+  // isWithinRestaurantHours must evaluate against Asia/Kolkata (+05:30), not server-local
+  // time. Uses absolute UTC instants (trailing Z) so these are timezone-independent and
+  // reproduce the reported bug: a restaurant open "08:00–03:00" wrongly reported closed at
+  // 09:10 IST (which is 03:40 UTC — outside the window when misread as UTC).
+  describe('India-timezone evaluation (Asia/Kolkata)', () => {
+    const allDays = (open: string, close: string): WeeklyHours =>
+      Object.fromEntries(
+        ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((d) => [d, { open, close }]),
+      );
+
+    it('is OPEN at 09:10 IST for an 08:00–03:00 restaurant (the reported bug)', () => {
+      const r = { openTime: null, closeTime: null, weeklyHours: allDays('08:00', '03:00') };
+      // 2026-07-22T03:40:00Z === Wed 09:10 IST
+      expect(isWithinRestaurantHours(r, new Date('2026-07-22T03:40:00Z'))).toBe(true);
+    });
+
+    it('is CLOSED at 07:30 IST for an 08:00–03:00 restaurant (before opening)', () => {
+      const r = { openTime: null, closeTime: null, weeklyHours: allDays('08:00', '03:00') };
+      // 2026-07-22T02:00:00Z === Wed 07:30 IST
+      expect(isWithinRestaurantHours(r, new Date('2026-07-22T02:00:00Z'))).toBe(false);
+    });
+
+    it("is OPEN at 02:00 IST via the previous day's overnight tail", () => {
+      const r = { openTime: null, closeTime: null, weeklyHours: allDays('08:00', '03:00') };
+      // 2026-07-21T20:30:00Z === Wed 02:00 IST (Tuesday's 08:00–03:00 window spilling over)
+      expect(isWithinRestaurantHours(r, new Date('2026-07-21T20:30:00Z'))).toBe(true);
+    });
+
+    it('applies IST to the legacy single daily window too', () => {
+      const legacy = { openTime: '08:00', closeTime: '22:00', weeklyHours: null };
+      expect(isWithinRestaurantHours(legacy, new Date('2026-07-22T03:40:00Z'))).toBe(true); // 09:10 IST
+      expect(isWithinRestaurantHours(legacy, new Date('2026-07-22T18:00:00Z'))).toBe(false); // 23:30 IST
+    });
+  });
 });
