@@ -218,7 +218,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, sche
   }
 
   return (
-    <div className="screen" style={{ paddingBottom: 'calc(140px + env(safe-area-inset-bottom))' }}>
+    <div className="screen" style={{ paddingBottom: 'calc(160px + env(safe-area-inset-bottom))' }}>
       <button className="btn-secondary" onClick={onBack} style={{ marginTop: 12, marginBottom: 12 }}>
         ← Back to menu
       </button>
