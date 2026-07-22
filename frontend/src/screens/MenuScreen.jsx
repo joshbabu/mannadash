@@ -26,6 +26,9 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [dietFilter, setDietFilter] = useState('all'); // 'all' | 'veg' | 'nonveg'
+  const [sortBy, setSortBy] = useState('relevance'); // 'relevance' | 'priceLow' | 'priceHigh'
+  const [topPicksOnly, setTopPicksOnly] = useState(false);
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
   const [showAllOffers, setShowAllOffers] = useState(false);
   const [showCategorySheet, setShowCategorySheet] = useState(false);
   const [expandedDescriptions, setExpandedDescriptions] = useState(new Set());
@@ -133,16 +136,31 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
           (item.description || '').toLowerCase().includes(menuSearch.toLowerCase()),
       )
     : items;
-  const visibleItems =
+  const dietFiltered =
     dietFilter === 'veg'
       ? searched.filter((item) => item.isVeg)
       : dietFilter === 'nonveg'
         ? searched.filter((item) => !item.isVeg)
         : searched;
+  // "Top picks" = the same bestseller flag the item cards badge, i.e. Swiggy's "Highly reordered"
+  const visibleItems = topPicksOnly ? dietFiltered.filter((item) => item.isBestseller) : dietFiltered;
+
+  function sortItems(arr) {
+    if (sortBy === 'priceLow') return [...arr].sort((a, b) => Number(a.price) - Number(b.price));
+    if (sortBy === 'priceHigh') return [...arr].sort((a, b) => Number(b.price) - Number(a.price));
+    return arr;
+  }
   const groupedItems = CATEGORY_ORDER.map((cat) => ({
     category: cat,
-    items: visibleItems.filter((item) => item.category === cat),
+    items: sortItems(visibleItems.filter((item) => item.category === cat)),
   })).filter((group) => group.items.length > 0);
+
+  const activeFilterCount = (dietFilter !== 'all' ? 1 : 0) + (sortBy !== 'relevance' ? 1 : 0) + (topPicksOnly ? 1 : 0);
+  function clearAllFilters() {
+    setDietFilter('all');
+    setSortBy('relevance');
+    setTopPicksOnly(false);
+  }
 
   function toggleDescription(itemId) {
     setExpandedDescriptions((prev) => {
@@ -271,6 +289,12 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
           style={{ width: '100%', background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd', marginBottom: 10 }}
         />
         <div className="diet-chips">
+          <button
+            className={`filters-btn ${activeFilterCount > 0 ? 'has-active' : ''}`}
+            onClick={() => setShowFilterSheet(true)}
+          >
+            ⚙️ Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+          </button>
           {[
             { key: 'all', label: 'All' },
             { key: 'veg', label: 'Veg', cls: 'veg', mark: true },
@@ -496,6 +520,72 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
         <button className="menu-fab" onClick={() => setShowCategorySheet(true)}>
           🍽️ Menu
         </button>
+      )}
+
+      {showFilterSheet && (
+        <div className="menu-sheet__backdrop" onClick={() => setShowFilterSheet(false)}>
+          <div className="menu-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="row" style={{ padding: '14px 20px 4px' }}>
+              <h3 style={{ fontSize: 18 }}>Filters and Sorting</h3>
+              <button className="btn-ghost" style={{ fontSize: 18, color: 'var(--charcoal)' }} onClick={() => setShowFilterSheet(false)}>✕</button>
+            </div>
+
+            <div className="filter-section">
+              <p className="filter-section__title">Sort by</p>
+              <div className="filter-options">
+                {[
+                  { key: 'priceLow', label: 'Price — low to high' },
+                  { key: 'priceHigh', label: 'Price — high to low' },
+                ].map((s) => (
+                  <button
+                    key={s.key}
+                    className={`filter-option ${sortBy === s.key ? 'active' : ''}`}
+                    onClick={() => setSortBy(sortBy === s.key ? 'relevance' : s.key)}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="filter-section">
+              <p className="filter-section__title">Veg / Non-veg preference</p>
+              <div className="filter-options">
+                {[
+                  { key: 'veg', label: '🌱 Veg', cls: 'veg' },
+                  { key: 'nonveg', label: '🔺 Non-veg', cls: 'nonveg' },
+                ].map((d) => (
+                  <button
+                    key={d.key}
+                    className={`filter-option ${d.cls} ${dietFilter === d.key ? 'active' : ''}`}
+                    onClick={() => setDietFilter(dietFilter === d.key ? 'all' : d.key)}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="filter-section">
+              <p className="filter-section__title">Top picks</p>
+              <div className="filter-options">
+                <button
+                  className={`filter-option ${topPicksOnly ? 'active' : ''}`}
+                  onClick={() => setTopPicksOnly((v) => !v)}
+                >
+                  🔁 Highly reordered
+                </button>
+              </div>
+            </div>
+
+            <div className="filter-actions">
+              <button className="clear" onClick={clearAllFilters}>Clear All</button>
+              <button className="apply" onClick={() => setShowFilterSheet(false)}>
+                Apply{groupedItems.reduce((n, g) => n + g.items.length, 0) ? ` (${groupedItems.reduce((n, g) => n + g.items.length, 0)})` : ''}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showCategorySheet && (
