@@ -299,3 +299,190 @@ button:focus-visible {
 .card .muted {
   color: #6b6156;
 }
+
+/* --- Swiggy/Zomato-style restaurant cards ---
+   Image-forward layout: a hero food photo up top, then a body with the name, a green
+   rating badge, cuisine/cost line, and a delivery-time footer. Uses its own class (NOT
+   .card) so it opts out of the diagonal .card::before sheen, which would otherwise wash
+   over the photo. Kept on the same cream card surface as the rest of the app. */
+.rest-card {
+  background: var(--card-gradient);
+  color: var(--charcoal);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.15s ease;
+}
+
+.rest-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 38px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.rest-card:active {
+  transform: scale(0.99);
+}
+
+.rest-card__banner {
+  position: relative;
+  height: 158px;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Bottom gradient scrim so a white offer ribbon / veg badge stays legible over any photo */
+.rest-card__banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 42%);
+  pointer-events: none;
+}
+
+.rest-card__banner-emoji {
+  font-size: 58px;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35));
+}
+
+.rest-card__offer {
+  position: absolute;
+  left: 0;
+  bottom: 10px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px 5px 10px;
+  border-radius: 0 8px 8px 0;
+  background: linear-gradient(90deg, var(--chili) 0%, var(--chili-dark) 100%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+.rest-card__fav {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.rest-card__closed {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rest-card__body {
+  padding: 12px 14px 14px;
+}
+
+.rest-card__title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.rest-card__name {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+/* Swiggy's signature solid-green rating chip */
+.rating-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border-radius: 7px;
+  background: #256b3f;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.rating-badge--new {
+  background: #eef3ee;
+  color: #256b3f;
+  border: 1px solid #cfe0d3;
+}
+
+.rest-card__cuisine {
+  margin: 6px 0 0;
+  color: #6b6156;
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+
+.rest-card__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #e2dccb;
+  color: var(--charcoal);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rest-card__meta .dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #b8ae9c;
+}
+
+.veg-badge,
+.nonveg-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.veg-badge {
+  color: #2e6b34;
+  background: #e3edd8;
+}
+
+.rest-card__dish-hit {
+  margin: 8px 0 0;
+  color: var(--chili-dark);
+  font-size: 13px;
+  font-weight: 600;
+}
