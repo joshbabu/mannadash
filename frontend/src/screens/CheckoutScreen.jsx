@@ -218,7 +218,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, sche
   }
 
   return (
-    <div className="screen" style={{ paddingBottom: 'calc(132px + env(safe-area-inset-bottom))' }}>
+    <div className="screen" style={{ paddingBottom: 'calc(140px + env(safe-area-inset-bottom))' }}>
       <button className="btn-secondary" onClick={onBack} style={{ marginTop: 12, marginBottom: 12 }}>
         ← Back to menu
       </button>
@@ -528,19 +528,19 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, sche
           alignItems: 'center', justifyContent: 'space-between', gap: 12, zIndex: 40,
         }}
       >
-        <div>
-          <div style={{ fontWeight: 700, color: 'var(--charcoal)' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, color: 'var(--charcoal)', whiteSpace: 'nowrap' }}>
             {deliveryFee == null ? 'Calculating…' : `To Pay ₹${grandTotal.toFixed(0)}`}
           </div>
           <button
             className="btn-ghost"
-            style={{ fontSize: 12, padding: 0, color: 'var(--chili-dark)' }}
+            style={{ fontSize: 12, padding: 0, color: 'var(--chili-dark)', whiteSpace: 'nowrap' }}
             onClick={() => document.getElementById('checkout-cart-summary')?.scrollIntoView({ behavior: 'smooth' })}
           >
             View detailed bill
           </button>
         </div>
-        <button className="btn-primary" style={{ flex: 'none', minWidth: 160 }} onClick={placeOrder} disabled={loading || cartItems.length === 0}>
+        <button className="btn-primary" style={{ flex: 'none', width: 'auto', minWidth: 150 }} onClick={placeOrder} disabled={loading || cartItems.length === 0}>
           {loading ? 'Placing order…' : 'Place order'}
         </button>
       </div>
