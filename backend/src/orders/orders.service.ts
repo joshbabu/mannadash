@@ -12,7 +12,7 @@ import { Rating } from './entities/rating.entity';
 import { Complaint } from './entities/complaint.entity';
 import { Payout } from '../delivery-partners/entities/payout.entity';
 import { Restaurant, RestaurantStatus } from '../restaurants/entities/restaurant.entity';
-import { isWithinRestaurantHours, WEEK_DAYS } from '../restaurants/operating-hours.util';
+import { isWithinRestaurantHours, wallClockParts, RESTAURANT_TIME_ZONE, WEEK_DAYS } from '../restaurants/operating-hours.util';
 import { MenuItem } from '../menu-items/entities/menu-item.entity';
 import { Customer } from '../customers/entities/customer.entity';
 import { RestaurantHistoryQueryDto } from './dto/restaurant-history-query.dto';
@@ -100,8 +100,11 @@ export class OrdersService {
     const hoursCheckTime = scheduledFor ?? new Date();
     if (!isWithinRestaurantHours(restaurant, hoursCheckTime)) {
       // Craft the message from whichever hours scheme this restaurant uses — per-day (new
-      // onboarding wizard) or the legacy single daily window
-      const todayHours = restaurant.weeklyHours?.[WEEK_DAYS[hoursCheckTime.getDay()]];
+      // onboarding wizard) or the legacy single daily window. Use the India wall-clock day
+      // (same basis as the check above), not the server-local day, so the "today" it names
+      // matches the day the check actually evaluated.
+      const { day: istDay } = wallClockParts(hoursCheckTime, RESTAURANT_TIME_ZONE);
+      const todayHours = restaurant.weeklyHours?.[WEEK_DAYS[istDay]];
       const hoursText = restaurant.weeklyHours
         ? todayHours
           ? `${scheduledFor ? "that day's" : "today's"} hours are ${todayHours.open}\u2013${todayHours.close}`
