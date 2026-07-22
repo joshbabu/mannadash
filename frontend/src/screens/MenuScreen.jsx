@@ -215,7 +215,9 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
 
   return (
     <div className="screen">
-      <button className="menu-back" aria-label="Back" onClick={onBack}>←</button>
+      {/* Icon-only back affordance (Swiggy-style), but the accessible name stays "← Back"
+          so screen readers — and the cross-app e2e navigation locators — keep working. */}
+      <button className="menu-back" aria-label="← Back" onClick={onBack}>←</button>
 
       <div className="menu-header">
         <div className="menu-header__top">
@@ -382,9 +384,9 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
                         <button className="menu-item__add" onClick={() => setPickerItem(item)}>ADD +</button>
                       ) : cart[item.id] ? (
                         <div className="menu-item__stepper">
-                          <button aria-label="Remove one" onClick={() => changeQty(item.id, -1, item.id, [])}>−</button>
+                          <button aria-label="Decrease quantity" onClick={() => changeQty(item.id, -1, item.id, [])}>−</button>
                           <span>{cart[item.id].quantity}</span>
-                          <button aria-label="Add one" onClick={() => changeQty(item.id, 1, item.id, [])}>+</button>
+                          <button aria-label="Increase quantity" onClick={() => changeQty(item.id, 1, item.id, [])}>+</button>
                         </div>
                       ) : (
                         <button className="menu-item__add" onClick={() => changeQty(item.id, 1, item.id, [])}>ADD +</button>
