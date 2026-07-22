@@ -442,8 +442,12 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     await customerPage.reload();
     await customerPage.getByPlaceholder('Search by name, cuisine, or dish…').fill(restaurantName);
     await customerPage.getByText(restaurantName).click();
-    await expect(customerPage.getByText(/🎉 10% OFF/)).toBeVisible();
-    await expect(customerPage.getByText(/🎉 ₹40 OFF with code/)).toBeVisible();
+    // Offers now live in a collapsible strip on the menu (Swiggy-style): a teaser plus an
+    // expandable list of every offer. Expand it and confirm both the automatic percentage
+    // offer and the code offer are surfaced to the customer.
+    await customerPage.locator('.menu-offers__head').click();
+    await expect(customerPage.locator('.menu-offers__list').getByText(/10% OFF/)).toBeVisible();
+    await expect(customerPage.locator('.menu-offers__list').getByText(/₹40 OFF with code/)).toBeVisible();
 
     // Scoped to E2E Test Dish specifically — this restaurant also has E2E Variant Dish
     // from the Phase J step, whose "Add" opens a picker instead of adding directly
