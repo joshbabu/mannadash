@@ -700,12 +700,16 @@ button:focus-visible {
 }
 
 /* Floating category-jump button + bottom sheet */
+/* Floating category-jump button, pinned to the right edge of the (max-480) app column
+   rather than centered — the `max()` keeps it 16px inside the column on wide screens and
+   16px from the edge on phones. */
 .menu-fab {
   position: fixed;
   z-index: 20;
   bottom: 92px;
-  left: 50%;
-  transform: translateX(-50%);
+  right: max(16px, calc(50% - 240px + 16px));
+  left: auto;
+  transform: none;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -716,6 +720,98 @@ button:focus-visible {
   font-weight: 700;
   font-size: 14px;
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.45);
+}
+
+/* Filters & Sorting bottom sheet */
+.filter-section {
+  padding: 14px 20px;
+  border-bottom: 1px solid #efe7d7;
+}
+
+.filter-section__title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #8a8378;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.filter-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #fff;
+  color: var(--charcoal);
+  border: 1px solid #d7cfbe;
+}
+
+.filter-option.active {
+  background: var(--charcoal);
+  color: #fff;
+  border-color: var(--charcoal);
+}
+
+.filter-option.active.veg { background: #1f8a4c; border-color: #1f8a4c; }
+.filter-option.active.nonveg { background: #b0331d; border-color: #b0331d; }
+
+.filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
+}
+
+.filter-actions .clear {
+  background: none;
+  border: none;
+  color: var(--chili-dark);
+  font-weight: 700;
+  font-size: 15px;
+  padding: 10px 8px;
+}
+
+.filter-actions .apply {
+  flex: 1;
+  padding: 13px 0;
+  border-radius: 12px;
+  background: var(--accent-gradient);
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+/* A compact Filters entry button that sits alongside the quick diet chips */
+.filters-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--ink-soft);
+  color: var(--paper);
+  border: 1px solid var(--line);
+}
+
+.filters-btn.has-active {
+  background: var(--turmeric);
+  color: var(--ink);
+  border-color: var(--turmeric);
 }
 
 .menu-sheet__backdrop {

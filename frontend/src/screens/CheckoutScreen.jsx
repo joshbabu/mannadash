@@ -218,7 +218,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, sche
   }
 
   return (
-    <div className="screen" style={{ paddingBottom: 90 }}>
+    <div className="screen" style={{ paddingBottom: 'calc(160px + env(safe-area-inset-bottom))' }}>
       <button className="btn-secondary" onClick={onBack} style={{ marginTop: 12, marginBottom: 12 }}>
         ← Back to menu
       </button>
@@ -522,24 +522,25 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, sche
 
       <div
         style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--paper, #fdf8ef)',
-          borderTop: '1px solid #e5ddc9', padding: '12px 20px', display: 'flex', alignItems: 'center',
-          justifyContent: 'space-between', gap: 12, zIndex: 40,
+          position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: 480, margin: '0 auto',
+          background: 'var(--paper, #fdf8ef)', borderTop: '1px solid #e5ddc9',
+          padding: '12px 20px calc(12px + env(safe-area-inset-bottom))', display: 'flex',
+          alignItems: 'center', justifyContent: 'space-between', gap: 12, zIndex: 40,
         }}
       >
-        <div>
-          <div style={{ fontWeight: 700, color: 'var(--charcoal)' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, color: 'var(--charcoal)', whiteSpace: 'nowrap' }}>
             {deliveryFee == null ? 'Calculating…' : `To Pay ₹${grandTotal.toFixed(0)}`}
           </div>
           <button
             className="btn-ghost"
-            style={{ fontSize: 12, padding: 0, color: 'var(--chili-dark)' }}
+            style={{ fontSize: 12, padding: 0, color: 'var(--chili-dark)', whiteSpace: 'nowrap' }}
             onClick={() => document.getElementById('checkout-cart-summary')?.scrollIntoView({ behavior: 'smooth' })}
           >
             View detailed bill
           </button>
         </div>
-        <button className="btn-primary" style={{ flex: 'none', minWidth: 160 }} onClick={placeOrder} disabled={loading || cartItems.length === 0}>
+        <button className="btn-primary" style={{ flex: 'none', width: 'auto', minWidth: 150 }} onClick={placeOrder} disabled={loading || cartItems.length === 0}>
           {loading ? 'Placing order…' : 'Place order'}
         </button>
       </div>
