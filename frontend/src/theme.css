@@ -299,3 +299,472 @@ button:focus-visible {
 .card .muted {
   color: #6b6156;
 }
+
+/* ============================================================
+   Swiggy/Zomato-style restaurant menu page (MenuScreen)
+   ============================================================ */
+
+.menu-back {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  border: 1px solid var(--line);
+  color: var(--paper);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px 0 14px;
+}
+
+.menu-header {
+  margin-bottom: 14px;
+}
+
+.menu-header__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.menu-header__name {
+  font-size: 26px;
+}
+
+/* green rating chip with a stacked ratings count, like the reference */
+.menu-rating {
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.menu-rating__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 9px;
+  border-radius: 8px;
+  background: #1f8a4c;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.menu-rating__count {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-decoration: underline;
+}
+
+.menu-header__meta {
+  margin: 8px 0 0;
+  color: var(--paper);
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.menu-header__meta .sub {
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+/* Offers strip — a dashed-outline banner, expandable to the full list */
+.menu-offers {
+  margin-top: 14px;
+  border: 1px dashed rgba(253, 248, 239, 0.28);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.menu-offers__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  width: 100%;
+  background: rgba(244, 162, 0, 0.08);
+  color: var(--paper);
+  border: none;
+  font-family: inherit;
+  text-align: left;
+}
+
+.menu-offers__icon {
+  font-size: 16px;
+}
+
+.menu-offers__title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.menu-offers__count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--turmeric);
+  white-space: nowrap;
+}
+
+.menu-offers__list {
+  padding: 4px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.menu-offer-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--paper);
+}
+
+.menu-offer-row .code {
+  font-weight: 800;
+  color: var(--turmeric);
+}
+
+/* Sticky search + dietary filter chips */
+.menu-controls {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 10px 0;
+  margin-bottom: 4px;
+  background: linear-gradient(to bottom, #22406e 60%, rgba(34, 64, 110, 0));
+}
+
+.diet-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.diet-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--ink-soft);
+  color: var(--paper);
+  border: 1px solid var(--line);
+}
+
+.diet-chip.active {
+  background: var(--paper);
+  color: var(--ink);
+  border-color: var(--paper);
+}
+
+.diet-chip .mark {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 2px solid currentColor;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diet-chip .mark::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.diet-chip.veg { color: #3fae6a; }
+.diet-chip.veg.active { background: #1f8a4c; color: #fff; border-color: #1f8a4c; }
+.diet-chip.nonveg { color: #e06a4f; }
+.diet-chip.nonveg.active { background: #b0331d; color: #fff; border-color: #b0331d; }
+
+/* Category section header */
+.menu-cat {
+  margin-top: 22px;
+  scroll-margin-top: 64px;
+}
+
+.menu-cat__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 4px 0 12px;
+  color: var(--paper);
+  font-family: 'Fraunces', serif;
+  font-size: 19px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.menu-cat__head .count {
+  color: var(--text-dim);
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.menu-cat__head .chev {
+  margin-left: auto;
+  font-size: 14px;
+  color: var(--text-dim);
+  transition: transform 0.15s ease;
+}
+
+.menu-cat__head .chev.collapsed {
+  transform: rotate(-90deg);
+}
+
+/* Item card: text on the left, photo + ADD on the right (Swiggy layout) */
+.menu-item {
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+  justify-content: space-between;
+}
+
+.menu-item__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.veg-mark,
+.nonveg-mark {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.veg-mark { border: 2px solid #1b8a3a; }
+.nonveg-mark { border: 2px solid #8a2a1b; }
+
+.veg-mark::after,
+.nonveg-mark::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.veg-mark::after { background: #1b8a3a; }
+.nonveg-mark::after { background: #8a2a1b; }
+
+.menu-item__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #b8860b;
+  margin-left: 8px;
+}
+
+.menu-item__name {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 4px 0 0;
+}
+
+.menu-item__price {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--charcoal);
+}
+
+.menu-item__price .was {
+  text-decoration: line-through;
+  color: #a89e8f;
+  font-weight: 500;
+  margin-right: 6px;
+}
+
+.menu-item__desc {
+  margin: 6px 0 0;
+  color: #6b6156;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.menu-item__desc .more {
+  color: var(--chili-dark);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.menu-item__media {
+  width: 120px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.menu-item__img {
+  width: 120px;
+  height: 110px;
+  border-radius: 14px;
+  object-fit: cover;
+  background: #f3ecdc;
+}
+
+.menu-item__img--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+}
+
+/* ADD button / stepper overlap the bottom of the photo, as in the reference */
+.menu-item__action {
+  margin-top: -18px;
+  width: 104px;
+  z-index: 1;
+}
+
+.menu-item__add {
+  width: 100%;
+  padding: 9px 0;
+  border-radius: 10px;
+  background: #fff;
+  color: #1f8a4c;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid #d7cfbe;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
+}
+
+.menu-item__stepper {
+  width: 100%;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #d7cfbe;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.menu-item__stepper button {
+  background: none;
+  border: none;
+  color: #1f8a4c;
+  font-size: 18px;
+  font-weight: 800;
+  width: 34px;
+  height: 100%;
+}
+
+.menu-item__stepper span {
+  color: #1f8a4c;
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.menu-item__custom {
+  margin-top: 4px;
+  font-size: 10px;
+  color: #8a8378;
+  text-align: center;
+}
+
+.menu-item__soldout {
+  margin-top: -10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #8a8378;
+}
+
+/* Floating category-jump button + bottom sheet */
+.menu-fab {
+  position: fixed;
+  z-index: 20;
+  bottom: 92px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 26px;
+  background: var(--accent-gradient);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.45);
+}
+
+.menu-sheet__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.menu-sheet {
+  width: 100%;
+  max-width: 480px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--card-gradient);
+  color: var(--charcoal);
+  border-radius: 20px 20px 0 0;
+  padding: 8px 0 14px;
+}
+
+.menu-sheet__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 14px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--charcoal);
+  cursor: pointer;
+  border-bottom: 1px solid #efe7d7;
+}
+
+.menu-sheet__row .count {
+  color: #8a8378;
+  font-weight: 700;
+}
+
+.menu-sheet__close {
+  display: block;
+  margin: 12px auto 0;
+  padding: 10px 22px;
+  border-radius: 22px;
+  background: var(--accent-gradient);
+  color: #fff;
+  font-weight: 700;
+}

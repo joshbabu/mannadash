@@ -25,7 +25,9 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
   const [pickerItem, setPickerItem] = useState(null); // menu item currently showing its variant picker
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [vegOnly, setVegOnly] = useState(false);
+  const [dietFilter, setDietFilter] = useState('all'); // 'all' | 'veg' | 'nonveg'
+  const [showAllOffers, setShowAllOffers] = useState(false);
+  const [showCategorySheet, setShowCategorySheet] = useState(false);
   const [expandedDescriptions, setExpandedDescriptions] = useState(new Set());
   const [expandedNutrition, setExpandedNutrition] = useState(new Set());
   const [collapsedCategories, setCollapsedCategories] = useState(new Set());
@@ -131,7 +133,12 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
           (item.description || '').toLowerCase().includes(menuSearch.toLowerCase()),
       )
     : items;
-  const visibleItems = vegOnly ? searched.filter((item) => item.isVeg) : searched;
+  const visibleItems =
+    dietFilter === 'veg'
+      ? searched.filter((item) => item.isVeg)
+      : dietFilter === 'nonveg'
+        ? searched.filter((item) => !item.isVeg)
+        : searched;
   const groupedItems = CATEGORY_ORDER.map((cat) => ({
     category: cat,
     items: visibleItems.filter((item) => item.category === cat),
@@ -179,49 +186,108 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
     onCheckout(restaurant, orderItems, items);
   }
 
+  function offerLabel(o) {
+    if (o.discountType === 'free_delivery') return 'Free delivery';
+    if (o.discountType === 'percentage') {
+      return `${Number(o.discountValue)}% OFF${o.maxDiscountAmount ? ` up to ₹${Number(o.maxDiscountAmount).toFixed(0)}` : ''}`;
+    }
+    return `₹${Number(o.discountValue).toFixed(0)} OFF`;
+  }
+
+  function scrollToCategory(category) {
+    setShowCategorySheet(false);
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      next.delete(category); // make sure the section is expanded before we jump to it
+      return next;
+    });
+    // let the section expand first, then scroll it into view
+    setTimeout(() => {
+      document.getElementById(`cat-${category}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  }
+
+  const prep = restaurant.avgPrepTimeMins || 30;
+  const distanceKm = restaurant.distanceMeters != null ? (restaurant.distanceMeters / 1000).toFixed(1) : null;
+  const rating = Number(restaurant.ratingAvg || 0);
+  const ratingCountLabel =
+    restaurant.ratingCount >= 1000 ? `${(restaurant.ratingCount / 1000).toFixed(1)}K` : `${restaurant.ratingCount || 0}`;
+
   return (
     <div className="screen">
-      <button className="btn-secondary" onClick={onBack} style={{ marginTop: 12, marginBottom: 12 }}>
-        ← Back
-      </button>
-      <h1 style={{ fontSize: 24 }}>{restaurant.name}</h1>
-      <p className="muted">
-        {Number(restaurant.ratingAvg) > 0 && <>★ {Number(restaurant.ratingAvg).toFixed(1)} ({restaurant.ratingCount}) · </>}
-        {restaurant.cuisineType}
-      </p>
+      <button className="menu-back" aria-label="Back" onClick={onBack}>←</button>
 
-      {offers.length > 0 && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-          {offers.map((o) => (
-            <span
-              key={o.id}
-              className="pill"
-              style={{ background: '#fdeee8', color: 'var(--chili-dark)', fontWeight: 600, fontSize: 12 }}
-              title={o.minOrderValue ? `Minimum order ₹${Number(o.minOrderValue).toFixed(0)}` : undefined}
+      <div className="menu-header">
+        <div className="menu-header__top">
+          <h1 className="menu-header__name">
+            {restaurant.name}
+            {restaurant.isVegOnly && <span className="veg-badge" style={{ marginLeft: 10, verticalAlign: 'middle' }}>🌱 Pure Veg</span>}
+          </h1>
+          {rating > 0 && (
+            <div className="menu-rating">
+              <span className="menu-rating__badge">{rating.toFixed(1)} ★</span>
+              <span className="menu-rating__count">{ratingCountLabel} ratings</span>
+            </div>
+          )}
+        </div>
+        <p className="menu-header__meta">
+          {distanceKm && <>📍 {distanceKm} km · </>}
+          {restaurant.cuisineType}
+          <br />
+          <span className="sub">🛵 {prep}–{prep + 5} mins · {todayHoursLabel(restaurant)}</span>
+        </p>
+
+        {offers.length > 0 && (
+          <div className="menu-offers">
+            <button className="menu-offers__head" onClick={() => setShowAllOffers((v) => !v)}>
+              <span className="menu-offers__icon">🏷️</span>
+              <span className="menu-offers__title">{offerLabel(offers[0])}{offers[0].hasCode ? ' with code' : ''}</span>
+              <span className="menu-offers__count">{offers.length} offer{offers.length > 1 ? 's' : ''} {showAllOffers ? '▴' : '▾'}</span>
+            </button>
+            {showAllOffers && (
+              <div className="menu-offers__list">
+                {offers.map((o) => (
+                  <div key={o.id} className="menu-offer-row">
+                    <span className="code">{o.discountType === 'free_delivery' ? '🛵' : '🎉'}</span>
+                    <span>
+                      {offerLabel(o)}{o.hasCode ? ' with code' : ''}
+                      {o.minOrderValue ? ` · above ₹${Number(o.minOrderValue).toFixed(0)}` : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="menu-controls">
+        <input
+          placeholder={`Search in ${restaurant.name}…`}
+          value={menuSearch}
+          onChange={(e) => setMenuSearch(e.target.value)}
+          style={{ width: '100%', background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd', marginBottom: 10 }}
+        />
+        <div className="diet-chips">
+          {[
+            { key: 'all', label: 'All' },
+            { key: 'veg', label: 'Veg', cls: 'veg', mark: true },
+            { key: 'nonveg', label: 'Non-veg', cls: 'nonveg', mark: true },
+          ].map((c) => (
+            <button
+              key={c.key}
+              className={`diet-chip ${c.cls || ''} ${dietFilter === c.key ? 'active' : ''}`}
+              aria-pressed={dietFilter === c.key}
+              onClick={() => setDietFilter(c.key)}
             >
-              {o.discountType === 'free_delivery'
-                ? '🛵 Free delivery'
-                : o.discountType === 'percentage'
-                ? `🎉 ${Number(o.discountValue)}% OFF${o.maxDiscountAmount ? ` up to ₹${Number(o.maxDiscountAmount).toFixed(0)}` : ''}`
-                : `🎉 ₹${Number(o.discountValue).toFixed(0)} OFF`}
-              {o.hasCode ? ' with code' : ''}
-            </span>
+              {c.mark && <span className="mark" />}
+              {c.label}
+            </button>
           ))}
         </div>
-      )}
-
-      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 8, marginBottom: 4, fontSize: 14 }}>
-        <input type="checkbox" checked={vegOnly} onChange={(e) => setVegOnly(e.target.checked)} />
-        🌱 Veg only
-      </label>
+      </div>
 
       {error && <div className="error-banner">{error}</div>}
-      <input
-        placeholder={`Search in ${restaurant.name}…`}
-        value={menuSearch}
-        onChange={(e) => setMenuSearch(e.target.value)}
-        style={{ marginBottom: 12 }}
-      />
 
       {droppedFromReorder > 0 && (
         <div className="error-banner" style={{ background: '#fff2d6', borderColor: 'var(--turmeric)', color: '#8a5a00' }}>
@@ -236,23 +302,20 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
           <p className="muted" style={{ color: '#6b6156', marginTop: 4 }}>Check back once the restaurant adds its menu.</p>
         </div>
       )}
-      {!loading && !error && items.length > 0 && visibleItems.length === 0 && (
+      {!loading && !error && items.length > 0 && visibleItems.length === 0 && !menuSearch && (
         <div className="card" style={{ textAlign: 'center', marginTop: 16 }}>
-          <p style={{ margin: 0 }}>No veg items on this menu.</p>
+          <p style={{ margin: 0 }}>No {dietFilter === 'veg' ? 'veg' : 'non-veg'} items on this menu.</p>
         </div>
       )}
 
       {groupedItems.map((group) => {
         const isCollapsed = collapsedCategories.has(group.category);
         return (
-        <div key={group.category} style={{ marginTop: 20 }}>
-          <h2
-            style={{ fontSize: 18, color: 'var(--turmeric)', marginBottom: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-            onClick={() => toggleCategory(group.category)}
-          >
-            {CATEGORY_LABELS[group.category]} ({group.items.length})
-            <span style={{ fontSize: 14, transform: isCollapsed ? 'rotate(-90deg)' : 'none', display: 'inline-block' }}>▾</span>
-          </h2>
+        <div key={group.category} id={`cat-${group.category}`} className="menu-cat">
+          <button className="menu-cat__head" onClick={() => toggleCategory(group.category)}>
+            {CATEGORY_LABELS[group.category]} <span className="count">({group.items.length})</span>
+            <span className={`chev ${isCollapsed ? 'collapsed' : ''}`}>▾</span>
+          </button>
           {!isCollapsed && (
           <div className="stack">
             {group.items.map((item) => {
@@ -264,94 +327,71 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
                 : item.description;
               return (
               <div key={item.id} className="card">
-                <div className="row">
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                    {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.name} style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{ width: 56, height: 56, borderRadius: 10, background: 'var(--paper-dim, #f3ecdc)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🍽️</div>
-                    )}
-                    <div>
-                      {item.isBestseller && (
-                        <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 600, color: 'var(--chili-dark)', background: '#fdeee8', borderRadius: 4, padding: '1px 6px', marginBottom: 3 }}>
-                          ⭐ Bestseller
-                        </span>
-                      )}
-                      <h3 style={{ fontSize: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span
-                          title={item.isVeg ? 'Veg' : 'Non-veg'}
-                          style={{
-                            width: 14, height: 14, border: `2px solid ${item.isVeg ? '#1b8a3a' : '#8a2a1b'}`,
-                            borderRadius: 3, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                          }}
-                        >
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: item.isVeg ? '#1b8a3a' : '#8a2a1b' }} />
-                        </span>
-                        {item.name}
-                      </h3>
-                      {item.description && (
-                        <p className="muted" style={{ color: '#8a8378', fontSize: 13, margin: '2px 0' }}>
-                          {shownDescription}
-                          {isLongDescription && (
-                            <span
-                              onClick={() => toggleDescription(item.id)}
-                              style={{ color: 'var(--chili-dark)', cursor: 'pointer', fontWeight: 600, marginLeft: 4 }}
-                            >
-                              {isExpanded ? 'less' : 'more'}
-                            </span>
-                          )}
-                        </p>
-                      )}
-                      {hasDiscount ? (
-                        <p className="muted" style={{ margin: 0 }}>
-                          <span style={{ textDecoration: 'line-through', color: '#a89e8f', marginRight: 6 }}>₹{Number(item.originalPrice).toFixed(0)}</span>
-                          <span style={{ background: '#fff3c4', color: '#6b5400', fontWeight: 600, padding: '1px 6px', borderRadius: 4 }}>₹{Number(item.price).toFixed(0)}</span>
-                        </p>
-                      ) : (
-                        <p className="muted" style={{ color: '#6b6156' }}>₹{Number(item.price).toFixed(0)}</p>
-                      )}
-                      {item.weightGrams != null && (
-                        <div style={{ marginTop: 2 }}>
-                          <span
-                            onClick={() => toggleNutrition(item.id)}
-                            style={{ color: 'var(--chili-dark)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                          >
-                            🥗 {calculateCalories(item.proteinGrams, item.carbsGrams, item.fatGrams)} kcal · {item.weightGrams}g
-                            {expandedNutrition.has(item.id) ? ' (hide)' : ' (details)'}
+                <div className="menu-item">
+                  <div className="menu-item__info">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span className={item.isVeg ? 'veg-mark' : 'nonveg-mark'} title={item.isVeg ? 'Veg' : 'Non-veg'} />
+                      {item.isBestseller && <span className="menu-item__badge">⭐ Bestseller</span>}
+                    </div>
+                    <h3 className="menu-item__name">{item.name}</h3>
+                    <p className="menu-item__price">
+                      {hasDiscount && <span className="was">₹{Number(item.originalPrice).toFixed(0)}</span>}
+                      ₹{Number(item.price).toFixed(0)}
+                    </p>
+                    {item.description && (
+                      <p className="menu-item__desc">
+                        {shownDescription}
+                        {isLongDescription && (
+                          <span className="more" onClick={() => toggleDescription(item.id)}>
+                            {isExpanded ? ' less' : ' more'}
                           </span>
-                          {expandedNutrition.has(item.id) && (
-                            <p className="muted" style={{ fontSize: 12, margin: '2px 0 0' }}>
-                              {item.proteinGrams != null && <>Protein {item.proteinGrams}g · </>}
-                              {item.carbsGrams != null && <>Carbs {item.carbsGrams}g · </>}
-                              {item.fatGrams != null && <>Fat {item.fatGrams}g</>}
-                              {item.fibreGrams != null && <> · Fibre {item.fibreGrams}g</>}
-                            </p>
-                          )}
+                        )}
+                      </p>
+                    )}
+                    {item.weightGrams != null && (
+                      <div style={{ marginTop: 4 }}>
+                        <span
+                          onClick={() => toggleNutrition(item.id)}
+                          style={{ color: 'var(--chili-dark)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                        >
+                          🥗 {calculateCalories(item.proteinGrams, item.carbsGrams, item.fatGrams)} kcal · {item.weightGrams}g
+                          {expandedNutrition.has(item.id) ? ' (hide)' : ' (details)'}
+                        </span>
+                        {expandedNutrition.has(item.id) && (
+                          <p className="muted" style={{ fontSize: 12, margin: '2px 0 0' }}>
+                            {item.proteinGrams != null && <>Protein {item.proteinGrams}g · </>}
+                            {item.carbsGrams != null && <>Carbs {item.carbsGrams}g · </>}
+                            {item.fatGrams != null && <>Fat {item.fatGrams}g</>}
+                            {item.fibreGrams != null && <> · Fibre {item.fibreGrams}g</>}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="menu-item__media">
+                    {item.imageUrl ? (
+                      <img className="menu-item__img" src={item.imageUrl} alt={item.name} />
+                    ) : (
+                      <div className="menu-item__img menu-item__img--placeholder">🍽️</div>
+                    )}
+                    <div className="menu-item__action">
+                      {!item.isAvailable ? (
+                        <div className="menu-item__soldout">Sold out</div>
+                      ) : item.variantGroups?.length > 0 ? (
+                        <button className="menu-item__add" onClick={() => setPickerItem(item)}>ADD +</button>
+                      ) : cart[item.id] ? (
+                        <div className="menu-item__stepper">
+                          <button aria-label="Remove one" onClick={() => changeQty(item.id, -1, item.id, [])}>−</button>
+                          <span>{cart[item.id].quantity}</span>
+                          <button aria-label="Add one" onClick={() => changeQty(item.id, 1, item.id, [])}>+</button>
                         </div>
+                      ) : (
+                        <button className="menu-item__add" onClick={() => changeQty(item.id, 1, item.id, [])}>ADD +</button>
                       )}
                     </div>
+                    {item.variantGroups?.length > 0 && <div className="menu-item__custom">customisable</div>}
                   </div>
-                  {!item.isAvailable ? (
-                    <span className="muted" style={{ color: '#8a8378' }}>Sold out</span>
-                  ) : item.variantGroups?.length > 0 ? (
-                    <button
-                      className="btn-secondary"
-                      style={{ color: 'var(--chili-dark)', borderColor: 'var(--chili)' }}
-                      onClick={() => setPickerItem(item)}
-                    >
-                      {cartLines.some((l) => l.menuItemId === item.id) ? 'Add another' : 'Add'}
-                    </button>
-                  ) : cart[item.id] ? (
-                    <div className="qty-control">
-                      <button onClick={() => changeQty(item.id, -1, item.id, [])}>−</button>
-                      <span style={{ minWidth: 16, textAlign: 'center' }}>{cart[item.id].quantity}</span>
-                      <button onClick={() => changeQty(item.id, 1, item.id, [])}>+</button>
-                    </div>
-                  ) : (
-                    <button className="btn-secondary" style={{ color: 'var(--chili-dark)', borderColor: 'var(--chili)' }} onClick={() => changeQty(item.id, 1, item.id, [])}>
-                      Add
-                    </button>
-                  )}
                 </div>
 
                 {/* Lines already in the cart for this specific dish — each variant
@@ -447,6 +487,26 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
               View cart · {cartCount} item{cartCount > 1 ? 's' : ''} · ₹{cartTotal.toFixed(0)}
             </button>
           )}
+        </div>
+      )}
+
+      {groupedItems.length > 1 && !showCategorySheet && (
+        <button className="menu-fab" onClick={() => setShowCategorySheet(true)}>
+          🍽️ Menu
+        </button>
+      )}
+
+      {showCategorySheet && (
+        <div className="menu-sheet__backdrop" onClick={() => setShowCategorySheet(false)}>
+          <div className="menu-sheet" onClick={(e) => e.stopPropagation()}>
+            {groupedItems.map((g) => (
+              <button key={g.category} className="menu-sheet__row" onClick={() => scrollToCategory(g.category)}>
+                <span>{CATEGORY_LABELS[g.category]}</span>
+                <span className="count">{g.items.length}</span>
+              </button>
+            ))}
+            <button className="menu-sheet__close" onClick={() => setShowCategorySheet(false)}>✕ Close</button>
+          </div>
         </div>
       )}
 
