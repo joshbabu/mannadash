@@ -71,6 +71,24 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
   const [showFilterModal, setShowFilterModal] = useState(false);
   const EMPTY_FILTERS = { nearFast: false, noPackaging: false, pureVeg: false, ratingMin: null, hasOffer: false, priceRange: null, fssaiCertified: false };
   const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [selectedAddress, setSelectedAddress] = useState(null);
+  const [showAddressPicker, setShowAddressPicker] = useState(false);
+
+  useEffect(() => {
+    api.getSavedAddresses()
+      .then((addrs) => {
+        setSavedAddresses(addrs);
+        if (addrs.length > 0) setSelectedAddress(addrs[0]);
+      })
+      .catch(() => {});
+  }, []);
+
+  function pickAddress(addr) {
+    setSelectedAddress(addr);
+    setShowAddressPicker(false);
+    load(Number(addr.latitude), Number(addr.longitude));
+  }
 
   function toggleBooleanFilter(key) {
     setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -217,9 +235,88 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
 
   return (
     <div className="screen">
-      <div className="row" style={{ marginTop: 12, marginBottom: 4 }}>
-        <h1 style={{ fontSize: 26 }}>Nearby restaurants</h1>
-      </div>
+      <button
+        onClick={() => setShowAddressPicker(true)}
+        style={{
+          display: 'flex', alignItems: 'flex-start', gap: 8, width: '100%', textAlign: 'left',
+          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+          marginTop: 12, marginBottom: 12,
+        }}
+      >
+        <span style={{ fontSize: 20, lineHeight: '24px' }}>📍</span>
+        <span style={{ minWidth: 0, flex: 1 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--paper)' }}>
+              {selectedAddress ? selectedAddress.label : 'Set delivery location'}
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>▾</span>
+          </span>
+          <span
+            style={{
+              display: 'block', fontSize: 12, color: 'var(--text-dim)',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}
+          >
+            {selectedAddress ? selectedAddress.address : 'Tap to choose a saved address'}
+          </span>
+        </span>
+      </button>
+
+      {showAddressPicker && (
+        <div
+          onClick={() => setShowAddressPicker(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 60,
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="card"
+            style={{ width: '100%', maxWidth: 480, maxHeight: '75vh', overflowY: 'auto', borderRadius: '24px 24px 0 0', marginBottom: 0 }}
+          >
+            <div className="row" style={{ marginBottom: 16 }}>
+              <h3 style={{ fontSize: 18 }}>Choose delivery location</h3>
+              <button className="btn-secondary" onClick={() => setShowAddressPicker(false)}>✕</button>
+            </div>
+            <button
+              className="btn-secondary"
+              onClick={() => { setShowAddressPicker(false); useMyLocation(); }}
+              style={{ width: '100%', marginBottom: 12, textAlign: 'left' }}
+            >
+              📍 Use my current location
+            </button>
+            {savedAddresses.length === 0 && (
+              <p className="muted">No saved addresses yet — add one from My Account.</p>
+            )}
+            <div className="stack">
+              {savedAddresses.map((a) => (
+                <button
+                  key={a.id}
+                  onClick={() => pickAddress(a)}
+                  style={{
+                    width: '100%', textAlign: 'left', background: '#fdf8ef',
+                    border: selectedAddress?.id === a.id ? '2px solid var(--chili-dark)' : '1px solid #e5ddc9',
+                    borderRadius: 12, padding: '10px 14px',
+                  }}
+                >
+                  <span style={{ display: 'block', fontWeight: 700, fontSize: 14, color: 'var(--charcoal)' }}>{a.label}</span>
+                  <span style={{ display: 'block', fontSize: 13, color: '#6b6156' }}>{a.address}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div
+        style={{
+          position: 'sticky', top: 0, zIndex: 20,
+          margin: '0 -20px', padding: '8px 20px 0',
+          background: 'rgba(28, 27, 41, 0.92)', backdropFilter: 'blur(10px)',
+          boxShadow: '0 8px 16px rgba(0,0,0,0.25)',
+        }}
+      >
       <input
         placeholder="Search by name, cuisine, or dish…"
         value={searchQuery}
@@ -300,6 +397,7 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
           </span>
           <span style={{ fontSize: 11, color: 'var(--text-secondary, #c9c2b4)' }}>See all</span>
         </button>
+      </div>
       </div>
 
       {showAllCategories && (
