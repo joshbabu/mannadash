@@ -58,6 +58,7 @@ export const api = {
   getSavedAddresses: () => request('/customers/me/addresses', { auth: true }),
   saveAddress: (body) => request('/customers/me/addresses', { method: 'POST', body, auth: true }),
   removeAddress: (id) => request(`/customers/me/addresses/${id}`, { method: 'DELETE', auth: true }),
+  updateAddress: (id, body) => request(`/customers/me/addresses/${id}`, { method: 'PATCH', body, auth: true }),
   getFavorites: () => request('/customers/me/favorites', { auth: true }),
   addFavorite: (restaurantId) => request(`/customers/me/favorites/${restaurantId}`, { method: 'POST', auth: true }),
   removeFavorite: (restaurantId) => request(`/customers/me/favorites/${restaurantId}`, { method: 'DELETE', auth: true }),

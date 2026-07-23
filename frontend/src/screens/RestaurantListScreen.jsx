@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import FilterModal from './FilterModal';
+import AddressPickerScreen from './AddressPickerScreen';
 import { isRestaurantOpenNow } from '../utils/restaurant-hours';
 
 // Warm food-toned gradients for the card banner when no real photo matches the cuisine.
@@ -164,7 +165,7 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
     }
   }
 
-  function useMyLocation() {
+  function locateMe() {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => load(pos.coords.latitude, pos.coords.longitude),
@@ -263,50 +264,21 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
       </button>
 
       {showAddressPicker && (
-        <div
-          onClick={() => setShowAddressPicker(false)}
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 60,
-            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        <AddressPickerScreen
+          addresses={savedAddresses}
+          selectedAddress={selectedAddress}
+          onClose={() => setShowAddressPicker(false)}
+          onSelectAddress={pickAddress}
+          onAddressesUpdated={(updated) => {
+            setSavedAddresses(updated);
+            if (selectedAddress) {
+              const stillThere = updated.find((a) => a.id === selectedAddress.id);
+              setSelectedAddress(stillThere || null);
+            }
           }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="card"
-            style={{ width: '100%', maxWidth: 480, maxHeight: '75vh', overflowY: 'auto', borderRadius: '24px 24px 0 0', marginBottom: 0 }}
-          >
-            <div className="row" style={{ marginBottom: 16 }}>
-              <h3 style={{ fontSize: 18 }}>Choose delivery location</h3>
-              <button className="btn-secondary" onClick={() => setShowAddressPicker(false)}>✕</button>
-            </div>
-            <button
-              className="btn-secondary"
-              onClick={() => { setShowAddressPicker(false); useMyLocation(); }}
-              style={{ width: '100%', marginBottom: 12, textAlign: 'left' }}
-            >
-              📍 Use my current location
-            </button>
-            {savedAddresses.length === 0 && (
-              <p className="muted">No saved addresses yet — add one from My Account.</p>
-            )}
-            <div className="stack">
-              {savedAddresses.map((a) => (
-                <button
-                  key={a.id}
-                  onClick={() => pickAddress(a)}
-                  style={{
-                    width: '100%', textAlign: 'left', background: '#fdf8ef',
-                    border: selectedAddress?.id === a.id ? '2px solid var(--chili-dark)' : '1px solid #e5ddc9',
-                    borderRadius: 12, padding: '10px 14px',
-                  }}
-                >
-                  <span style={{ display: 'block', fontWeight: 700, fontSize: 14, color: 'var(--charcoal)' }}>{a.label}</span>
-                  <span style={{ display: 'block', fontSize: 13, color: '#6b6156' }}>{a.address}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+          onUseMyLocation={() => { setShowAddressPicker(false); locateMe(); }}
+          defaultLatLng={currentLatLng}
+        />
       )}
 
       <div
@@ -503,7 +475,7 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
         </div>
       )}
       <div className="row" style={{ marginBottom: 16, gap: 8 }}>
-        <button className="btn-secondary" onClick={useMyLocation}>
+        <button className="btn-secondary" onClick={locateMe}>
           📍 Use my location
         </button>
         <button

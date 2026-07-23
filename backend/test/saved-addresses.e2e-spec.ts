@@ -96,6 +96,85 @@ describe('Saved addresses (e2e)', () => {
   it('requires authentication — no token means no access', async () => {
     await request(app.getHttpServer()).get('/customers/me/addresses').expect(401);
   });
+
+  it('can update a saved address\'s label and text, keeping the same id', async () => {
+    const customer = await signUpCustomer(app);
+    const added = await request(app.getHttpServer())
+      .post('/customers/me/addresses')
+      .set('Authorization', `Bearer ${customer.token}`)
+      .send({ label: 'Home', address: 'Old address text', latitude: 17.45, longitude: 78.39 })
+      .expect(201);
+    const addressId = added.body[0].id;
+
+    const updated = await request(app.getHttpServer())
+      .patch(`/customers/me/addresses/${addressId}`)
+      .set('Authorization', `Bearer ${customer.token}`)
+      .send({ label: 'Home Sweet Home', address: 'New address text' })
+      .expect(200);
+    expect(updated.body).toHaveLength(1);
+    expect(updated.body[0].id).toBe(addressId);
+    expect(updated.body[0].label).toBe('Home Sweet Home');
+    expect(updated.body[0].address).toBe('New address text');
+  });
+
+  it('a partial update only changes the fields sent, leaving the rest as-is', async () => {
+    const customer = await signUpCustomer(app);
+    const added = await request(app.getHttpServer())
+      .post('/customers/me/addresses')
+      .set('Authorization', `Bearer ${customer.token}`)
+      .send({ label: 'Home', address: 'Addr 1', latitude: 17.45, longitude: 78.39 })
+      .expect(201);
+    const addressId = added.body[0].id;
+
+    const updated = await request(app.getHttpServer())
+      .patch(`/customers/me/addresses/${addressId}`)
+      .set('Authorization', `Bearer ${customer.token}`)
+      .send({ label: 'Renamed' })
+      .expect(200);
+    expect(updated.body[0].label).toBe('Renamed');
+    expect(updated.body[0].address).toBe('Addr 1');
+  });
+
+  it('updating a nonexistent address id returns 404', async () => {
+    const customer = await signUpCustomer(app);
+    await request(app.getHttpServer())
+      .patch('/customers/me/addresses/00000000-0000-0000-0000-000000000000')
+      .set('Authorization', `Bearer ${customer.token}`)
+      .send({ label: 'Anything' })
+      .expect(404);
+  });
+
+  it('one customer cannot update another customer\'s address', async () => {
+    const customerA = await signUpCustomer(app);
+    const customerB = await signUpCustomer(app);
+    const added = await request(app.getHttpServer())
+      .post('/customers/me/addresses')
+      .set('Authorization', `Bearer ${customerA.token}`)
+      .send({ label: 'A Home', address: 'Addr A', latitude: 17.45, longitude: 78.39 })
+      .expect(201);
+    const addressId = added.body[0].id;
+
+    // B has no addresses at all, so B's own list can't contain A's address id — the
+    // update is scoped to B's savedLocations and correctly reports not found there.
+    await request(app.getHttpServer())
+      .patch(`/customers/me/addresses/${addressId}`)
+      .set('Authorization', `Bearer ${customerB.token}`)
+      .send({ label: 'Hijacked' })
+      .expect(404);
+
+    const aList = await request(app.getHttpServer())
+      .get('/customers/me/addresses')
+      .set('Authorization', `Bearer ${customerA.token}`)
+      .expect(200);
+    expect(aList.body[0].label).toBe('A Home');
+  });
+
+  it('updating an address requires authentication', async () => {
+    await request(app.getHttpServer())
+      .patch('/customers/me/addresses/00000000-0000-0000-0000-000000000000')
+      .send({ label: 'Anything' })
+      .expect(401);
+  });
 });
 
 describe('Favorite restaurants (e2e)', () => {

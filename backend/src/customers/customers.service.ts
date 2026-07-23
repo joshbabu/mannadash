@@ -4,6 +4,7 @@ import { In, Repository } from 'typeorm';
 import { Customer } from './entities/customer.entity';
 import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { SaveAddressDto } from './dto/save-address.dto';
+import { UpdateAddressDto } from './dto/update-address.dto';
 
 @Injectable()
 export class CustomersService {
@@ -38,6 +39,19 @@ export class CustomersService {
   async removeAddress(userId: string, addressId: string) {
     const customer = await this.findByUserId(userId);
     customer.savedLocations = (customer.savedLocations || []).filter((a: any) => a.id !== addressId);
+    await this.customerRepo.save(customer);
+    return customer.savedLocations;
+  }
+
+  async updateAddress(userId: string, addressId: string, dto: UpdateAddressDto) {
+    const customer = await this.findByUserId(userId);
+    const list = customer.savedLocations || [];
+    const index = list.findIndex((a: any) => a.id === addressId);
+    if (index === -1) {
+      throw new NotFoundException('Saved address not found');
+    }
+    const updated = { ...list[index], ...dto };
+    customer.savedLocations = [...list.slice(0, index), updated, ...list.slice(index + 1)];
     await this.customerRepo.save(customer);
     return customer.savedLocations;
   }
