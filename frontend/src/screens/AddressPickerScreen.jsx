@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import LocationMapScreen from './LocationMapScreen';
 
 // Bias/limit results toward the Hyderabad metro area so a search for a common area name
 // (there are multiple "Shivaji Nagar"s in India) resolves to the right one by default.
@@ -29,14 +30,9 @@ export default function AddressPickerScreen({
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [locationOn, setLocationOn] = useState(false);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newLabel, setNewLabel] = useState('');
-  const [newAddress, setNewAddress] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [locationMapMode, setLocationMapMode] = useState(null); // null | 'add' | 'edit'
+  const [editTarget, setEditTarget] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
-  const [editingId, setEditingId] = useState(null);
-  const [editLabel, setEditLabel] = useState('');
-  const [editAddress, setEditAddress] = useState('');
   const [error, setError] = useState('');
 
   const q = searchQuery.trim().toLowerCase();
@@ -94,48 +90,23 @@ export default function AddressPickerScreen({
     if (next) onUseMyLocation();
   }
 
-  async function addAddress() {
-    if (!newLabel.trim() || !newAddress.trim()) return;
-    setSaving(true);
-    setError('');
-    try {
-      const updated = await api.saveAddress({
-        label: newLabel.trim(),
-        address: newAddress.trim(),
-        latitude: defaultLatLng?.lat ?? 17.45,
-        longitude: defaultLatLng?.lng ?? 78.39,
-      });
-      onAddressesUpdated(updated);
-      setNewLabel('');
-      setNewAddress('');
-      setShowAddForm(false);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
+  function openAddOnMap() {
+    setLocationMapMode('add');
   }
 
-  function startEdit(addr) {
-    setEditingId(addr.id);
-    setEditLabel(addr.label);
-    setEditAddress(addr.address);
+  function openEditOnMap(addr) {
+    setEditTarget(addr);
+    setLocationMapMode('edit');
     setOpenMenuId(null);
   }
 
-  async function saveEdit(id) {
-    if (!editLabel.trim() || !editAddress.trim()) return;
-    setSaving(true);
-    setError('');
-    try {
-      const updated = await api.updateAddress(id, { label: editLabel.trim(), address: editAddress.trim() });
-      onAddressesUpdated(updated);
-      setEditingId(null);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
+  async function handleMapSave(payload) {
+    const updated = locationMapMode === 'edit'
+      ? await api.updateAddress(editTarget.id, payload)
+      : await api.saveAddress(payload);
+    onAddressesUpdated(updated);
+    setLocationMapMode(null);
+    setEditTarget(null);
   }
 
   async function deleteAddress(id) {
@@ -231,7 +202,7 @@ export default function AddressPickerScreen({
           </span>
         </button>
         <button
-          onClick={() => setShowAddForm((v) => !v)}
+          onClick={openAddOnMap}
           style={{
             flex: 1, textAlign: 'left', background: '#fdf8ef', border: '1px solid #e5ddc9', borderRadius: 14,
             padding: '12px 14px', cursor: 'pointer',
@@ -246,30 +217,6 @@ export default function AddressPickerScreen({
 
       {error && <div className="error-banner" style={{ marginBottom: 14 }}>{error}</div>}
 
-      {showAddForm && (
-        <div style={{ background: '#fdf8ef', border: '1px solid #e5ddc9', borderRadius: 14, padding: 14, marginBottom: 20 }}>
-          <input
-            placeholder="Label (e.g. Home, Work)"
-            value={newLabel}
-            onChange={(e) => setNewLabel(e.target.value)}
-            style={{ width: '100%', marginBottom: 8, background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd' }}
-          />
-          <textarea
-            placeholder="Full address"
-            value={newAddress}
-            onChange={(e) => setNewAddress(e.target.value)}
-            rows={2}
-            style={{ width: '100%', marginBottom: 10, background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd', resize: 'vertical' }}
-          />
-          <div className="row" style={{ gap: 8 }}>
-            <button className="btn-secondary" onClick={() => setShowAddForm(false)}>Cancel</button>
-            <button className="btn-primary" onClick={addAddress} disabled={saving} style={{ width: 'auto', padding: '10px 18px' }}>
-              {saving ? 'Saving…' : 'Save address'}
-            </button>
-          </div>
-        </div>
-      )}
-
       <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', color: '#8a8074', textTransform: 'uppercase', marginBottom: 10 }}>
         {q ? 'Matching saved addresses' : 'Saved addresses'}
       </p>
@@ -283,7 +230,6 @@ export default function AddressPickerScreen({
       <div className="stack">
         {filteredAddresses.map((a) => {
           const isSelected = selectedAddress?.id === a.id;
-          const isEditing = editingId === a.id;
           return (
             <div
               key={a.id}
@@ -292,77 +238,65 @@ export default function AddressPickerScreen({
                 borderRadius: 14, padding: '12px 14px',
               }}
             >
-              {isEditing ? (
-                <>
-                  <input
-                    value={editLabel}
-                    onChange={(e) => setEditLabel(e.target.value)}
-                    style={{ width: '100%', marginBottom: 8, background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd' }}
-                  />
-                  <textarea
-                    value={editAddress}
-                    onChange={(e) => setEditAddress(e.target.value)}
-                    rows={2}
-                    style={{ width: '100%', marginBottom: 10, background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd', resize: 'vertical' }}
-                  />
-                  <div className="row" style={{ gap: 8 }}>
-                    <button className="btn-secondary" onClick={() => setEditingId(null)}>Cancel</button>
-                    <button className="btn-primary" onClick={() => saveEdit(a.id)} disabled={saving} style={{ width: 'auto', padding: '10px 18px' }}>
-                      {saving ? 'Saving…' : 'Save'}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ fontSize: 18, lineHeight: '22px' }}>🏠</span>
+                <button
+                  onClick={() => onSelectAddress(a)}
+                  style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                    <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--charcoal)' }}>{a.label}</span>
+                    {isSelected && (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: '#0f7a5c', background: '#d6f5e8', borderRadius: 8, padding: '2px 8px' }}>
+                        SELECTED
+                      </span>
+                    )}
+                  </span>
+                  <span style={{ display: 'block', fontSize: 13, color: '#6b6156' }}>{a.address}</span>
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === a.id ? null : a.id); }}
+                  aria-label={`Options for ${a.label}`}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: '0 4px', color: '#6b6156' }}
+                >
+                  ⋮
+                </button>
+                {openMenuId === a.id && (
+                  <div
+                    style={{
+                      position: 'absolute', top: 40, right: 10, background: 'var(--ink)', borderRadius: 10,
+                      overflow: 'hidden', boxShadow: '0 8px 20px rgba(0,0,0,0.35)', zIndex: 5, minWidth: 120,
+                    }}
+                  >
+                    <button
+                      onClick={() => openEditOnMap(a)}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', color: 'var(--paper)', cursor: 'pointer', fontSize: 14 }}
+                    >
+                      ✏️ Edit
+                    </button>
+                    <button
+                      onClick={() => deleteAddress(a.id)}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', color: 'var(--chili)', cursor: 'pointer', fontSize: 14 }}
+                    >
+                      🗑️ Delete
                     </button>
                   </div>
-                </>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <span style={{ fontSize: 18, lineHeight: '22px' }}>🏠</span>
-                  <button
-                    onClick={() => onSelectAddress(a)}
-                    style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                  >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                      <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--charcoal)' }}>{a.label}</span>
-                      {isSelected && (
-                        <span style={{ fontSize: 10, fontWeight: 700, color: '#0f7a5c', background: '#d6f5e8', borderRadius: 8, padding: '2px 8px' }}>
-                          SELECTED
-                        </span>
-                      )}
-                    </span>
-                    <span style={{ display: 'block', fontSize: 13, color: '#6b6156' }}>{a.address}</span>
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === a.id ? null : a.id); }}
-                    aria-label={`Options for ${a.label}`}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: '0 4px', color: '#6b6156' }}
-                  >
-                    ⋮
-                  </button>
-                  {openMenuId === a.id && (
-                    <div
-                      style={{
-                        position: 'absolute', top: 40, right: 10, background: 'var(--ink)', borderRadius: 10,
-                        overflow: 'hidden', boxShadow: '0 8px 20px rgba(0,0,0,0.35)', zIndex: 5, minWidth: 120,
-                      }}
-                    >
-                      <button
-                        onClick={() => startEdit(a)}
-                        style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', color: 'var(--paper)', cursor: 'pointer', fontSize: 14 }}
-                      >
-                        ✏️ Edit
-                      </button>
-                      <button
-                        onClick={() => deleteAddress(a.id)}
-                        style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', color: 'var(--chili)', cursor: 'pointer', fontSize: 14 }}
-                      >
-                        🗑️ Delete
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
             </div>
           );
         })}
       </div>
+
+      {locationMapMode && (
+        <LocationMapScreen
+          mode={locationMapMode}
+          initialCenter={locationMapMode === 'edit' && editTarget ? { lat: Number(editTarget.latitude), lng: Number(editTarget.longitude) } : defaultLatLng}
+          initialLabel={locationMapMode === 'edit' && editTarget ? editTarget.label : ''}
+          onClose={() => { setLocationMapMode(null); setEditTarget(null); }}
+          onSave={handleMapSave}
+        />
+      )}
     </div>
   );
 }

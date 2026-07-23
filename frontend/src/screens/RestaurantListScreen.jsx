@@ -75,6 +75,28 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [showAddressPicker, setShowAddressPicker] = useState(false);
+  const [showLocationBanner, setShowLocationBanner] = useState(false);
+
+  // Nudges the person to grant location access, mirroring the "Location Permission is Off"
+  // banner competitors show — but only when it's actually off and they haven't already
+  // granted it once this device (re-nagging every visit after they've said yes is worse
+  // than not asking at all).
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    if (localStorage.getItem('mannadash_location_granted') === 'true') return;
+    if (navigator.permissions?.query) {
+      navigator.permissions.query({ name: 'geolocation' })
+        .then((status) => {
+          setShowLocationBanner(status.state !== 'granted');
+          status.onchange = () => setShowLocationBanner(status.state !== 'granted');
+        })
+        .catch(() => setShowLocationBanner(true));
+    } else {
+      // Permissions API isn't available on this browser (notably older Safari) — fall
+      // back to showing the prompt rather than silently assuming it's already granted.
+      setShowLocationBanner(true);
+    }
+  }, []);
 
   useEffect(() => {
     // Distances/km on every restaurant card come from whatever lat/lng we call load()
@@ -173,7 +195,11 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
   function locateMe() {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
-      (pos) => load(pos.coords.latitude, pos.coords.longitude),
+      (pos) => {
+        localStorage.setItem('mannadash_location_granted', 'true');
+        setShowLocationBanner(false);
+        load(pos.coords.latitude, pos.coords.longitude);
+      },
       () => load(DEFAULT_LAT, DEFAULT_LNG),
     );
   }
@@ -268,6 +294,32 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
           </span>
         </span>
       </button>
+
+      {showLocationBanner && (
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', gap: 12, background: '#2f6fed', borderRadius: 14,
+            padding: '14px 16px', marginBottom: 16,
+          }}
+        >
+          <span style={{ fontSize: 20 }}>📍</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 14, fontWeight: 800, color: '#fff', marginBottom: 2 }}>Location Permission is Off</p>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>
+              Granting location permission will ensure accurate address and hassle-free delivery
+            </p>
+          </div>
+          <button
+            onClick={locateMe}
+            style={{
+              background: '#fff', color: '#2f6fed', border: 'none', borderRadius: 10, padding: '8px 16px',
+              fontWeight: 800, fontSize: 13, cursor: 'pointer', flexShrink: 0,
+            }}
+          >
+            GRANT
+          </button>
+        </div>
+      )}
 
       {showAddressPicker && (
         <AddressPickerScreen

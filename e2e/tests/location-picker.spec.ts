@@ -105,7 +105,29 @@ test('restaurant distances reflect the selected saved address, not the default l
   });
 });
 
-test('address picker: add, edit, select, and delete a saved address', async ({ page }) => {
+test('address picker: add via the map flow, select, edit, and delete a saved address', async ({ page }) => {
+  // The add/edit flow now drives a real Leaflet map with live Nominatim search + reverse
+  // geocoding (see AddressPickerScreen/LocationMapScreen). Hitting the live, rate-limited
+  // Nominatim API from CI would be slow and flaky, so it's mocked here — deterministic
+  // responses in, and this closes the "live geocode search has no automated coverage" gap
+  // from earlier, at least for the request/response wiring (not actual map-tile rendering).
+  const OFFICE_LAT = 17.5305;
+  const OFFICE_LNG = 78.4005;
+  const OFFICE_DISPLAY_NAME = 'Test Office Area, Uppal, Hyderabad, Telangana, India';
+
+  await page.route('https://nominatim.openstreetmap.org/**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/search') {
+      await route.fulfill({
+        json: [{ place_id: 1, lat: String(OFFICE_LAT), lon: String(OFFICE_LNG), display_name: OFFICE_DISPLAY_NAME }],
+      });
+    } else if (url.pathname === '/reverse') {
+      await route.fulfill({ json: { display_name: OFFICE_DISPLAY_NAME } });
+    } else {
+      await route.continue();
+    }
+  });
+
   const customerPhone = uniquePhone(3);
   await page.goto('http://localhost:5173');
   await page.getByText('Create an account').click();
@@ -115,52 +137,105 @@ test('address picker: add, edit, select, and delete a saved address', async ({ p
   await page.locator('button[type="submit"]').click();
   await expect(page.getByPlaceholder('Search by name, cuisine, or dish…')).toBeVisible();
 
-  // The picker overlays the address bar rather than replacing it in the DOM, so every
-  // interaction while it's open is scoped here — otherwise a label like "Office" could
-  // ambiguously match both the picker row and the (visually hidden but still-mounted)
-  // address bar underneath once it's selected.
-  const picker = page.getByTestId('address-picker');
-
+  // Each of these overlays the one before it in the DOM rather than replacing it, so every
+  // interaction is scoped to its own testid to avoid ambiguous matches against whatever's
+  // still mounted (and visually hidden) underneath.
   const addressBar = page.getByTestId('address-bar');
+  const picker = page.getByTestId('address-picker');
+  const mapScreen = page.getByTestId('location-map-screen');
 
-  await test.step('Opens the location picker and adds a new address', async () => {
+  await test.step('Adds a new address by searching, dropping the pin, and naming it', async () => {
     await addressBar.click();
     await expect(picker.getByRole('heading', { name: 'Select your location' })).toBeVisible();
 
     await picker.getByText('Add New Address').click();
-    await picker.getByPlaceholder('Label (e.g. Home, Work)').fill('Office');
-    await picker.getByPlaceholder('Full address').fill('123 Test Street, Hyderabad');
-    await picker.getByRole('button', { name: 'Save address' }).click();
+    await expect(mapScreen.getByText('Get the fastest delivery')).toBeVisible();
 
+    await mapScreen.getByPlaceholder('Search an area or address').fill('Test Office Area');
+    await mapScreen.getByText('Test Office Area', { exact: true }).click();
+
+    // Lands on the pin-placement map step, centered on the search result; the mocked
+    // reverse-geocode response should populate the bottom sheet automatically.
+    await expect(mapScreen.getByText('Place the pin at exact delivery location')).toBeVisible();
+    await expect(mapScreen.getByText(OFFICE_DISPLAY_NAME)).toBeVisible({ timeout: 10_000 });
+
+    await mapScreen.getByRole('button', { name: 'Confirm & proceed' }).click();
+
+    await expect(mapScreen.getByRole('heading', { name: 'Name this address' })).toBeVisible();
+    await mapScreen.getByPlaceholder('Label (e.g. Home, Work)').fill('Office');
+    await mapScreen.getByRole('button', { name: 'Save address' }).click();
+
+    await expect(mapScreen).not.toBeVisible();
     await expect(picker.getByText('Office')).toBeVisible();
-    await expect(picker.getByText('123 Test Street, Hyderabad')).toBeVisible();
+    await expect(picker.getByText(OFFICE_DISPLAY_NAME)).toBeVisible();
   });
 
   await test.step('Selecting it closes the picker and marks it as the active address', async () => {
     await picker.getByText('Office').click();
-    await expect(page.getByTestId('address-picker')).not.toBeVisible();
+    await expect(picker).not.toBeVisible();
     await expect(addressBar.getByText('Office')).toBeVisible(); // now shown on the address bar itself
 
     await addressBar.click();
     await expect(picker.getByText('SELECTED')).toBeVisible();
   });
 
-  await test.step('Editing updates the label and address in place', async () => {
+  await test.step('Editing opens the map (pre-centered on the existing pin) instead of a text form', async () => {
     await picker.getByLabel('Options for Office').click();
     await picker.getByText('✏️ Edit').click();
-    await picker.locator('input').last().fill('Work HQ');
-    await picker.locator('textarea').last().fill('456 Renamed Street, Hyderabad');
-    await picker.getByRole('button', { name: 'Save' }).click();
 
-    await expect(picker.getByText('Work HQ')).toBeVisible();
-    await expect(picker.getByText('456 Renamed Street, Hyderabad')).toBeVisible();
-    await expect(picker.getByText('Office')).not.toBeVisible();
+    // Edit mode skips the "Get the fastest delivery" prompt and the label step — it goes
+    // straight to the pin-placement map, and Confirm & proceed saves immediately.
+    await expect(mapScreen.getByText('Get the fastest delivery')).not.toBeVisible();
+    await expect(mapScreen.getByText('Place the pin at exact delivery location')).toBeVisible();
+    await expect(mapScreen.getByText(OFFICE_DISPLAY_NAME)).toBeVisible({ timeout: 10_000 });
+
+    await mapScreen.getByRole('button', { name: 'Confirm & proceed' }).click();
+    await expect(mapScreen).not.toBeVisible();
+    await expect(picker.getByText('Office')).toBeVisible();
   });
 
   await test.step('Deleting removes it from the saved list', async () => {
-    await picker.getByLabel('Options for Work HQ').click();
+    await picker.getByLabel('Options for Office').click();
     await picker.getByText('🗑️ Delete').click();
-    await expect(picker.getByText('Work HQ')).not.toBeVisible();
+    await expect(picker.getByText('Office')).not.toBeVisible();
     await expect(picker.getByText('No saved addresses yet')).toBeVisible();
   });
+});
+
+test('a location-permission banner shows when access is off', async ({ page, context }) => {
+  // Playwright's default browser context has no geolocation permission granted, which is
+  // exactly the "off" state this banner should react to.
+  await context.clearPermissions();
+
+  const customerPhone = uniquePhone(4);
+  await page.goto('http://localhost:5173');
+  await page.getByText('Create an account').click();
+  await page.getByPlaceholder('Full name').fill('E2E Permission Banner Customer');
+  await page.getByPlaceholder('Phone number').fill(customerPhone);
+  await page.getByPlaceholder('Password').fill('testpass123');
+  await page.locator('button[type="submit"]').click();
+  await expect(page.getByPlaceholder('Search by name, cuisine, or dish…')).toBeVisible();
+
+  await expect(page.getByText('Location Permission is Off')).toBeVisible();
+});
+
+test('no permission banner shows when location access is already granted', async ({ page, context }) => {
+  // Granted from the very first page load (rather than granting mid-test and clicking
+  // GRANT) sidesteps a real race: the app's own Permissions-API onchange listener can hide
+  // the banner the instant context.grantPermissions() takes effect, which could remove the
+  // button out from under a scripted click. Testing both states of the initial check is
+  // just as strong a guarantee and doesn't depend on that timing.
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: 17.5, longitude: 78.5 });
+
+  const customerPhone = uniquePhone(5);
+  await page.goto('http://localhost:5173');
+  await page.getByText('Create an account').click();
+  await page.getByPlaceholder('Full name').fill('E2E No Banner Customer');
+  await page.getByPlaceholder('Phone number').fill(customerPhone);
+  await page.getByPlaceholder('Password').fill('testpass123');
+  await page.locator('button[type="submit"]').click();
+  await expect(page.getByPlaceholder('Search by name, cuisine, or dish…')).toBeVisible();
+
+  await expect(page.getByText('Location Permission is Off')).not.toBeVisible();
 });
