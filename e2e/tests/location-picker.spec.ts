@@ -166,14 +166,14 @@ test('address picker: add via the map flow, select, edit, and delete a saved add
     await mapScreen.getByRole('button', { name: 'Save address' }).click();
 
     await expect(mapScreen).not.toBeVisible();
-    await expect(picker.getByText('Office')).toBeVisible();
+    await expect(picker.getByText('Office', { exact: true })).toBeVisible();
     await expect(picker.getByText(OFFICE_DISPLAY_NAME)).toBeVisible();
   });
 
   await test.step('Selecting it closes the picker and marks it as the active address', async () => {
-    await picker.getByText('Office').click();
+    await picker.getByText('Office', { exact: true }).click();
     await expect(picker).not.toBeVisible();
-    await expect(addressBar.getByText('Office')).toBeVisible(); // now shown on the address bar itself
+    await expect(addressBar.getByText('Office', { exact: true })).toBeVisible(); // now shown on the address bar itself
 
     await addressBar.click();
     await expect(picker.getByText('SELECTED')).toBeVisible();
@@ -191,13 +191,13 @@ test('address picker: add via the map flow, select, edit, and delete a saved add
 
     await mapScreen.getByRole('button', { name: 'Confirm & proceed' }).click();
     await expect(mapScreen).not.toBeVisible();
-    await expect(picker.getByText('Office')).toBeVisible();
+    await expect(picker.getByText('Office', { exact: true })).toBeVisible();
   });
 
   await test.step('Deleting removes it from the saved list', async () => {
     await picker.getByLabel('Options for Office').click();
     await picker.getByText('🗑️ Delete').click();
-    await expect(picker.getByText('Office')).not.toBeVisible();
+    await expect(picker.getByText('Office', { exact: true })).not.toBeVisible();
     await expect(picker.getByText('No saved addresses yet')).toBeVisible();
   });
 });
