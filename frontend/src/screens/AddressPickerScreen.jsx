@@ -150,6 +150,7 @@ export default function AddressPickerScreen({
 
   return (
     <div
+      data-testid="address-picker"
       style={{
         position: 'fixed', inset: 0, zIndex: 80, background: 'var(--paper)', color: 'var(--charcoal)',
         overflowY: 'auto', padding: '20px 20px 40px',
