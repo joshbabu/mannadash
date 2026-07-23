@@ -50,7 +50,13 @@ export class CustomersService {
     if (index === -1) {
       throw new NotFoundException('Saved address not found');
     }
-    const updated = { ...list[index], ...dto };
+    // dto arrives as a real UpdateAddressDto instance (ValidationPipe's transform: true +
+    // this project's ES2023 target means every declared field — even ones the caller never
+    // sent — exists on the instance, explicitly set to undefined). Spreading it directly
+    // would let those undefined fields null out existing values on a partial update, so only
+    // the keys actually present in the request body get merged in.
+    const patch = Object.fromEntries(Object.entries(dto).filter(([, v]) => v !== undefined));
+    const updated = { ...list[index], ...patch };
     customer.savedLocations = [...list.slice(0, index), updated, ...list.slice(index + 1)];
     await this.customerRepo.save(customer);
     return customer.savedLocations;
