@@ -77,12 +77,21 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
   const [showAddressPicker, setShowAddressPicker] = useState(false);
 
   useEffect(() => {
+    // Distances/km on every restaurant card come from whatever lat/lng we call load()
+    // with — so the initial load has to wait on saved addresses and use the default one's
+    // coordinates when there is one, instead of always starting from the hardcoded
+    // Hitech City fallback while the address bar shows "Home".
     api.getSavedAddresses()
       .then((addrs) => {
         setSavedAddresses(addrs);
-        if (addrs.length > 0) setSelectedAddress(addrs[0]);
+        if (addrs.length > 0) {
+          setSelectedAddress(addrs[0]);
+          load(Number(addrs[0].latitude), Number(addrs[0].longitude));
+        } else {
+          load(DEFAULT_LAT, DEFAULT_LNG);
+        }
       })
-      .catch(() => {});
+      .catch(() => load(DEFAULT_LAT, DEFAULT_LNG));
   }, []);
 
   function pickAddress(addr) {
@@ -146,10 +155,6 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
     }, 350);
     return () => clearTimeout(timer);
   }, [searchQuery, currentLatLng]);
-
-  useEffect(() => {
-    load(DEFAULT_LAT, DEFAULT_LNG);
-  }, []);
 
   async function load(lat, lng) {
     setLoading(true);
