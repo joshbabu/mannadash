@@ -1,8 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api';
+
+// Bias/limit results toward the Hyderabad metro area so a search for a common area name
+// (there are multiple "Shivaji Nagar"s in India) resolves to the right one by default.
+// Loose bounding box around Hyderabad + Secunderabad; `bounded=0` still allows a good
+// match outside it if nothing local fits, it's just a ranking hint, not a hard wall.
+const HYDERABAD_VIEWBOX = '78.20,17.60,78.70,17.20'; // left,top,right,bottom
 
 // Full-screen "select your location" flow, modeled on the reference screenshot: search,
 // a couple of quick actions, then the saved-addresses list with per-row select/edit/delete.
+// Search hits OpenStreetMap's free Nominatim geocoder — no API key needed, but it's rate
+// -limited to ~1 req/sec and isn't meant for heavy production autocomplete traffic. Fine
+// for this stage; worth swapping for Google Places/Mapbox (proxied through the backend,
+// so the key stays server-side) once volume justifies it.
 // "Recently searched" from the reference isn't included — there's no backend search-history
 // concept to back it with real data, and a fabricated list would just be decoration.
 export default function AddressPickerScreen({
@@ -15,6 +25,9 @@ export default function AddressPickerScreen({
   defaultLatLng,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
   const [locationOn, setLocationOn] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newLabel, setNewLabel] = useState('');
@@ -30,6 +43,50 @@ export default function AddressPickerScreen({
   const filteredAddresses = !q
     ? addresses
     : addresses.filter((a) => a.label.toLowerCase().includes(q) || a.address.toLowerCase().includes(q));
+
+  // Debounced live area/address search — separate from the instant saved-addresses filter
+  // above, since this one needs a network round trip.
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (query.length < 3) {
+      setSearchResults([]);
+      setSearching(false);
+      setSearchError('');
+      return;
+    }
+    const controller = new AbortController();
+    setSearching(true);
+    setSearchError('');
+    const timer = setTimeout(() => {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&viewbox=${HYDERABAD_VIEWBOX}&bounded=0&countrycodes=in&limit=6&addressdetails=1`;
+      fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } })
+        .then((res) => {
+          if (!res.ok) throw new Error('Search failed');
+          return res.json();
+        })
+        .then((results) => setSearchResults(results || []))
+        .catch((err) => {
+          if (err.name !== 'AbortError') setSearchError('Could not search right now — try again.');
+        })
+        .finally(() => setSearching(false));
+    }, 400);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [searchQuery]);
+
+  function shortLabelFor(result) {
+    // First segment of the display name reads like an area/landmark name; the full
+    // display_name (shown underneath) carries the rest of the detail.
+    return result.display_name.split(',')[0].trim();
+  }
+
+  function selectSearchResult(result) {
+    onSelectAddress({
+      label: shortLabelFor(result),
+      address: result.display_name,
+      latitude: parseFloat(result.lat),
+      longitude: parseFloat(result.lon),
+    });
+  }
 
   function toggleLocation() {
     const next = !locationOn;
@@ -116,6 +173,38 @@ export default function AddressPickerScreen({
         style={{ width: '100%', background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd', marginBottom: 14, borderRadius: 24, padding: '12px 16px' }}
       />
 
+      {searchQuery.trim().length >= 3 && (
+        <div style={{ marginBottom: 20 }}>
+          {searching && <p className="muted">Searching…</p>}
+          {!searching && searchError && <div className="error-banner">{searchError}</div>}
+          {!searching && !searchError && searchResults.length === 0 && (
+            <p className="muted">No matches for "{searchQuery.trim()}".</p>
+          )}
+          {!searching && searchResults.length > 0 && (
+            <div className="stack">
+              {searchResults.map((r) => (
+                <button
+                  key={r.place_id}
+                  onClick={() => selectSearchResult(r)}
+                  style={{
+                    width: '100%', textAlign: 'left', background: '#fdf8ef', border: '1px solid #e5ddc9',
+                    borderRadius: 14, padding: '12px 14px', display: 'flex', alignItems: 'flex-start', gap: 10,
+                  }}
+                >
+                  <span style={{ fontSize: 16, lineHeight: '20px' }}>📍</span>
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: 'block', fontWeight: 700, fontSize: 14, color: 'var(--charcoal)' }}>
+                      {shortLabelFor(r)}
+                    </span>
+                    <span style={{ display: 'block', fontSize: 12, color: '#6b6156' }}>{r.display_name}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 10, marginBottom: 22 }}>
         <button
           onClick={toggleLocation}
@@ -181,7 +270,7 @@ export default function AddressPickerScreen({
       )}
 
       <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', color: '#8a8074', textTransform: 'uppercase', marginBottom: 10 }}>
-        Saved addresses
+        {q ? 'Matching saved addresses' : 'Saved addresses'}
       </p>
 
       {filteredAddresses.length === 0 && (
