@@ -91,8 +91,9 @@ test('restaurant distances reflect the selected saved address, not the default l
     await expect(page.getByPlaceholder('Search by name, cuisine, or dish…')).toBeVisible();
 
     // The address bar auto-selects the first saved address and reloads restaurants from it
-    // on mount — this is exactly the behavior the regression fix added.
-    await expect(page.getByText('Home')).toBeVisible();
+    // on mount — this is exactly the behavior the regression fix added. Scoped to the
+    // address bar specifically since "Home" also matches the bottom-nav tab.
+    await expect(page.getByTestId('address-bar').getByText('Home')).toBeVisible();
     await expect(page.getByText(restaurantName)).toBeVisible({ timeout: 10_000 });
 
     // Confirm it's reading as genuinely nearby, not just present in a wider unfiltered list
@@ -120,8 +121,10 @@ test('address picker: add, edit, select, and delete a saved address', async ({ p
   // address bar underneath once it's selected.
   const picker = page.getByTestId('address-picker');
 
+  const addressBar = page.getByTestId('address-bar');
+
   await test.step('Opens the location picker and adds a new address', async () => {
-    await page.getByText('Set delivery location').click();
+    await addressBar.click();
     await expect(picker.getByRole('heading', { name: 'Select your location' })).toBeVisible();
 
     await picker.getByText('Add New Address').click();
@@ -136,9 +139,9 @@ test('address picker: add, edit, select, and delete a saved address', async ({ p
   await test.step('Selecting it closes the picker and marks it as the active address', async () => {
     await picker.getByText('Office').click();
     await expect(page.getByTestId('address-picker')).not.toBeVisible();
-    await expect(page.getByText('Office')).toBeVisible(); // now shown on the address bar itself
+    await expect(addressBar.getByText('Office')).toBeVisible(); // now shown on the address bar itself
 
-    await page.getByText('Office').click();
+    await addressBar.click();
     await expect(picker.getByText('SELECTED')).toBeVisible();
   });
 

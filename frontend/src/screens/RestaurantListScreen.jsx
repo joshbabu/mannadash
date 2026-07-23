@@ -242,6 +242,7 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
   return (
     <div className="screen">
       <button
+        data-testid="address-bar"
         onClick={() => setShowAddressPicker(true)}
         style={{
           display: 'flex', alignItems: 'flex-start', gap: 8, width: '100%', textAlign: 'left',
