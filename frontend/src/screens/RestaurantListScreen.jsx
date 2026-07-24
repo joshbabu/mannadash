@@ -59,7 +59,7 @@ const QUICK_CATEGORIES = [
   { label: 'Shake', icon: '🥤' },
 ];
 
-export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor, onSetScheduledFor }) {
+export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor, onSetScheduledFor, budgetFilterActive }) {
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -70,13 +70,20 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState(new Set());
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const EMPTY_FILTERS = { nearFast: false, noPackaging: false, pureVeg: false, ratingMin: null, hasOffer: false, priceRange: null, fssaiCertified: false };
+  const EMPTY_FILTERS = { nearFast: false, noPackaging: false, pureVeg: false, ratingMin: null, hasOffer: false, priceRange: null, fssaiCertified: false, budgetMeal: false };
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [showAddressPicker, setShowAddressPicker] = useState(false);
   const [showLocationBanner, setShowLocationBanner] = useState(false);
   const [showLocationDeniedModal, setShowLocationDeniedModal] = useState(false);
+
+  // Driven by the "Under ₹250" bottom-nav tab — kept in sync rather than owned here, since
+  // that button needs to work as a real nav tab (switching away from Orders, showing an
+  // active state) which only App.jsx's tab state can coordinate.
+  useEffect(() => {
+    setFilters((f) => (f.budgetMeal === !!budgetFilterActive ? f : { ...f, budgetMeal: !!budgetFilterActive }));
+  }, [budgetFilterActive]);
 
   // Nudges the person to grant location access, mirroring the "Location Permission is Off"
   // banner competitors show — but only when it's actually off and they haven't already
@@ -238,6 +245,7 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
     if (filters.ratingMin && Number(r.ratingAvg || 0) < filters.ratingMin) return false;
     if (filters.hasOffer && !r.hasActiveOffer) return false;
     if (filters.fssaiCertified && !r.fssaiNumber) return false;
+    if (filters.budgetMeal && !(r.priceRange && Number(r.priceRange.minPrice) <= 250)) return false;
     if (filters.priceRange && r.priceRange) {
       const min = Number(r.priceRange.minPrice);
       if (filters.priceRange === 'under200' && !(min <= 200)) return false;
@@ -257,6 +265,22 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
   });
 
   const activeFilterCount = Object.entries(filters).filter(([, v]) => v).length;
+
+  // "Recommended for you" — no per-user recommendation model exists, so rather than
+  // faking one, this ranks by signals that are already real fields on the restaurant:
+  // open right now, then highest rating, with an active offer as a tiebreaker nudge.
+  // Only shown unfiltered/unsearched — it's meant as a browse-time surface, not another
+  // place search results need to duplicate through.
+  const recommended = !searchQuery.trim()
+    ? [...restaurants]
+        .filter((r) => isRestaurantOpenNow(r) && Number(r.ratingAvg || 0) > 0)
+        .sort((a, b) => {
+          const offerDiff = (b.hasActiveOffer ? 1 : 0) - (a.hasActiveOffer ? 1 : 0);
+          if (offerDiff !== 0) return offerDiff;
+          return Number(b.ratingAvg || 0) - Number(a.ratingAvg || 0);
+        })
+        .slice(0, 8)
+    : [];
 
   // Pick a hero banner for a card: a real food photo when the cuisine maps to one of the
   // known categories (reusing the same photos the category row already loaded), otherwise
@@ -306,7 +330,7 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
       {showLocationBanner && (
         <div
           style={{
-            position: 'fixed', left: 0, right: 0, bottom: 84, zIndex: 50,
+            position: 'fixed', left: 0, right: 0, bottom: 96, zIndex: 50,
             display: 'flex', justifyContent: 'center', padding: '0 20px', pointerEvents: 'none',
           }}
         >
@@ -601,6 +625,51 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
           Sort: {sortBy === 'distance' ? 'Nearest' : 'Top rated'}
         </button>
       </div>
+
+      {!loading && recommended.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: 10 }}>
+            Recommended for you
+          </p>
+          <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4 }}>
+            {recommended.map((r) => {
+              const banner = bannerFor(r);
+              return (
+                <button
+                  key={r.id}
+                  onClick={() => onSelectRestaurant(r)}
+                  style={{
+                    flex: '0 0 auto', width: 150, textAlign: 'left', background: 'var(--card-gradient)',
+                    borderRadius: 14, overflow: 'hidden', boxShadow: '0 10px 22px rgba(0,0,0,0.3)', border: 'none', cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ position: 'relative', height: 90, ...banner.style }}>
+                    {banner.emoji && (
+                      <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34 }}>
+                        {banner.emoji}
+                      </span>
+                    )}
+                    {r.hasActiveOffer && (
+                      <span style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 9, fontWeight: 700, padding: '3px 6px', borderRadius: 5 }}>
+                        OFFER
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ padding: '8px 10px 10px' }}>
+                    <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--charcoal)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {r.name}
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#6b6156', marginTop: 2 }}>
+                      <span style={{ color: '#2e6b34', fontWeight: 700 }}>★ {Number(r.ratingAvg).toFixed(1)}</span>
+                      <span>· {r.avgPrepTimeMins} mins</span>
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {error && <div className="error-banner">{error}</div>}
       {loading && (

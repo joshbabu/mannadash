@@ -28,6 +28,7 @@ test('logout clears the cached session on every app — refreshing after logout 
     await page.getByPlaceholder('Phone number').fill(phone);
     await page.getByPlaceholder('Password').fill('testpass123');
     await page.getByRole('button', { name: 'Log in' }).click();
+    await page.getByRole('button', { name: 'My account' }).click();
     await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Log out' }).click();

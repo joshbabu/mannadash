@@ -213,28 +213,47 @@ button:focus-visible {
 
 .bottom-nav {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  max-width: 480px;
+  bottom: 16px;
+  left: 20px;
+  right: 20px;
+  max-width: 440px;
   margin: 0 auto;
-  background: var(--ink-soft);
-  border-top: 1px solid var(--line);
+  background: rgba(28, 27, 41, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--line);
+  border-radius: 30px;
   display: flex;
   justify-content: space-around;
-  padding: 12px 0 20px;
+  padding: 8px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
 }
 
 .bottom-nav button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
   background: none;
   color: var(--text-dim);
-  font-size: 13px;
-  font-weight: 600;
-  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 22px;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.bottom-nav button:active {
+  transform: scale(0.95);
+}
+
+.bottom-nav__icon {
+  font-size: 18px;
+  line-height: 1;
 }
 
 .bottom-nav button.active {
-  color: var(--turmeric);
+  color: var(--chili);
+  background: rgba(228, 87, 46, 0.16);
 }
 
 .qty-control {

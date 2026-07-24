@@ -14,6 +14,7 @@ import AccountStatementScreen from './screens/AccountStatementScreen';
 export default function App() {
   const [user, setUser] = useState(api.getStoredUser());
   const [tab, setTab] = useState('browse'); // 'browse' | 'orders'
+  const [budgetFilter, setBudgetFilter] = useState(false);
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
   const [reorderCart, setReorderCart] = useState(null);
   const [pendingOrder, setPendingOrder] = useState(null); // { restaurant, orderItems, menuItems }
@@ -129,7 +130,7 @@ export default function App() {
       />
     );
   } else {
-    content = <RestaurantListScreen onSelectRestaurant={setSelectedRestaurant} scheduledFor={scheduledFor} onSetScheduledFor={setScheduledFor} />;
+    content = <RestaurantListScreen onSelectRestaurant={setSelectedRestaurant} scheduledFor={scheduledFor} onSetScheduledFor={setScheduledFor} budgetFilterActive={budgetFilter} />;
   }
 
   const showBottomNav = !selectedRestaurant && !pendingOrder && !trackingOrderId && !legalDoc && !showMyAccount && !showFavorites && !showStatement;
@@ -138,36 +139,34 @@ export default function App() {
     <div className="app-shell">
       <div className="topbar">
         <span className="brand">MannaDash</span>
-        <div className="row" style={{ gap: 8 }}>
-          <button
-            onClick={() => setShowMyAccount(true)}
-            aria-label="My account"
-            style={{
-              width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-gradient)',
-              color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 14, fontWeight: 800, cursor: 'pointer',
-            }}
-          >
-            {(user?.name || '?').trim().charAt(0).toUpperCase()}
-          </button>
-          <button className="btn-secondary" onClick={() => setLegalDoc('terms')} style={{ fontSize: 12, padding: '6px 10px' }}>
-            Legal
-          </button>
-          <button className="btn-secondary" onClick={logout} style={{ fontSize: 12, padding: '6px 10px' }}>
-            Log out
-          </button>
-        </div>
+        <button
+          onClick={() => setShowMyAccount(true)}
+          aria-label="My account"
+          style={{
+            width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-gradient)',
+            color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 14, fontWeight: 800, cursor: 'pointer',
+          }}
+        >
+          {(user?.name || '?').trim().charAt(0).toUpperCase()}
+        </button>
       </div>
 
       {content}
 
       {showBottomNav && (
         <div className="bottom-nav">
-          <button className={tab === 'browse' ? 'active' : ''} onClick={() => setTab('browse')}>
-            🏠 Home
+          <button aria-label="Home" className={tab === 'browse' && !budgetFilter ? 'active' : ''} onClick={() => { setTab('browse'); setBudgetFilter(false); }}>
+            <span className="bottom-nav__icon">🏠</span>
+            Home
           </button>
-          <button className={tab === 'orders' ? 'active' : ''} onClick={() => setTab('orders')}>
-            📋 Orders
+          <button aria-label="Under ₹250" className={budgetFilter ? 'active' : ''} onClick={() => { setTab('browse'); setBudgetFilter(true); }}>
+            <span className="bottom-nav__icon">🏷️</span>
+            Under ₹250
+          </button>
+          <button aria-label="Orders" className={tab === 'orders' ? 'active' : ''} onClick={() => { setTab('orders'); setBudgetFilter(false); }}>
+            <span className="bottom-nav__icon">📋</span>
+            Orders
           </button>
         </div>
       )}

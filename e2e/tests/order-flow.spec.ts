@@ -246,7 +246,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // A reload drops the SPA back on Browse — navigate to the order the way a real
     // customer would: Orders tab, tap the order row
     await customerPage.reload();
-    await customerPage.getByRole('button', { name: '📋 Orders' }).click();
+    await customerPage.getByRole('button', { name: 'Orders' }).click();
     await customerPage.getByRole('button', { name: new RegExp(restaurantName) }).click();
     await expect(customerPage.getByText('Thanks for rating your order!')).toBeVisible();
     await expect(customerPage.getByText('How was your order?')).toHaveCount(0);
@@ -264,7 +264,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // Customer revisits the menu — the same Back-then-Browse navigation as the Phase J
     // step, since the customer is still deep inside the app from the reload above
     await customerPage.getByRole('button', { name: '← Back' }).click();
-    await customerPage.getByRole('button', { name: '🏠 Home' }).click();
+    await customerPage.getByRole('button', { name: 'Home', exact: true }).click();
     await customerPage.getByPlaceholder('Search by name, cuisine, or dish…').fill(restaurantName);
     await customerPage.getByText(restaurantName).click();
     await expect(customerPage.getByText('Reply from the restaurant')).toBeVisible();
@@ -275,7 +275,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // Same navigation lesson as Phase J/L1/L3 — the customer is on the menu page from
     // the step above, and the Browse tab is hidden while a restaurant is selected.
     await customerPage.getByRole('button', { name: '← Back' }).click();
-    await customerPage.getByRole('button', { name: '🏠 Home' }).click();
+    await customerPage.getByRole('button', { name: 'Home', exact: true }).click();
 
     // Category photos fetch — real photo URLs need network access this test env doesn't
     // have, but what's actually worth proving is that the fetch/render doesn't break the
@@ -313,7 +313,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     });
     expect(cakeItemRes.ok()).toBeTruthy();
     await customerPage.getByRole('button', { name: '← Back' }).click();
-    await customerPage.getByRole('button', { name: '🏠 Home' }).click();
+    await customerPage.getByRole('button', { name: 'Home', exact: true }).click();
     await customerPage.getByRole('button', { name: '🍰 Cakes' }).click();
     await expect(customerPage.getByPlaceholder('Search by name, cuisine, or dish…')).toHaveValue('Cake');
     await expect(customerPage.getByText(restaurantName)).toBeVisible({ timeout: 10_000 });
@@ -553,7 +553,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // restaurant now has two delivered orders in history (the original, and the Phase L1
     // offer-test order added later in this same test), both correctly showing the pill
     await customerPage.reload();
-    await customerPage.getByRole('button', { name: '📋 Orders' }).click();
+    await customerPage.getByRole('button', { name: 'Orders' }).click();
     await expect(customerPage.getByText('Closed now').first()).toBeVisible();
 
     // "View menu" browses the restaurant without force-filling a cart
@@ -569,7 +569,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
 
     // Reorder is honest about what it couldn't re-add
     await customerPage.getByRole('button', { name: '← Back' }).click();
-    await customerPage.getByRole('button', { name: '📋 Orders' }).click();
+    await customerPage.getByRole('button', { name: 'Orders' }).click();
     await customerPage.getByRole('button', { name: /🔁 Reorder/ }).first().click();
     await expect(customerPage.getByText(/no\s*longer available/)).toBeVisible();
   });
@@ -630,7 +630,7 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // is active. So Back alone lands on Order History again, not the search screen; the
     // Browse tab has to be clicked explicitly once the bottom nav reappears.
     await customerPage.getByRole('button', { name: '← Back' }).click();
-    await customerPage.getByRole('button', { name: '🏠 Home' }).click();
+    await customerPage.getByRole('button', { name: 'Home', exact: true }).click();
     await customerPage.getByPlaceholder('Search by name, cuisine, or dish…').fill(restaurantName);
     await customerPage.getByText(restaurantName).click();
     await customerPage.getByText('E2E Variant Dish').waitFor();
@@ -676,10 +676,10 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
   await test.step('L2: customer files a complaint, restaurant sees and responds to it', async () => {
     // Coming from checkout (previous step) — checkout and the menu screen both hide the
     // bottom nav (selectedRestaurant/pendingOrder), so it takes two Back taps to reach
-    // browse, where "📋 Orders" actually becomes visible again
+    // browse, where "Orders" tab actually becomes visible again
     await customerPage.getByRole('button', { name: '← Back' }).click();
     await customerPage.getByRole('button', { name: '← Back' }).click().catch(() => {});
-    await customerPage.getByRole('button', { name: '📋 Orders' }).click();
+    await customerPage.getByRole('button', { name: 'Orders' }).click();
     await expect(customerPage.getByText('🚩 Report an issue').first()).toBeVisible({ timeout: 10_000 });
     await customerPage.getByText('🚩 Report an issue').first().click();
 
