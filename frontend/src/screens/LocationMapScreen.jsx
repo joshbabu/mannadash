@@ -226,6 +226,47 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
 
       {step === 'map' && (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          {/* In normal flow (not floated over the map) so it's always rendered and visible —
+              an absolutely-positioned overlay here was intermittently invisible on mobile
+              (Safari's containing-block/viewport handling for fixed-position ancestors can
+              be unreliable), and this is just as usable without that risk. */}
+          <div style={{ position: 'relative', zIndex: 20, background: '#fff', padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.15)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f4f1ea', borderRadius: 24, padding: '10px 14px' }}>
+              <button
+                onClick={() => (mode === 'add' ? setStep('prompt') : onClose())}
+                aria-label="Back"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: 0, color: 'var(--charcoal)' }}
+              >
+                ←
+              </button>
+              <input
+                placeholder="Search an area or address"
+                value={mapSearchQuery}
+                onFocus={() => setMapSearchOpen(true)}
+                onChange={(e) => { setMapSearchQuery(e.target.value); setMapSearchOpen(true); }}
+                style={{ flex: 1, border: 'none', outline: 'none', background: 'none', fontSize: 14, color: 'var(--charcoal)' }}
+              />
+            </div>
+            {mapSearchOpen && mapSearchQuery.trim().length >= 3 && (
+              <div style={{ marginTop: 8, background: '#fff', borderRadius: 14, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', overflow: 'hidden', maxHeight: 240, overflowY: 'auto' }}>
+                {mapSearching && <p className="muted" style={{ padding: 12 }}>Searching…</p>}
+                {!mapSearching && mapSearchResults.length === 0 && (
+                  <p className="muted" style={{ padding: 12 }}>No matches.</p>
+                )}
+                {mapSearchResults.map((r) => (
+                  <button
+                    key={r.place_id}
+                    onClick={() => selectMapSearchResult(r)}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', borderBottom: '1px solid #eee' }}
+                  >
+                    <span style={{ display: 'block', fontWeight: 700, fontSize: 13, color: 'var(--charcoal)' }}>{r.display_name.split(',')[0].trim()}</span>
+                    <span style={{ display: 'block', fontSize: 11, color: '#6b6156' }}>{r.display_name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
             <div ref={mapContainerRef} style={{ position: 'absolute', inset: 0 }} />
 
@@ -236,43 +277,6 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
               style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -100%)', pointerEvents: 'none', zIndex: 10 }}
             >
               <div style={{ fontSize: 40, lineHeight: 1, filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.35))' }}>📍</div>
-            </div>
-
-            <div style={{ position: 'absolute', top: 16, left: 16, right: 16, zIndex: 15 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fff', borderRadius: 24, padding: '10px 14px', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
-                <button
-                  onClick={() => (mode === 'add' ? setStep('prompt') : onClose())}
-                  aria-label="Back"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: 0, color: 'var(--charcoal)' }}
-                >
-                  ←
-                </button>
-                <input
-                  placeholder="Search an area or address"
-                  value={mapSearchQuery}
-                  onFocus={() => setMapSearchOpen(true)}
-                  onChange={(e) => { setMapSearchQuery(e.target.value); setMapSearchOpen(true); }}
-                  style={{ flex: 1, border: 'none', outline: 'none', fontSize: 14, color: 'var(--charcoal)' }}
-                />
-              </div>
-              {mapSearchOpen && mapSearchQuery.trim().length >= 3 && (
-                <div style={{ marginTop: 8, background: '#fff', borderRadius: 14, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', overflow: 'hidden', maxHeight: 240, overflowY: 'auto' }}>
-                  {mapSearching && <p className="muted" style={{ padding: 12 }}>Searching…</p>}
-                  {!mapSearching && mapSearchResults.length === 0 && (
-                    <p className="muted" style={{ padding: 12 }}>No matches.</p>
-                  )}
-                  {mapSearchResults.map((r) => (
-                    <button
-                      key={r.place_id}
-                      onClick={() => selectMapSearchResult(r)}
-                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: 'none', border: 'none', borderBottom: '1px solid #eee' }}
-                    >
-                      <span style={{ display: 'block', fontWeight: 700, fontSize: 13, color: 'var(--charcoal)' }}>{r.display_name.split(',')[0].trim()}</span>
-                      <span style={{ display: 'block', fontSize: 11, color: '#6b6156' }}>{r.display_name}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
 
