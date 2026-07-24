@@ -1051,3 +1051,8 @@ button:focus-visible {
   font-size: 13px;
   font-weight: 600;
 }
+
+@keyframes slide-up-toast {
+  from { transform: translateY(120%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}

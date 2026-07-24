@@ -76,6 +76,7 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [showAddressPicker, setShowAddressPicker] = useState(false);
   const [showLocationBanner, setShowLocationBanner] = useState(false);
+  const [showLocationDeniedModal, setShowLocationDeniedModal] = useState(false);
 
   // Nudges the person to grant location access, mirroring the "Location Permission is Off"
   // banner competitors show — but only when it's actually off and they haven't already
@@ -200,7 +201,14 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
         setShowLocationBanner(false);
         load(pos.coords.latitude, pos.coords.longitude);
       },
-      () => load(DEFAULT_LAT, DEFAULT_LNG),
+      (err) => {
+        // Covers both "user just tapped Deny on the native prompt" and "permission was
+        // already permanently denied, so the browser didn't even show a prompt" — either
+        // way the browser won't let a script re-trigger the prompt, so the only real next
+        // step is pointing them at their OS Settings instead of asking again.
+        if (err.code === err.PERMISSION_DENIED) setShowLocationDeniedModal(true);
+        load(DEFAULT_LAT, DEFAULT_LNG);
+      },
     );
   }
 
@@ -298,26 +306,66 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
       {showLocationBanner && (
         <div
           style={{
-            display: 'flex', alignItems: 'center', gap: 12, background: '#2f6fed', borderRadius: 14,
-            padding: '14px 16px', marginBottom: 16,
+            position: 'fixed', left: 0, right: 0, bottom: 84, zIndex: 50,
+            display: 'flex', justifyContent: 'center', padding: '0 20px', pointerEvents: 'none',
           }}
         >
-          <span style={{ fontSize: 20 }}>📍</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 14, fontWeight: 800, color: '#fff', marginBottom: 2 }}>Location Permission is Off</p>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>
-              Granting location permission will ensure accurate address and hassle-free delivery
-            </p>
-          </div>
-          <button
-            onClick={locateMe}
+          <div
             style={{
-              background: '#fff', color: '#2f6fed', border: 'none', borderRadius: 10, padding: '8px 16px',
-              fontWeight: 800, fontSize: 13, cursor: 'pointer', flexShrink: 0,
+              display: 'flex', alignItems: 'center', gap: 12, background: '#2f6fed', borderRadius: 14,
+              padding: '14px 16px', width: '100%', maxWidth: 440, boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+              pointerEvents: 'auto', animation: 'slide-up-toast 0.3s ease-out',
             }}
           >
-            GRANT
-          </button>
+            <span style={{ fontSize: 20 }}>📍</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 14, fontWeight: 800, color: '#fff', marginBottom: 2 }}>Location Permission is Off</p>
+              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>
+                Granting location permission will ensure accurate address and hassle-free delivery
+              </p>
+            </div>
+            <button
+              onClick={locateMe}
+              style={{
+                background: '#fff', color: '#2f6fed', border: 'none', borderRadius: 10, padding: '8px 16px',
+                fontWeight: 800, fontSize: 13, cursor: 'pointer', flexShrink: 0,
+              }}
+            >
+              GRANT
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showLocationDeniedModal && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(0,0,0,0.4)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          }}
+        >
+          <div style={{ background: '#fff', borderRadius: 14, overflow: 'hidden', width: '100%', maxWidth: 300, textAlign: 'center' }}>
+            <div style={{ padding: '24px 20px 20px' }}>
+              <p style={{ fontSize: 17, fontWeight: 700, color: 'var(--charcoal)', marginBottom: 10 }}>Enable Location Services</p>
+              <p style={{ fontSize: 14, color: '#4a463f', lineHeight: 1.4 }}>
+                Please go to Settings and enable location services for MannaDash.
+              </p>
+            </div>
+            <div style={{ display: 'flex', borderTop: '1px solid #e5ddc9' }}>
+              <button
+                onClick={() => setShowLocationDeniedModal(false)}
+                style={{ flex: 1, padding: '13px 0', background: 'none', border: 'none', borderRight: '1px solid #e5ddc9', color: '#2f6fed', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => setShowLocationDeniedModal(false)}
+                style={{ flex: 1, padding: '13px 0', background: 'none', border: 'none', color: '#2f6fed', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+              >
+                Settings
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
