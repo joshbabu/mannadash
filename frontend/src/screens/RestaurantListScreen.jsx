@@ -333,6 +333,16 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
             >
               GRANT
             </button>
+            <button
+              onClick={() => setShowLocationBanner(false)}
+              aria-label="Dismiss"
+              style={{
+                background: 'none', border: 'none', color: 'rgba(255,255,255,0.75)', fontSize: 16,
+                cursor: 'pointer', flexShrink: 0, padding: '0 0 0 2px', lineHeight: 1,
+              }}
+            >
+              ✕
+            </button>
           </div>
         </div>
       )}

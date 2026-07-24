@@ -19,6 +19,15 @@ export default defineConfig({
     // a local Playwright setup to inspect what actually ran. Costs a few MB per run in
     // artifact size and a small slowdown; worth it for a suite this small.
     trace: 'on',
+    // Playwright's default context has geolocation ungranted, which would make the
+    // "Location Permission is Off" toast (customer app) appear and sit fixed over the
+    // bottom of the screen for the whole test — blocking clicks on whatever happens to
+    // render underneath it, in tests that have nothing to do with location at all. Default
+    // every context to already-granted, like a returning user; the couple of tests in
+    // location-picker.spec.ts that specifically test the "off" state override this with
+    // context.clearPermissions().
+    permissions: ['geolocation'],
+    geolocation: { latitude: 17.4435, longitude: 78.3772 }, // Hitech City, Hyderabad
   },
   webServer: [
     {
