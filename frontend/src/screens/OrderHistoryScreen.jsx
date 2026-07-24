@@ -61,7 +61,13 @@ export default function OrderHistoryScreen({ onSelectOrder, onReorder, onViewRes
       <h1 style={{ fontSize: 26, marginTop: 12 }}>Your orders</h1>
 
       {error && <div className="error-banner">{error}</div>}
-      {loading && <p className="muted">Loading…</p>}
+      {loading && [0, 1, 2].map((i) => (
+        <div className="skeleton-card" key={i}>
+          <div className="skeleton-block" style={{ height: 15, width: '45%', marginBottom: 10 }} />
+          <div className="skeleton-block" style={{ height: 12, width: '65%', marginBottom: 8 }} />
+          <div className="skeleton-block" style={{ height: 12, width: '25%' }} />
+        </div>
+      ))}
       {!loading && orders.length === 0 && <p className="muted">No orders yet — go find something good to eat.</p>}
 
       <div className="stack" style={{ marginTop: 12 }}>

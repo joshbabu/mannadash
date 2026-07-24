@@ -603,7 +603,20 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
       </div>
 
       {error && <div className="error-banner">{error}</div>}
-      {loading && <p className="muted">Finding what's cooking nearby…</p>}
+      {loading && (
+        <div aria-label="Loading restaurants">
+          {[0, 1, 2].map((i) => (
+            <div className="skeleton-rest-card" key={i}>
+              <div className="skeleton-block skeleton-rest-card__banner" style={{ borderRadius: 0 }} />
+              <div className="skeleton-rest-card__body">
+                <div className="skeleton-block" style={{ height: 16, width: '55%', marginBottom: 10 }} />
+                <div className="skeleton-block" style={{ height: 12, width: '75%', marginBottom: 8 }} />
+                <div className="skeleton-block" style={{ height: 12, width: '40%' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {!loading && restaurants.length === 0 && !error && (
         <div className="card" style={{ textAlign: 'center' }}>
@@ -639,7 +652,7 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
               <div className="rest-card__banner" style={banner.style}>
                 {banner.emoji && <span className="rest-card__banner-emoji">{banner.emoji}</span>}
                 <button
-                  className="rest-card__fav"
+                  className={`rest-card__fav${favoriteIds.has(r.id) ? ' is-favorited' : ''}`}
                   aria-label={favoriteIds.has(r.id) ? 'Remove from favorites' : 'Add to favorites'}
                   onClick={(e) => { e.stopPropagation(); toggleFavorite(r.id); }}
                 >

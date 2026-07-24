@@ -97,6 +97,12 @@ button:focus-visible {
 .screen {
   flex: 1;
   padding: 8px 20px 100px;
+  animation: screen-enter 0.22s ease-out;
+}
+
+@keyframes screen-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .btn-primary {
@@ -133,6 +139,15 @@ button:focus-visible {
   padding: 10px 16px;
   font-weight: 600;
   font-size: 14px;
+  transition: transform 0.1s ease, background 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background: rgba(253, 248, 239, 0.06);
+}
+
+.btn-secondary:active {
+  transform: scale(0.97);
 }
 
 .card {
@@ -948,6 +963,21 @@ button:focus-visible {
   font-size: 17px;
   line-height: 1;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  transition: transform 0.1s ease;
+}
+
+.rest-card__fav:active {
+  transform: scale(0.85);
+}
+
+.rest-card__fav.is-favorited {
+  animation: fav-pop 0.3s ease;
+}
+
+@keyframes fav-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.35); }
+  100% { transform: scale(1); }
 }
 
 .rest-card__closed {
@@ -1055,4 +1085,51 @@ button:focus-visible {
 @keyframes slide-up-toast {
   from { transform: translateY(120%); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
+}
+
+/* Skeleton loading placeholders — mirrors .rest-card / menu-item dimensions so content
+   doesn't jump when the real data swaps in. Shimmer reads as "actively loading" rather
+   than a static gray block, which is what made the old plain-text loading states feel
+   unfinished. */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton-block {
+  background: linear-gradient(90deg, #eae6dc 25%, #f5f2ea 37%, #eae6dc 63%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+.skeleton-rest-card {
+  border-radius: 18px;
+  overflow: hidden;
+  margin-bottom: 14px;
+  background: var(--card-gradient);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.skeleton-rest-card__banner {
+  height: 158px;
+}
+
+.skeleton-rest-card__body {
+  padding: 14px 16px 16px;
+}
+
+.skeleton-menu-item {
+  display: flex;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(43, 36, 32, 0.08);
+}
+
+.skeleton-card {
+  border-radius: 18px;
+  padding: 16px;
+  margin-bottom: 14px;
+  background: var(--card-gradient);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }

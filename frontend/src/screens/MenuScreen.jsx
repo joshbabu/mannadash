@@ -321,7 +321,20 @@ export default function MenuScreen({ restaurant, onBack, onCheckout, initialCart
           longer available — the rest {droppedFromReorder === 1 ? 'is' : 'are'} in your cart.
         </div>
       )}
-      {loading && <p className="muted">Loading menu…</p>}
+      {loading && (
+        <div aria-label="Loading menu">
+          {[0, 1, 2, 3].map((i) => (
+            <div className="skeleton-menu-item" key={i}>
+              <div style={{ flex: 1 }}>
+                <div className="skeleton-block" style={{ height: 15, width: '70%', marginBottom: 10 }} />
+                <div className="skeleton-block" style={{ height: 12, width: '35%', marginBottom: 10 }} />
+                <div className="skeleton-block" style={{ height: 11, width: '90%' }} />
+              </div>
+              <div className="skeleton-block" style={{ width: 84, height: 84, borderRadius: 10, flexShrink: 0 }} />
+            </div>
+          ))}
+        </div>
+      )}
       {!loading && !error && items.length === 0 && (
         <div className="card" style={{ textAlign: 'center', marginTop: 16 }}>
           <p style={{ margin: 0 }}>No items on the menu yet.</p>

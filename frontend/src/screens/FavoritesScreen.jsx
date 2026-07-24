@@ -27,7 +27,12 @@ export default function FavoritesScreen({ onBack, onSelectRestaurant }) {
       <h1 style={{ fontSize: 24, marginBottom: 16 }}>Favorites</h1>
 
       {error && <div className="error-banner">{error}</div>}
-      {loading && <p className="muted">Loading…</p>}
+      {loading && [0, 1].map((i) => (
+        <div className="skeleton-card" key={i}>
+          <div className="skeleton-block" style={{ height: 16, width: '50%', marginBottom: 10 }} />
+          <div className="skeleton-block" style={{ height: 12, width: '30%' }} />
+        </div>
+      ))}
 
       {!loading && favorites.length === 0 && (
         <div className="card" style={{ textAlign: 'center' }}>
