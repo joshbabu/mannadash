@@ -627,7 +627,7 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
       </div>
 
       {!loading && recommended.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
+        <div data-testid="recommended-row" style={{ marginBottom: 20 }}>
           <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: 10 }}>
             Recommended for you
           </p>
@@ -702,7 +702,7 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
         </div>
       )}
 
-      <div className="stack">
+      <div className="stack" data-testid="restaurant-list">
         {sortedRestaurants.map((r) => {
           const banner = bannerFor(r);
           const openNow = isRestaurantOpenNow(r);

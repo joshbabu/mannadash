@@ -389,11 +389,14 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
 
   await test.step('Quick filter pills — real fields, not fake badges', async () => {
     // Still on home/browse. This restaurant is isVegOnly: true (set at signup above),
-    // so "Pure Veg" must still show it, and clearing filters must bring back everything
+    // so "Pure Veg" must still show it, and clearing filters must bring back everything.
+    // Scoped to the main list specifically — search is empty here, so the Recommended
+    // for you row can legitimately show this same restaurant too, same as the real app.
+    const mainList = customerPage.getByTestId('restaurant-list');
     await customerPage.getByRole('button', { name: '🌱 Pure Veg' }).click();
-    await expect(customerPage.getByText(restaurantName)).toBeVisible();
+    await expect(mainList.getByText(restaurantName)).toBeVisible();
     await customerPage.getByRole('button', { name: '🌱 Pure Veg' }).click(); // toggle off
-    await expect(customerPage.getByText(restaurantName)).toBeVisible();
+    await expect(mainList.getByText(restaurantName)).toBeVisible();
   });
 
   await test.step('Filters & Sorting modal: sort options, and Schedule for later', async () => {
