@@ -614,17 +614,6 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
           </button>
         </div>
       )}
-      <div className="row" style={{ marginBottom: 16, gap: 8 }}>
-        <button className="btn-secondary" onClick={locateMe}>
-          📍 Use my location
-        </button>
-        <button
-          className="btn-secondary"
-          onClick={() => setSortBy(sortBy === 'distance' ? 'rating' : 'distance')}
-        >
-          Sort: {sortBy === 'distance' ? 'Nearest' : 'Top rated'}
-        </button>
-      </div>
 
       {!loading && recommended.length > 0 && (
         <div data-testid="recommended-row" style={{ marginBottom: 20 }}>
