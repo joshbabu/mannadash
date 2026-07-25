@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { adminLogin, createTestApp, signUpCustomer, signUpRestaurant } from './test-helpers';
+import { wallClockParts, RESTAURANT_TIME_ZONE } from '../src/restaurants/operating-hours.util';
 
 /**
  * Onboarding wizard backend: the new restaurant fields (owner contact, per-day hours, KYC
@@ -232,9 +233,15 @@ describe('Restaurant onboarding (e2e)', () => {
   });
 
   describe('per-day hours gate order placement', () => {
-    // Build a weeklyHours where today is explicitly closed / open, regardless of when CI runs
+    // Build a weeklyHours where today is explicitly closed / open, regardless of when CI
+    // runs. Must use the same India wall-clock the backend actually checks against
+    // (isWithinOperatingHours / isWithinWeeklyHours both evaluate in RESTAURANT_TIME_ZONE) —
+    // using the test runner's local/UTC day here caused a real, reproducible flake: for the
+    // ~5.5 hours where the UTC calendar day and the IST calendar day disagree (roughly
+    // 18:30-23:59 UTC, i.e. the first few hours of the next IST day), this test set hours
+    // for the wrong day and then failed asserting against the right one.
     const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const today = DAY_KEYS[new Date().getDay()];
+    const today = DAY_KEYS[wallClockParts(new Date(), RESTAURANT_TIME_ZONE).day];
 
     async function approvedRestaurantWithHours(weeklyHours: Record<string, any>) {
       const restaurant = await signUpRestaurant(app);

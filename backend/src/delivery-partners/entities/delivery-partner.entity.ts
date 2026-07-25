@@ -60,11 +60,11 @@ export class DeliveryPartner {
   // never serialized in a normal find/findOne response. Only reachable through the
   // dedicated self-service get/update endpoints in delivery-partners.controller.ts.
   @Exclude()
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   bankIfsc: string | null;
 
   @Exclude()
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   bankAccountNumber: string | null;
 
   @CreateDateColumn()
