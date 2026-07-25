@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { calculateDeliveryFee } from './delivery-fee.util';
 import { DELIVERY_TYPE_CONFIG, isValidDeliveryType } from './delivery-type.util';
 import { computeTaxesAndFees } from './gst-config.util';
+import { getPlatformTaxProfile } from './platform-tax-profile.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, LessThan, Repository, SelectQueryBuilder } from 'typeorm';
 import { Order, OrderStatus, PaymentMethod, PaymentStatus, RefundStatus } from './entities/order.entity';
@@ -442,6 +443,43 @@ export class OrdersService {
     }
 
     return order;
+  }
+
+  // Backs GET /orders/:id/tax-invoice — real backend-computed invoice data rather than the
+  // frontend guessing at it. Real fields (restaurant GSTIN/FSSAI, if that restaurant has
+  // completed KYC for them) pass through as-is; genuinely-missing platform registration
+  // data comes from getPlatformTaxProfile(), which defaults to obviously-fake TEST values
+  // until real env vars are set — see that file. The invoice number is assigned once, the
+  // first time this is called for a given order, then persisted and never changed again.
+  async getTaxInvoiceData(orderId: string, requestingUserId: string) {
+    const order = await this.findOne(orderId, requestingUserId);
+
+    if (order.paymentStatus !== PaymentStatus.PAID) {
+      throw new BadRequestException('A tax invoice is only available once payment is complete');
+    }
+
+    if (!order.invoiceNumber) {
+      order.invoiceNumber = this.generateInvoiceNumber(order);
+      await this.orderRepo.save(order);
+    }
+
+    return {
+      invoiceNumber: order.invoiceNumber,
+      order,
+      restaurantGstin: order.restaurant.gstin || null,
+      restaurantFssai: order.restaurant.fssaiNumber || null,
+      platform: getPlatformTaxProfile(),
+    };
+  }
+
+  // NOT verified against real GST invoice-numbering rules (which require an unbroken,
+  // sequential series per financial year) — this is a reasonable-looking placeholder
+  // scheme for development/testing, not something to rely on as-is once actually
+  // GST-registered. Confirm the real numbering scheme with an accountant before then.
+  private generateInvoiceNumber(order: Order): string {
+    const datePart = new Date(order.placedAt).toISOString().slice(0, 10).replace(/-/g, '');
+    const orderPart = order.id.slice(0, 8).toUpperCase();
+    return `TESTINV-${datePart}-${orderPart}`;
   }
 
   // How long a restaurant has to accept before the order auto-cancels, and when the

@@ -88,6 +88,12 @@ export class OrdersController {
     return this.ordersService.findOne(id, req.user.userId);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/tax-invoice')
+  getTaxInvoice(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.ordersService.getTaxInvoiceData(id, req.user.userId);
+  }
+
   // Authority depends on the target status: the restaurant owns accepted/preparing/cancelled
   // (kitchen-side decisions), while only the assigned rider can mark picked_up/delivered
   // (they're the only one who actually knows those happened). This mirrors how Swiggy/Zomato-style

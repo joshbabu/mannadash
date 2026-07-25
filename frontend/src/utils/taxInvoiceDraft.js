@@ -1,39 +1,26 @@
+import { api } from '../api';
+
 /**
- * DRAFT tax-invoice generator.
+ * Opens a print-preview window with all three GST tax invoices for one order (restaurant
+ * service, platform fee, delivery service) — matching the real 3-invoice structure
+ * Zomato/Eternal issues per order, because the platform (not the restaurant) is the
+ * liable e-commerce operator for GST on food orders once registered (CGST Act section
+ * 9(5)).
  *
- * Matches the real 3-invoice structure Zomato/Eternal issues per order under Indian GST
- * law: a restaurant-service invoice, a platform-fee invoice, and a delivery-service
- * invoice — because the platform (not the restaurant) is the liable e-commerce operator
- * for GST on food orders once registered (CGST Act section 9(5)).
- *
- * Every field that would legally assert a real tax-registration number — GSTIN, PAN, CIN,
- * FSSAI, invoice number — renders as an explicit bracketed placeholder token, e.g.
- * "[RESTAURANT_GSTIN — pending registration]", never a plausible-looking fake number. A
- * document formatted like an official GST tax invoice makes a specific legal claim; a
- * "dummy" number that merely looks real is exactly the kind of thing that could get
- * copy-pasted, screenshotted, or handed to an accountant/auditor and mistaken for genuine.
- * Placeholders can't be mistaken that way. The DRAFT banner + the button that opens this
- * (see TrackOrderScreen) both say "preview" for the same reason — honest about status
- * even if a real customer taps it before real numbers are in.
+ * Backed by GET /orders/:id/tax-invoice (see orders.service.ts#getTaxInvoiceData):
+ *   - invoiceNumber is assigned once server-side and persisted — immutable after that.
+ *   - restaurantGstin/restaurantFssai are that restaurant's REAL KYC data if they've
+ *     completed it (Restaurant.gstin / .fssaiNumber), null otherwise — never fabricated.
+ *   - platform.* comes from platform-tax-profile.util.ts: obviously-fake TEST values
+ *     (contain the literal word "TEST", breaking real GSTIN/PAN format) until real env
+ *     vars are configured. platform.isTestData drives the DRAFT watermark below —
+ *     disappears automatically once real values are set, no manual step to remember.
  *
  * HSN/SAC codes below (996331 restaurant service, 999799 platform/other services, 996813
  * local delivery service) are real public GST classification codes, not registration
  * numbers — safe to include as accurate reference info, same spirit as the commonly-cited
  * rates already noted in gst-config.util.ts.
- *
- * To go fully live once MannaDash is actually GST-registered:
- *   1. Replace the PLATFORM_* placeholder constants below with the real values.
- *   2. Drop the DRAFT watermark and update the button label in TrackOrderScreen.
- *   3. Consider real per-restaurant GSTIN/FSSAI (order.restaurant.gstin /
- *      .fssaiNumber already exist on the entity) instead of the restaurant placeholders.
  */
-
-// Replace these once real registration exists — see file header.
-const PLATFORM_GSTIN = '[PLATFORM_GSTIN — pending registration]';
-const PLATFORM_PAN = '[PLATFORM_PAN — pending]';
-const PLATFORM_CIN = '[PLATFORM_CIN — pending]';
-const PLATFORM_NAME = 'MANNADASH (PLACEHOLDER LEGAL ENTITY NAME)';
-const PLATFORM_ADDRESS = '[Registered office address — pending]';
 
 function numberToIndianWords(amount) {
   const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
@@ -88,29 +75,36 @@ function splitGst(amount) {
   return { cgst: half, sgst: half };
 }
 
-function invoiceHeader(title) {
+function draftBanner(isTestData) {
+  return isTestData
+    ? '<div class="draft-banner">DRAFT — placeholder registration numbers, NOT valid for tax filing</div>'
+    : '';
+}
+
+function invoiceHeader(title, isTestData) {
   return `
-    <div class="draft-banner">DRAFT — placeholder registration numbers, NOT valid for tax filing</div>
+    ${draftBanner(isTestData)}
     <div class="doc-header">
       <span class="wordmark">eternal-style</span>
-      <span class="doc-title">${title}<br/><span class="doc-subtitle">ORIGINAL FOR RECIPIENT (DRAFT)</span></span>
+      <span class="doc-title">${title}<br/><span class="doc-subtitle">ORIGINAL FOR RECIPIENT${isTestData ? ' (DRAFT)' : ''}</span></span>
     </div>`;
 }
 
-function restaurantInvoiceHtml(order) {
+function restaurantInvoiceHtml(data) {
+  const { order, restaurantGstin, restaurantFssai, invoiceNumber, platform } = data;
   const gst = splitGst(Number(order.restaurantGstAmount || 0));
   const gross = Number(order.subtotal || 0);
   return `
     <section class="invoice-page">
-      ${invoiceHeader('Tax Invoice')}
+      ${invoiceHeader('Tax Invoice', platform.isTestData)}
       <p class="field-block">
         <strong>Tax Invoice on behalf of –</strong><br/>
-        <strong>Legal Entity Name:</strong> [RESTAURANT_LEGAL_ENTITY_NAME — pending]<br/>
+        <strong>Legal Entity Name:</strong> [RESTAURANT_LEGAL_ENTITY_NAME — not on file]<br/>
         <strong>Restaurant Name:</strong> ${escapeHtml(order.restaurant?.name)}<br/>
         <strong>Restaurant Address:</strong> ${escapeHtml(order.restaurant?.address)}<br/>
-        <strong>Restaurant GSTIN:</strong> [RESTAURANT_GSTIN — pending registration]<br/>
-        <strong>Restaurant FSSAI:</strong> [RESTAURANT_FSSAI — pending]<br/>
-        <strong>Invoice No.:</strong> [INVOICE_NUMBER — pending numbering scheme]<br/>
+        <strong>Restaurant GSTIN:</strong> ${restaurantGstin ? escapeHtml(restaurantGstin) : '[not on file for this restaurant]'}<br/>
+        <strong>Restaurant FSSAI:</strong> ${restaurantFssai ? escapeHtml(restaurantFssai) : '[not on file for this restaurant]'}<br/>
+        <strong>Invoice No.:</strong> ${escapeHtml(invoiceNumber)}<br/>
         <strong>Invoice Date:</strong> ${formatDate(order.placedAt)}
       </p>
       <p class="field-block">
@@ -155,25 +149,25 @@ function restaurantInvoiceHtml(order) {
       <p><strong>Amount (in words):</strong> ${numberToIndianWords(gross + gst.cgst + gst.sgst)}</p>
       <p>Amount of INR ${(gross + gst.cgst + gst.sgst).toFixed(2)} settled digitally against Order ID ${escapeHtml(order.id.slice(0, 8))} dated ${formatDate(order.placedAt)}.</p>
       <p>Supply attracts reverse charge: No</p>
-      ${platformSignatureBlock()}
+      ${platformSignatureBlock(platform)}
     </section>`;
 }
 
-function platformFeeInvoiceHtml(order) {
+function platformFeeInvoiceHtml(data) {
+  const { order, invoiceNumber, platform } = data;
   const amount = Number(order.platformFeeAmount || 0);
   // Platform fee itself isn't a tax (see gst-config.util.ts) — GST here would be GST *on*
-  // that fee, which the reference invoice also computes at 9%+9% for illustration. Left
-  // at 0 unless order.deliveryGstAmount-style tracking for platform fee GST exists.
+  // that fee, illustrated at 9%+9% same as the reference invoice.
   const gst = splitGst(amount * 0.09 * 2);
   const total = amount + gst.cgst + gst.sgst;
   return `
     <section class="invoice-page">
-      ${invoiceHeader('Tax Invoice')}
+      ${invoiceHeader('Tax Invoice', platform.isTestData)}
       <p class="field-block">
-        <strong>${PLATFORM_NAME}</strong><br/>
-        <strong>Address:</strong> ${PLATFORM_ADDRESS}<br/>
-        <strong>Invoice No:</strong> [INVOICE_NUMBER — pending numbering scheme]<br/>
-        <strong>PAN:</strong> ${PLATFORM_PAN} &nbsp; <strong>CIN:</strong> ${PLATFORM_CIN} &nbsp; <strong>GSTIN:</strong> ${PLATFORM_GSTIN}<br/>
+        <strong>${escapeHtml(platform.legalEntityName)}</strong><br/>
+        <strong>Address:</strong> ${escapeHtml(platform.address)}<br/>
+        <strong>Invoice No:</strong> ${escapeHtml(invoiceNumber)}<br/>
+        <strong>PAN:</strong> ${escapeHtml(platform.pan)} &nbsp; <strong>CIN:</strong> ${escapeHtml(platform.cin)} &nbsp; <strong>GSTIN:</strong> ${escapeHtml(platform.gstin)}<br/>
         <strong>Invoice Date:</strong> ${formatDate(order.placedAt)}
       </p>
       <p class="field-block">
@@ -199,21 +193,22 @@ function platformFeeInvoiceHtml(order) {
       </table>
       <p>Amount of ₹${total.toFixed(2)} settled through digital mode/payment received against Order id (${escapeHtml(order.id.slice(0, 8))}) dated (${formatDate(order.placedAt)})</p>
       <p>Tax is not payable on reverse charge basis</p>
-      ${platformSignatureBlock()}
+      ${platformSignatureBlock(platform)}
     </section>`;
 }
 
-function deliveryInvoiceHtml(order) {
+function deliveryInvoiceHtml(data) {
+  const { order, invoiceNumber, platform } = data;
   const gross = Number(order.deliveryFee || 0);
   const gst = splitGst(Number(order.deliveryGstAmount || 0));
   return `
     <section class="invoice-page">
-      ${invoiceHeader('Tax Invoice')}
+      ${invoiceHeader('Tax Invoice', platform.isTestData)}
       <p class="field-block">
         <strong>Tax Invoice on behalf of –</strong><br/>
-        <strong>Delivery Partner / Vendor Name:</strong> ${escapeHtml(order.deliveryPartner?.name) || '[DELIVERY_PARTNER_NAME — pending]'}<br/>
+        <strong>Delivery Partner / Vendor Name:</strong> ${order.deliveryPartner?.name ? escapeHtml(order.deliveryPartner.name) : '[not assigned]'}<br/>
         <strong>Delivery Partner / Vendor State:</strong> Telangana<br/>
-        <strong>Invoice No.:</strong> [INVOICE_NUMBER — pending numbering scheme]<br/>
+        <strong>Invoice No.:</strong> ${escapeHtml(invoiceNumber)}<br/>
         <strong>Invoice Date:</strong> ${formatDate(order.placedAt)}
       </p>
       <p class="field-block">
@@ -247,15 +242,15 @@ function deliveryInvoiceHtml(order) {
       <p><strong>Amount (in words):</strong> ${numberToIndianWords(gross + gst.cgst + gst.sgst)}</p>
       <p>Amount of INR ${(gross + gst.cgst + gst.sgst).toFixed(2)} settled through digital mode/payment received against Order Id: ${escapeHtml(order.id.slice(0, 8))} dated ${formatDate(order.placedAt)}.</p>
       <p>Supply attracts reverse charge: No</p>
-      ${platformSignatureBlock()}
+      ${platformSignatureBlock(platform)}
     </section>`;
 }
 
-function platformSignatureBlock() {
+function platformSignatureBlock(platform) {
   return `
     <div class="signature-block">
-      <p><strong>For ${PLATFORM_NAME}</strong></p>
-      <p>PAN: ${PLATFORM_PAN}<br/>CIN: ${PLATFORM_CIN}<br/>GST: ${PLATFORM_GSTIN}</p>
+      <p><strong>For ${escapeHtml(platform.legalEntityName)}</strong></p>
+      <p>PAN: ${escapeHtml(platform.pan)}<br/>CIN: ${escapeHtml(platform.cin)}<br/>GST: ${escapeHtml(platform.gstin)}</p>
       <p class="signatory">[Authorised Signatory — pending]</p>
     </div>`;
 }
@@ -278,20 +273,39 @@ const STYLES = `
   .totals-row td { font-weight: 700; }
   .signature-block { margin-top: 40px; font-size: 11px; }
   .signatory { margin-top: 30px; }
+  .loading { padding: 40px; font-size: 14px; color: #555; }
+  .load-error { padding: 40px; font-size: 14px; color: #a3341f; }
   @media print { .draft-banner { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 `;
 
 /**
- * Opens a print-preview window with all three DRAFT tax invoices for one order.
+ * Opens a print-preview window immediately (synchronously, so browsers don't treat it as
+ * an unsolicited popup), shows a loading state, then fetches the real invoice data and
+ * fills it in — or shows a clear error in that same window if the fetch fails.
  */
-export function generateTaxInvoiceDraft(order) {
+export function generateTaxInvoiceDraft(orderId) {
   const w = window.open('', '_blank', 'width=680,height=800');
   if (!w) return; // popup blocked
-  w.document.write(`<!doctype html><html><head><title>DRAFT tax invoices — order #${escapeHtml(order.id.slice(0, 8))}</title>
-    <style>${STYLES}</style></head><body>
-    ${restaurantInvoiceHtml(order)}
-    ${platformFeeInvoiceHtml(order)}
-    ${deliveryInvoiceHtml(order)}
-  </body></html>`);
+  w.document.write(`<!doctype html><html><head><title>Tax invoices — order #${escapeHtml(orderId.slice(0, 8))}</title>
+    <style>${STYLES}</style></head><body><div class="loading">Loading tax invoice…</div></body></html>`);
   w.document.close();
+
+  api.getTaxInvoiceData(orderId)
+    .then((data) => {
+      if (w.closed) return;
+      w.document.open();
+      w.document.write(`<!doctype html><html><head><title>Tax invoices — order #${escapeHtml(data.order.id.slice(0, 8))}</title>
+        <style>${STYLES}</style></head><body>
+        ${restaurantInvoiceHtml(data)}
+        ${platformFeeInvoiceHtml(data)}
+        ${deliveryInvoiceHtml(data)}
+      </body></html>`);
+      w.document.close();
+    })
+    .catch((err) => {
+      if (w.closed) return;
+      w.document.open();
+      w.document.write(`<!doctype html><html><head><style>${STYLES}</style></head><body><div class="load-error">Couldn't load the tax invoice: ${escapeHtml(err.message)}</div></body></html>`);
+      w.document.close();
+    });
 }

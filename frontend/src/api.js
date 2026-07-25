@@ -47,6 +47,7 @@ export const api = {
   fileComplaint: (orderId, body) => request(`/orders/${orderId}/complaints`, { method: 'POST', body, auth: true }),
   getMyComplaints: () => request('/orders/complaints/mine', { auth: true }),
   getOrder: (id) => request(`/orders/${id}`, { auth: true }),
+  getTaxInvoiceData: (id) => request(`/orders/${id}/tax-invoice`, { auth: true }),
   cancelOrder: (id) => request(`/orders/${id}/status`, { method: 'PATCH', body: { status: 'cancelled' }, auth: true }),
   createPayment: (orderId) => request(`/orders/${orderId}/create-payment`, { method: 'POST', auth: true }),
   rateOrder: (orderId, body) => request(`/orders/${orderId}/rating`, { method: 'POST', body, auth: true }),

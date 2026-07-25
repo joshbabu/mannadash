@@ -116,6 +116,14 @@ export class Order {
   @Column({ type: 'decimal', precision: 8, scale: 2, default: 0 })
   deliveryGstAmount: number;
 
+  // Assigned once — the first time GET /orders/:id/tax-invoice is called for this order —
+  // and never changed after (see generateInvoiceNumber() in orders.service.ts). Real GST
+  // rules require sequential, gap-free numbering within a declared series; this scheme is
+  // a reasonable placeholder shape, NOT verified against an accountant — confirm the real
+  // numbering scheme before this goes live, same caveat as gst-config.util.ts's rates.
+  @Column({ type: 'varchar', nullable: true })
+  invoiceNumber: string | null;
+
   // Who/what cancelled the order — lets both apps show an honest reason instead of a bare
   // "cancelled" pill. Null for every non-cancelled order.
   @Column({ type: 'varchar', nullable: true })

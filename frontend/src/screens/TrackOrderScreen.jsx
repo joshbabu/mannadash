@@ -558,16 +558,20 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
           <button className="btn-secondary" style={{ marginBottom: 10, width: '100%' }} onClick={() => printReceipt(order)}>
             ⬇ Invoice
           </button>
-          <button
-            className="btn-secondary"
-            style={{ marginBottom: 6, width: '100%', fontSize: 13 }}
-            onClick={() => generateTaxInvoiceDraft(order)}
-          >
-            🧾 Tax Invoice (preview — placeholder GST numbers)
-          </button>
-          <p className="muted" style={{ fontSize: 11.5, marginBottom: 14 }}>
-            Not a final tax document yet — GSTIN/PAN fields are placeholders until MannaDash is GST-registered.
-          </p>
+          {order.paymentStatus === 'paid' && (
+            <>
+              <button
+                className="btn-secondary"
+                style={{ marginBottom: 6, width: '100%', fontSize: 13 }}
+                onClick={() => generateTaxInvoiceDraft(order.id)}
+              >
+                🧾 Tax Invoice (preview — placeholder GST numbers)
+              </button>
+              <p className="muted" style={{ fontSize: 11.5, marginBottom: 14 }}>
+                Not a final tax document yet — GSTIN/PAN fields are placeholders until MannaDash is GST-registered.
+              </p>
+            </>
+          )}
 
           {ratingSubmitted ? (
             <p style={{ margin: 0, fontWeight: 600, color: 'var(--curry)' }}>Thanks for rating your order!</p>
