@@ -4,11 +4,19 @@
   --curry: #4c7a52;
   --curry-dark: #3a5f40;
   --chili: #e4572e;
+  --chili-dark: #c1432e;
   --turmeric: #f4a200;
   --paper: #fdf8ef;
   --charcoal: #2b2420;
   --line: rgba(253, 248, 239, 0.12);
   --text-dim: rgba(253, 248, 239, 0.6);
+
+  /* Same visual language as the customer app — dark diagonal gradient background,
+     glossy cream cards, black pill buttons. --curry/--chili stay in active use for
+     genuinely semantic cases (online/offline state, errors, cash-collect warnings). */
+  --bg-gradient: linear-gradient(135deg, #6a4550 0%, #3a4468 25%, #22406e 60%, #1a3560 100%);
+  --card-gradient: linear-gradient(165deg, #ffffff 0%, #f4f2f0 100%);
+  --accent-gradient: linear-gradient(160deg, #2e2e28 0%, #14140f 60%, #050503 100%);
 }
 
 * {
@@ -20,7 +28,8 @@ body,
 #root {
   margin: 0;
   min-height: 100vh;
-  background: var(--ink);
+  background: var(--bg-gradient);
+  background-attachment: fixed;
   color: var(--paper);
   font-family: 'Inter', system-ui, sans-serif;
 }
@@ -42,7 +51,8 @@ button {
   border-radius: 10px;
 }
 
-input {
+input,
+select {
   font-family: inherit;
   border-radius: 10px;
   border: 1px solid var(--line);
@@ -62,7 +72,13 @@ button:focus-visible {
   max-width: 480px;
   margin: 0 auto;
   min-height: 100vh;
-  padding: 0 20px 40px;
+  padding: 0 20px 100px;
+  animation: screen-enter 0.22s ease-out;
+}
+
+@keyframes screen-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .topbar {
@@ -76,22 +92,31 @@ button:focus-visible {
   font-family: 'Fraunces', serif;
   font-size: 22px;
   font-weight: 700;
-  color: var(--curry);
+  color: var(--turmeric);
 }
 
 .btn-primary {
-  background: var(--curry);
+  background: var(--accent-gradient);
   color: #fff;
   padding: 14px 20px;
   font-weight: 600;
   font-size: 15px;
   width: 100%;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+  transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
 .btn-primary:disabled {
   background: var(--ink-soft);
   color: var(--text-dim);
   cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .btn-stop {
@@ -101,6 +126,13 @@ button:focus-visible {
   font-weight: 600;
   font-size: 15px;
   width: 100%;
+  box-shadow: 0 8px 18px rgba(228, 87, 46, 0.35);
+  transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.btn-stop:active {
+  transform: scale(0.97);
+  box-shadow: 0 4px 10px rgba(228, 87, 46, 0.3);
 }
 
 .btn-secondary {
@@ -110,14 +142,25 @@ button:focus-visible {
   padding: 10px 16px;
   font-weight: 600;
   font-size: 14px;
+  transition: transform 0.1s ease, background 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background: rgba(253, 248, 239, 0.06);
+}
+
+.btn-secondary:active {
+  transform: scale(0.97);
 }
 
 .card {
-  background: var(--paper);
+  background: var(--card-gradient);
   color: var(--charcoal);
   border-radius: 16px;
   padding: 16px;
   margin-bottom: 14px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
 .error-banner {
@@ -148,20 +191,47 @@ button:focus-visible {
 }
 
 .status-banner {
-  border-radius: 14px;
-  padding: 20px;
+  border-radius: 18px;
+  padding: 22px 20px;
   text-align: center;
   margin-bottom: 20px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25);
 }
 
 .status-banner.online {
-  background: rgba(76, 122, 82, 0.2);
+  background: linear-gradient(160deg, rgba(76, 122, 82, 0.35) 0%, rgba(76, 122, 82, 0.15) 100%);
   border: 1px solid var(--curry);
+}
+
+.status-banner.online::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--curry);
+  margin-right: 8px;
+  vertical-align: middle;
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(76, 122, 82, 0.5); }
+  50% { opacity: 0.6; box-shadow: 0 0 0 6px rgba(76, 122, 82, 0); }
 }
 
 .status-banner.offline {
   background: var(--ink-soft);
   border: 1px solid var(--line);
+}
+
+.status-banner.alert {
+  animation: slide-down-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes slide-down-pop {
+  from { opacity: 0; transform: translateY(-16px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .pill {
@@ -172,4 +242,84 @@ button:focus-visible {
   font-weight: 600;
   background: var(--turmeric);
   color: var(--charcoal);
+}
+
+.rider-card {
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 14px;
+  background: var(--card-gradient);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: transform 0.12s ease;
+}
+
+.rider-card:active {
+  transform: scale(0.99);
+}
+
+/* Bottom nav — floating rounded pill, matching the customer app exactly */
+.bottom-nav {
+  position: fixed;
+  bottom: 16px;
+  left: 20px;
+  right: 20px;
+  max-width: 440px;
+  margin: 0 auto;
+  background: rgba(28, 27, 41, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--line);
+  border-radius: 30px;
+  display: flex;
+  justify-content: space-around;
+  padding: 8px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+}
+
+.bottom-nav button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 8px 20px;
+  border-radius: 22px;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.bottom-nav button:active {
+  transform: scale(0.95);
+}
+
+.bottom-nav__icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.bottom-nav button.active {
+  color: var(--turmeric);
+  background: rgba(244, 162, 0, 0.16);
+}
+
+/* Skeleton loading placeholders — shimmer, not a static block */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton-block {
+  background: linear-gradient(90deg, #eae6dc 25%, #f5f2ea 37%, #eae6dc 63%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+.skeleton-card {
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 14px;
+  background: var(--card-gradient);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }

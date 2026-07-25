@@ -32,7 +32,32 @@ export default function EarningsScreen() {
   }, []);
 
   if (error) return <div className="error-banner">{error}</div>;
-  if (!earnings) return <p className="muted">Loading your earnings…</p>;
+  if (!earnings) {
+    return (
+      <div>
+        <div className="skeleton-card" style={{ textAlign: 'center' }}>
+          <div className="skeleton-block" style={{ height: 12, width: '40%', margin: '0 auto 10px' }} />
+          <div className="skeleton-block" style={{ height: 34, width: '55%', margin: '0 auto' }} />
+        </div>
+        <div className="skeleton-card" style={{ display: 'flex', gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div className="skeleton-block" style={{ height: 12, width: '70%', margin: '0 auto 8px' }} />
+            <div className="skeleton-block" style={{ height: 20, width: '40%', margin: '0 auto' }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div className="skeleton-block" style={{ height: 12, width: '70%', margin: '0 auto 8px' }} />
+            <div className="skeleton-block" style={{ height: 20, width: '40%', margin: '0 auto' }} />
+          </div>
+        </div>
+        {[0, 1, 2].map((i) => (
+          <div className="skeleton-card" key={i}>
+            <div className="skeleton-block" style={{ height: 15, width: '45%', marginBottom: 8 }} />
+            <div className="skeleton-block" style={{ height: 12, width: '65%' }} />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div>

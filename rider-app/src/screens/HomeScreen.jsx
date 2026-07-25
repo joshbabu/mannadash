@@ -29,6 +29,7 @@ export default function HomeScreen({ rider, onLogout }) {
   const [pushSubscribed, setPushSubscribed] = useState(null); // server truth, for the persistent toggle below
   const [pushToggleBusy, setPushToggleBusy] = useState(false);
   const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
   const ordersRef = useRef(orders); // avoids stale-closure bug in the location-sharing interval below
   const [error, setError] = useState('');
   const [locationError, setLocationError] = useState('');
@@ -184,7 +185,7 @@ export default function HomeScreen({ rider, onLogout }) {
   }
 
   function loadOrders() {
-    api.getMyOrders().then(setOrders).catch((err) => setError(err.message));
+    api.getMyOrders().then(setOrders).catch((err) => setError(err.message)).finally(() => setOrdersLoading(false));
   }
 
   async function toggleOnline() {
@@ -221,23 +222,6 @@ export default function HomeScreen({ rider, onLogout }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <button
-          className="btn-secondary"
-          style={{ opacity: tab === 'deliveries' ? 1 : 0.5 }}
-          onClick={() => setTab('deliveries')}
-        >
-          Deliveries
-        </button>
-        <button
-          className="btn-secondary"
-          style={{ opacity: tab === 'earnings' ? 1 : 0.5 }}
-          onClick={() => setTab('earnings')}
-        >
-          Earnings
-        </button>
-      </div>
-
       {tab === 'earnings' ? (
         <EarningsScreen />
       ) : (
@@ -258,7 +242,7 @@ export default function HomeScreen({ rider, onLogout }) {
           {pushStatus === 'error' && <p className="muted" style={{ marginBottom: 14, color: 'var(--chili)' }}>Couldn't enable notifications: {pushError}</p>}
 
           {newOrderAlert && (
-            <div className="status-banner online" style={{ borderColor: 'var(--turmeric)', background: 'rgba(244,162,0,0.15)' }}>
+            <div className="status-banner online alert" style={{ borderColor: 'var(--turmeric)', background: 'rgba(244,162,0,0.15)' }}>
               <p style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>🔔 New delivery!</p>
               <p className="muted" style={{ margin: '4px 0 16px' }}>{newOrderAlert.restaurant.name} · ₹{Number(newOrderAlert.total).toFixed(0)}</p>
               <button className="btn-secondary" onClick={() => setNewOrderAlert(null)}>Got it</button>
@@ -301,47 +285,74 @@ export default function HomeScreen({ rider, onLogout }) {
           {error && <div className="error-banner">{error}</div>}
 
           <h2 style={{ fontSize: 18, marginBottom: 12 }}>Your deliveries</h2>
-          {activeOrders.length === 0 && <p className="muted">No active deliveries right now.</p>}
 
-          <div className="stack">
-            {activeOrders.map((order) => {
-              const action = RIDER_ACTIONS[order.status];
-              return (
-                <div key={order.id} className="card">
-                  <div className="row" style={{ marginBottom: 8 }}>
-                    <h3 style={{ fontSize: 15 }}>{order.restaurant.name}</h3>
-                    <span className="pill">{order.status.replaceAll('_', ' ')}</span>
-                  </div>
-                  <p className="muted" style={{ color: '#6b6156', marginBottom: 4 }}>Pickup: {order.restaurant.address}</p>
-                  <p className="muted" style={{ color: '#6b6156', marginBottom: 12 }}>Deliver to: {order.deliveryAddress}</p>
-                  <p style={{ fontWeight: 600, marginBottom: order.paymentMethod === 'cod' && order.status !== 'delivered' ? 4 : 12 }}>
-                    ₹{Number(order.total).toFixed(0)}
-                    {order.deliveryType === 'express' && (
-                      <span className="pill" style={{ background: '#fdeee8', color: 'var(--chili-dark)', marginLeft: 8, fontSize: 12 }}>⚡ Express</span>
-                    )}
-                    {Number(order.tipAmount) > 0 && (
-                      <span className="pill" style={{ background: '#e3edd8', color: 'var(--curry)', marginLeft: 8, fontSize: 12 }}>🎁 ₹{Number(order.tipAmount).toFixed(0)} tip</span>
-                    )}
-                  </p>
-                  {order.paymentMethod === 'cod' && order.status !== 'delivered' && (
-                    <p style={{ background: '#fff2d6', color: '#8a5a00', padding: '6px 10px', borderRadius: 8, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
-                      💵 Collect ₹{Number(order.total).toFixed(0)} in cash
-                    </p>
-                  )}
-
-                  {action ? (
-                    <button className="btn-primary" style={{ background: 'var(--curry)' }} onClick={() => advance(order, action.value)}>
-                      {action.label}
-                    </button>
-                  ) : (
-                    <p className="muted" style={{ color: '#8a8378' }}>{WAITING_MESSAGE[order.status] || 'Waiting on the restaurant…'}</p>
-                  )}
+          {ordersLoading && (
+            <div className="stack">
+              {[0, 1].map((i) => (
+                <div className="skeleton-card" key={i}>
+                  <div className="skeleton-block" style={{ height: 16, width: '50%', marginBottom: 10 }} />
+                  <div className="skeleton-block" style={{ height: 12, width: '75%', marginBottom: 6 }} />
+                  <div className="skeleton-block" style={{ height: 12, width: '60%', marginBottom: 12 }} />
+                  <div className="skeleton-block" style={{ height: 38, width: '100%' }} />
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
+
+          {!ordersLoading && activeOrders.length === 0 && <p className="muted">No active deliveries right now.</p>}
+
+          {!ordersLoading && (
+            <div className="stack">
+              {activeOrders.map((order) => {
+                const action = RIDER_ACTIONS[order.status];
+                return (
+                  <div key={order.id} className="card">
+                    <div className="row" style={{ marginBottom: 8 }}>
+                      <h3 style={{ fontSize: 15 }}>{order.restaurant.name}</h3>
+                      <span className="pill">{order.status.replaceAll('_', ' ')}</span>
+                    </div>
+                    <p className="muted" style={{ color: '#6b6156', marginBottom: 4 }}>Pickup: {order.restaurant.address}</p>
+                    <p className="muted" style={{ color: '#6b6156', marginBottom: 12 }}>Deliver to: {order.deliveryAddress}</p>
+                    <p style={{ fontWeight: 600, marginBottom: order.paymentMethod === 'cod' && order.status !== 'delivered' ? 4 : 12 }}>
+                      ₹{Number(order.total).toFixed(0)}
+                      {order.deliveryType === 'express' && (
+                        <span className="pill" style={{ background: '#fdeee8', color: 'var(--chili-dark)', marginLeft: 8, fontSize: 12 }}>⚡ Express</span>
+                      )}
+                      {Number(order.tipAmount) > 0 && (
+                        <span className="pill" style={{ background: '#e3edd8', color: 'var(--curry)', marginLeft: 8, fontSize: 12 }}>🎁 ₹{Number(order.tipAmount).toFixed(0)} tip</span>
+                      )}
+                    </p>
+                    {order.paymentMethod === 'cod' && order.status !== 'delivered' && (
+                      <p style={{ background: '#fff2d6', color: '#8a5a00', padding: '6px 10px', borderRadius: 8, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
+                        💵 Collect ₹{Number(order.total).toFixed(0)} in cash
+                      </p>
+                    )}
+
+                    {action ? (
+                      <button className="btn-primary" style={{ background: 'var(--curry)' }} onClick={() => advance(order, action.value)}>
+                        {action.label}
+                      </button>
+                    ) : (
+                      <p className="muted" style={{ color: '#8a8378' }}>{WAITING_MESSAGE[order.status] || 'Waiting on the restaurant…'}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </>
       )}
+
+      <div className="bottom-nav">
+        <button aria-label="Deliveries" className={tab === 'deliveries' ? 'active' : ''} onClick={() => setTab('deliveries')}>
+          <span className="bottom-nav__icon">🛵</span>
+          Deliveries
+        </button>
+        <button aria-label="Earnings" className={tab === 'earnings' ? 'active' : ''} onClick={() => setTab('earnings')}>
+          <span className="bottom-nav__icon">💰</span>
+          Earnings
+        </button>
+      </div>
     </div>
   );
 }

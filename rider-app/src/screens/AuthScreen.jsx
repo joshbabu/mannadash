@@ -37,11 +37,32 @@ export default function AuthScreen({ onAuthed }) {
       </div>
 
       <div className="card">
-        <div className="row" style={{ marginBottom: 16 }}>
-          <button className="btn-secondary" style={{ opacity: mode === 'login' ? 1 : 0.5 }} onClick={() => setMode('login')}>
+        <div
+          className="row"
+          style={{ marginBottom: 16, background: '#f4f1ea', borderRadius: 12, padding: 4, gap: 4 }}
+        >
+          <button
+            style={{
+              flex: 1, padding: '10px 0', borderRadius: 9, fontWeight: 700, fontSize: 14,
+              background: mode === 'login' ? 'var(--accent-gradient)' : 'transparent',
+              color: mode === 'login' ? '#fff' : 'var(--charcoal)',
+              boxShadow: mode === 'login' ? '0 4px 10px rgba(0,0,0,0.25)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+            onClick={() => setMode('login')}
+          >
             Log in
           </button>
-          <button className="btn-secondary" style={{ opacity: mode === 'signup' ? 1 : 0.5 }} onClick={() => setMode('signup')}>
+          <button
+            style={{
+              flex: 1, padding: '10px 0', borderRadius: 9, fontWeight: 700, fontSize: 14,
+              background: mode === 'signup' ? 'var(--accent-gradient)' : 'transparent',
+              color: mode === 'signup' ? '#fff' : 'var(--charcoal)',
+              boxShadow: mode === 'signup' ? '0 4px 10px rgba(0,0,0,0.25)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+            onClick={() => setMode('signup')}
+          >
             Sign up
           </button>
         </div>
