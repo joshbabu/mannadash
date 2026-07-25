@@ -1,35 +1,56 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
+
+// Monday-start week, matching the reference's date-range picker.
+function startOfWeek(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 = Sun .. 6 = Sat
+  const diff = (day === 0 ? -6 : 1) - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function fmtRange(start, end) {
+  const opts = { day: 'numeric', month: 'short' };
+  return `${start.toLocaleDateString(undefined, opts)} – ${end.toLocaleDateString(undefined, opts)}`;
+}
 
 export default function EarningsScreen() {
   const [earnings, setEarnings] = useState(null);
-
-  const [currentPw, setCurrentPw] = useState('');
-  const [newPw, setNewPw] = useState('');
-  const [pwError, setPwError] = useState('');
-  const [pwChanged, setPwChanged] = useState(false);
-  const [changingPw, setChangingPw] = useState(false);
-
-  async function changePassword() {
-    setPwError('');
-    setChangingPw(true);
-    try {
-      await api.changePassword({ currentPassword: currentPw, newPassword: newPw });
-      setCurrentPw('');
-      setNewPw('');
-      setPwChanged(true);
-      setTimeout(() => setPwChanged(false), 3000);
-    } catch (err) {
-      setPwError(err.message);
-    } finally {
-      setChangingPw(false);
-    }
-  }
   const [error, setError] = useState('');
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
+  const [showPayouts, setShowPayouts] = useState(false);
 
   useEffect(() => {
     api.getMyEarnings().then(setEarnings).catch((err) => setError(err.message));
   }, []);
+
+  const weekEnd = useMemo(() => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + 6);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  }, [weekStart]);
+
+  const thisWeekStart = useMemo(() => startOfWeek(new Date()), []);
+  const isCurrentOrFutureWeek = weekStart.getTime() >= thisWeekStart.getTime();
+
+  const weekHistory = useMemo(() => {
+    if (!earnings) return [];
+    return earnings.history.filter((h) => {
+      const d = new Date(h.deliveredAt);
+      return d >= weekStart && d <= weekEnd;
+    });
+  }, [earnings, weekStart, weekEnd]);
+
+  const weeklyTotal = weekHistory.reduce((sum, h) => sum + h.amount, 0);
+
+  function shiftWeek(days) {
+    const next = new Date(weekStart);
+    next.setDate(next.getDate() + days);
+    setWeekStart(next);
+  }
 
   if (error) return <div className="error-banner">{error}</div>;
   if (!earnings) {
@@ -61,12 +82,68 @@ export default function EarningsScreen() {
 
   return (
     <div>
+      {/* Week navigator + weekly total — computed client-side from the real per-delivery
+          history the backend already returns; no new endpoint needed for this view. */}
       <div className="card" style={{ textAlign: 'center', marginBottom: 16 }}>
-        <p style={{ margin: '0 0 4px', color: '#8a8378', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-          Earned today
+        <div className="row" style={{ justifyContent: 'center', gap: 14, marginBottom: 10 }}>
+          <button
+            className="btn-secondary"
+            aria-label="Previous week"
+            style={{ padding: '4px 10px', fontSize: 14 }}
+            onClick={() => shiftWeek(-7)}
+          >
+            ‹
+          </button>
+          <span style={{ fontWeight: 700, fontSize: 14 }}>{fmtRange(weekStart, weekEnd)}</span>
+          <button
+            className="btn-secondary"
+            aria-label="Next week"
+            style={{ padding: '4px 10px', fontSize: 14 }}
+            onClick={() => shiftWeek(7)}
+            disabled={isCurrentOrFutureWeek}
+          >
+            ›
+          </button>
+        </div>
+        <p style={{ fontSize: 36, fontWeight: 700, margin: 0, color: 'var(--curry)' }}>₹{weeklyTotal.toFixed(0)}</p>
+        <p style={{ margin: '2px 0 0', color: '#8a8378', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          Your weekly earnings
         </p>
-        <p style={{ fontSize: 36, fontWeight: 700, margin: 0, color: 'var(--curry)' }}>₹{earnings.todayTotal.toFixed(0)}</p>
       </div>
+
+      <div className="row" style={{ gap: 10, marginBottom: 16 }}>
+        <div className="card" style={{ flex: 1, textAlign: 'center', margin: 0 }}>
+          <p style={{ margin: '0 0 4px', color: '#8a8378', fontSize: 12 }}>Earned today</p>
+          <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--curry)' }}>₹{earnings.todayTotal.toFixed(0)}</p>
+        </div>
+        <button className="card" style={{ flex: 1, textAlign: 'center', margin: 0, cursor: 'pointer', border: 'none' }} onClick={() => setShowPayouts((v) => !v)}>
+          <p style={{ margin: '0 0 4px', color: '#8a8378', fontSize: 12 }}>Pending payout</p>
+          <p style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>₹{earnings.pendingPayout.toFixed(0)}</p>
+        </button>
+      </div>
+
+      {showPayouts && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="row" style={{ marginBottom: 10 }}>
+            <p style={{ fontWeight: 700, margin: 0, fontSize: 15 }}>Payouts</p>
+            <button className="btn-secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => setShowPayouts(false)}>Close</button>
+          </div>
+          {earnings.payouts.length === 0 ? (
+            <p className="muted" style={{ color: '#8a8378' }}>No payouts settled yet — earnings below are still pending.</p>
+          ) : (
+            <div className="stack">
+              {earnings.payouts.map((p) => (
+                <div key={p.id} className="row" style={{ fontSize: 14 }}>
+                  <span className="muted" style={{ color: '#6b6156' }}>
+                    {new Date(p.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                  <strong style={{ color: 'var(--curry)' }}>₹{p.amount.toFixed(0)}</strong>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 12 }}>
         <div style={{ flex: 1, textAlign: 'center', borderRight: '1px solid #e5ddc9', paddingRight: 12 }}>
@@ -92,26 +169,17 @@ export default function EarningsScreen() {
                   {h.tipAmount > 0 && <> · 🎁 ₹{h.tipAmount.toFixed(0)} tip</>}
                 </p>
               </div>
-              <strong style={{ color: 'var(--curry)', fontSize: 17 }}>+₹{h.amount.toFixed(0)}</strong>
+              <div style={{ textAlign: 'right' }}>
+                <strong style={{ color: 'var(--curry)', fontSize: 17, display: 'block' }}>+₹{h.amount.toFixed(0)}</strong>
+                <span style={{ fontSize: 11, fontWeight: 700, color: h.paidOut ? '#2e6b34' : '#8a5a00' }}>
+                  {h.paidOut ? 'Paid out' : 'Pending'}
+                </span>
+              </div>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="card" style={{ marginBottom: 14 }}>
-        <p style={{ fontWeight: 700, margin: '0 0 8px' }}>Change password</p>
-        {pwError && <div className="error-banner">{pwError}</div>}
-        <div className="stack">
-          <input placeholder="Current password" type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} />
-          <input placeholder="New password (min 6 characters)" type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <button className="btn-secondary" onClick={changePassword} disabled={changingPw || !currentPw || newPw.length < 6}>
-              {changingPw ? 'Changing…' : 'Change password'}
-            </button>
-            {pwChanged && <span style={{ color: 'var(--curry)', fontWeight: 600, fontSize: 14 }}>✓ Changed</span>}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

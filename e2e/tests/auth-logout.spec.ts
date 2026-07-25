@@ -51,6 +51,8 @@ test('logout clears the cached session on every app — refreshing after logout 
     // Two "Log in" buttons exist at once here — a login/signup mode toggle, and the submit
     // button — so target the submit button specifically rather than by its shared label
     await page.locator('button[type="submit"]').click();
+    // Log out moved into the Account tab (was a topbar shortcut before)
+    await page.getByRole('button', { name: 'Account' }).click();
     await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Log out' }).click();

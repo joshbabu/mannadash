@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { api, SOCKET_URL } from '../api';
 import EarningsScreen from './EarningsScreen';
-import { enablePushNotifications, disablePushNotifications, isPushSupported, getInitialPushStatus, silentlyRefreshSubscription } from '../utils/pushNotifications';
+import AccountScreen from './AccountScreen';
+import { enablePushNotifications, isPushSupported, getInitialPushStatus, silentlyRefreshSubscription } from '../utils/pushNotifications';
 
 // What each status can move to next, from the rider's side only —
 // mirrors the backend's rider-owned transitions (picked_up, delivered)
@@ -26,8 +27,6 @@ export default function HomeScreen({ rider, onLogout }) {
   const [ratingCount, setRatingCount] = useState(rider.ratingCount || 0);
   const [pushStatus, setPushStatus] = useState(getInitialPushStatus); // 'idle' | 'enabling' | 'enabled' | 'error' | 'unsupported'
   const [pushError, setPushError] = useState('');
-  const [pushSubscribed, setPushSubscribed] = useState(null); // server truth, for the persistent toggle below
-  const [pushToggleBusy, setPushToggleBusy] = useState(false);
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const ordersRef = useRef(orders); // avoids stale-closure bug in the location-sharing interval below
@@ -123,33 +122,6 @@ export default function HomeScreen({ rider, onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (!isPushSupported()) {
-      setPushSubscribed(false);
-      return;
-    }
-    api.getPushStatus().then((s) => setPushSubscribed(s.subscribed)).catch(() => setPushSubscribed(false));
-  }, [pushStatus]); // re-check after the one-time enable flow completes too
-
-  async function togglePushSubscription() {
-    setPushError('');
-    setPushToggleBusy(true);
-    try {
-      if (pushSubscribed) {
-        await disablePushNotifications();
-        setPushSubscribed(false);
-      } else {
-        await enablePushNotifications();
-        setPushSubscribed(true);
-        setPushStatus('enabled');
-      }
-    } catch (err) {
-      setPushError(err.message);
-    } finally {
-      setPushToggleBusy(false);
-    }
-  }
-
   async function handleEnablePush() {
     setPushStatus('enabling');
     setPushError('');
@@ -214,16 +186,13 @@ export default function HomeScreen({ rider, onLogout }) {
     <div className="app-shell">
       <div className="topbar">
         <span className="brand">MannaDash Rider</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {ratingAvg > 0 && <span className="pill">★ {ratingAvg.toFixed(1)} ({ratingCount})</span>}
-          <button className="btn-secondary" onClick={onLogout} style={{ fontSize: 12, padding: '6px 10px' }}>
-            Log out
-          </button>
-        </div>
+        {ratingAvg > 0 && <span className="pill">★ {ratingAvg.toFixed(1)} ({ratingCount})</span>}
       </div>
 
       {tab === 'earnings' ? (
         <EarningsScreen />
+      ) : tab === 'account' ? (
+        <AccountScreen rider={rider} ratingAvg={ratingAvg} ratingCount={ratingCount} isVerified={isVerified} onLogout={onLogout} />
       ) : (
         <>
           {!isVerified && (
@@ -262,23 +231,6 @@ export default function HomeScreen({ rider, onLogout }) {
               {isOnline ? 'Go offline' : 'Go online'}
             </button>
           </div>
-
-          {isPushSupported() && (
-            <div className="status-banner offline" style={{ marginTop: 12 }}>
-              <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
-                🔔 Delivery notifications: {pushSubscribed === null ? 'checking…' : pushSubscribed ? 'On' : 'Off'}
-              </p>
-              <p className="muted" style={{ margin: '4px 0 12px', fontSize: 12 }}>
-                {pushSubscribed
-                  ? 'You\'ll be notified the moment a new delivery comes in, even with the app closed'
-                  : 'You won\'t be notified of new deliveries unless the app is open'}
-              </p>
-              <button className="btn-secondary" onClick={togglePushSubscription} disabled={pushSubscribed === null || pushToggleBusy}>
-                {pushToggleBusy ? '…' : pushSubscribed ? 'Turn off' : 'Turn on'}
-              </button>
-              {pushError && <p className="muted" style={{ marginTop: 8, color: 'var(--chili)', fontSize: 12 }}>{pushError}</p>}
-            </div>
-          )}
 
           {/* Location permission issues are common and easily fixed — muted note rather than an alarming red banner */}
           {locationError && <p className="muted" style={{ marginBottom: 14 }}>📍 {locationError}</p>}
@@ -351,6 +303,10 @@ export default function HomeScreen({ rider, onLogout }) {
         <button aria-label="Earnings" className={tab === 'earnings' ? 'active' : ''} onClick={() => setTab('earnings')}>
           <span className="bottom-nav__icon">💰</span>
           Earnings
+        </button>
+        <button aria-label="Account" className={tab === 'account' ? 'active' : ''} onClick={() => setTab('account')}>
+          <span className="bottom-nav__icon">👤</span>
+          Account
         </button>
       </div>
     </div>
