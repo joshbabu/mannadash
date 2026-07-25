@@ -138,11 +138,16 @@ export class RiderProgramsService {
       active.map(async (incentive) => {
         // Real delivered-order count within this incentive's window — via query builder
         // since it needs both a lower and upper bound on the same deliveredAt column.
+        // Alias is "ord", not "order" — "order" is a reserved SQL keyword (as in ORDER BY)
+        // and broke on any reference to it that wasn't quoted, which is exactly what
+        // happened here: TypeORM quotes the alias in the generated FROM clause automatically,
+        // but the raw WHERE fragments below wrote it unquoted in places, causing a real
+        // "syntax error at or near order" in production, not just a style nit.
         const currentOrdersInWindow = await this.orderRepo
-          .createQueryBuilder('order')
-          .where('order."deliveryPartnerId" = :riderId', { riderId })
-          .andWhere('order.status = :status', { status: OrderStatus.DELIVERED })
-          .andWhere('order."deliveredAt" BETWEEN :from AND :to', { from: incentive.validFrom, to: incentive.validTo })
+          .createQueryBuilder('ord')
+          .where('ord."deliveryPartnerId" = :riderId', { riderId })
+          .andWhere('ord.status = :status', { status: OrderStatus.DELIVERED })
+          .andWhere('ord."deliveredAt" BETWEEN :from AND :to', { from: incentive.validFrom, to: incentive.validTo })
           .getCount();
 
         return {
