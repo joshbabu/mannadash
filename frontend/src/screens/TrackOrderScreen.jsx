@@ -3,8 +3,38 @@ import { io } from 'socket.io-client';
 import { api, SOCKET_URL } from '../api';
 import StarRating from '../components/StarRating';
 import LiveMap from '../components/LiveMap';
+import ComplaintModal from './ComplaintModal';
 import { DELIVERY_TYPES } from '../utils/delivery-type';
 import { enablePushNotifications, isPushSupported, getInitialPushStatus, silentlyRefreshSubscription } from '../utils/pushNotifications';
+
+// Same gradient palette + deterministic hash as RestaurantListScreen's bannerFor — kept as
+// a small local copy (matching this codebase's convention of duplicating a few lines over
+// introducing a shared-utils file) rather than pulling in that screen's full photo-lookup
+// machinery just for a 48px thumbnail here.
+const BANNER_GRADIENTS = [
+  'linear-gradient(135deg, #f4a200 0%, #e4572e 100%)',
+  'linear-gradient(135deg, #e4572e 0%, #a3341f 100%)',
+  'linear-gradient(135deg, #4c7a52 0%, #2e5a3a 100%)',
+  'linear-gradient(135deg, #d98324 0%, #8c4a1e 100%)',
+  'linear-gradient(135deg, #c1432e 0%, #6a2a55 100%)',
+];
+function hashString(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i += 1) h = (h * 31 + str.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+function gradientFor(name) {
+  return BANNER_GRADIENTS[hashString(name || '') % BANNER_GRADIENTS.length];
+}
+
+// "900019XXXX" style — first 6 digits visible, rest masked. Real phone numbers appear
+// elsewhere in the app to the account owner; this is a receipt shown back to the same
+// customer, but keeping the masking consistent with the reference is a reasonable default.
+function maskPhone(phone) {
+  if (!phone) return '';
+  const digits = String(phone);
+  return digits.length <= 6 ? digits : `${digits.slice(0, 6)}${'X'.repeat(digits.length - 6)}`;
+}
 
 const STAGES = [
   { key: 'placed', label: 'Order placed' },
@@ -106,6 +136,7 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
   const [cancelError, setCancelError] = useState('');
   const [pushStatus, setPushStatus] = useState(getInitialPushStatus); // 'idle' | 'enabling' | 'enabled' | 'error' | 'unsupported'
   const [pushError, setPushError] = useState('');
+  const [showSupport, setShowSupport] = useState(false);
 
   useEffect(() => {
     if (pushStatus === 'enabled') silentlyRefreshSubscription();
@@ -213,10 +244,21 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
 
   return (
     <div className="screen">
-      <button className="btn-secondary" onClick={onBack} style={{ marginTop: 12, marginBottom: 12 }}>
-        ← Back
-      </button>
-      <h1 style={{ fontSize: 22 }}>{order.restaurant.name}</h1>
+      <div className="row" style={{ marginTop: 12, marginBottom: 12 }}>
+        <button className="btn-secondary" onClick={onBack}>← Back</button>
+        <button
+          className="btn-secondary"
+          onClick={() => setShowSupport(true)}
+          style={{ color: 'var(--chili-dark)', borderColor: 'var(--chili)' }}
+        >
+          🎧 Support
+        </button>
+      </div>
+      {showSupport && (
+        <ComplaintModal orderId={order?.id} onClose={() => setShowSupport(false)} />
+      )}
+      <h1 style={{ fontSize: 22 }}>{order.status === 'delivered' ? 'Order Details' : order.restaurant.name}</h1>
+      {order.status === 'delivered' && <p className="muted" style={{ marginTop: -8 }}>{order.restaurant.name}</p>}
       <p className="muted">Order total ₹{Number(order.total).toFixed(0)}</p>
       {order.paymentMethod === 'cod' && order.paymentStatus === 'pending' && (
         <p style={{ background: '#fff2d6', color: '#8a5a00', padding: '8px 12px', borderRadius: 8, fontSize: 14, fontWeight: 600 }}>
@@ -275,10 +317,12 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
         </div>
       )}
 
-      <div className="card" style={{ marginTop: 20 }}>
-        <h3 style={{ fontSize: 15, marginBottom: 8 }}>Delivering to</h3>
-        <p style={{ margin: 0 }}>{order.deliveryAddress}</p>
-      </div>
+      {order.status !== 'delivered' && (
+        <div className="card" style={{ marginTop: 20 }}>
+          <h3 style={{ fontSize: 15, marginBottom: 8 }}>Delivering to</h3>
+          <p style={{ margin: 0 }}>{order.deliveryAddress}</p>
+        </div>
+      )}
 
       {order.deliveryPartner && (
         <div className="card">
@@ -307,116 +351,211 @@ export default function TrackOrderScreen({ orderId, onBack, onPayNow }) {
       )}
 
       {order.status === 'delivered' && (
-        <div className="card" id="order-receipt">
-          <div className="row" style={{ marginBottom: 8 }}>
-            <h3 style={{ fontSize: 16, margin: 0 }}>Receipt</h3>
-            <span className="muted" style={{ fontSize: 13 }}>#{order.id.slice(0, 8)}</span>
-          </div>
-          <p className="muted" style={{ margin: '0 0 8px', fontSize: 13 }}>
-            {order.restaurant?.name} · {new Date(order.placedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-          </p>
-
-          {/* Delivery timeline — mirrors what the customer actually experienced */}
-          <div style={{ fontSize: 14, marginBottom: 10 }}>
-            <p style={{ margin: '0 0 2px' }}>
-              <span className="muted">Placed</span>{' '}
-              {new Date(order.placedAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
-            </p>
-            {order.pickedUpAt && (
-              <p style={{ margin: '0 0 2px' }}>
-                <span className="muted">Picked up from {order.restaurant?.name}{order.restaurant?.address ? `, ${order.restaurant.address}` : ''}</span>{' '}
-                {new Date(order.pickedUpAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
+        <>
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+              <span style={{ fontSize: 26 }}>🛍️</span>
+              <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--charcoal)' }}>Order was delivered</span>
+            </div>
+            {/* Delivery timeline — mirrors what the customer actually experienced */}
+            <div style={{ fontSize: 13, borderTop: '1px solid #eee4d4', paddingTop: 10 }}>
+              <p style={{ margin: '0 0 4px' }}>
+                <span className="muted">Placed</span>{' '}
+                {new Date(order.placedAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
               </p>
-            )}
-            {order.deliveredAt && (
-              <p style={{ margin: 0 }}>
-                <span className="muted">Delivered</span>{' '}
-                {new Date(order.deliveredAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
-                {order.deliveryPartner && <> · by {order.deliveryPartner.name}</>}
-              </p>
-            )}
+              {order.pickedUpAt && (
+                <p style={{ margin: '0 0 4px' }}>
+                  <span className="muted">Picked up from {order.restaurant?.name}{order.restaurant?.address ? `, ${order.restaurant.address}` : ''}</span>{' '}
+                  {new Date(order.pickedUpAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
+                </p>
+              )}
+              {order.deliveredAt && (
+                <p style={{ margin: 0 }}>
+                  <span className="muted">Delivered</span>{' '}
+                  {new Date(order.deliveredAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
+                  {order.deliveryPartner && <> · by {order.deliveryPartner.name}</>}
+                </p>
+              )}
+            </div>
           </div>
 
-          {/* Itemized breakdown */}
-          <div style={{ borderTop: '1px solid #eee4d4', paddingTop: 8, marginBottom: 8, fontSize: 14 }}>
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  width: 48, height: 48, borderRadius: 10, flexShrink: 0, display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', fontSize: 22,
+                  background: gradientFor(order.restaurant?.name),
+                }}
+              >
+                🍽️
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: 'var(--charcoal)' }}>{order.restaurant?.name}</p>
+                <p className="muted" style={{ margin: 0, fontSize: 13 }}>{order.restaurant?.address}</p>
+              </div>
+              {order.restaurant?.phone && (
+                <a
+                  href={`tel:${order.restaurant.phone}`}
+                  aria-label="Call restaurant"
+                  style={{
+                    width: 36, height: 36, borderRadius: '50%', background: '#fdf8ef', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, textDecoration: 'none',
+                  }}
+                >
+                  📞
+                </a>
+              )}
+            </div>
+          </div>
+
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div className="row" style={{ marginBottom: 10 }}>
+              <span className="muted" style={{ fontSize: 13 }}>Order ID: #{order.id.slice(0, 8)}</span>
+              <button
+                className="btn-secondary"
+                style={{ padding: '4px 10px', fontSize: 12 }}
+                onClick={() => navigator.clipboard?.writeText(order.id)}
+              >
+                Copy
+              </button>
+            </div>
             {order.items?.map((item) => (
-              <div key={item.id} className="row" style={{ marginBottom: 2 }}>
-                <span>
-                  {item.menuItem?.name} × {item.quantity}
-                  {item.selectedOptions?.length > 0 && (
-                    <span className="muted"> ({item.selectedOptions.map((o) => o.optionLabel).join(', ')})</span>
-                  )}
+              <div key={item.id} className="row" style={{ marginBottom: 6, alignItems: 'flex-start' }}>
+                <span style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 14 }}>
+                  <span
+                    aria-hidden
+                    style={{
+                      marginTop: 5, width: 10, height: 10, flexShrink: 0,
+                      border: `1.5px solid ${item.menuItem?.isVeg ? '#2e6b34' : '#b3261e'}`,
+                    }}
+                  />
+                  <span>
+                    {item.menuItem?.name} × {item.quantity}
+                    {item.selectedOptions?.length > 0 && (
+                      <span className="muted"> ({item.selectedOptions.map((o) => o.optionLabel).join(', ')})</span>
+                    )}
+                  </span>
                 </span>
-                <span>₹{(Number(item.priceAtOrder) * item.quantity).toFixed(0)}</span>
+                <span style={{ fontSize: 14 }}>₹{(Number(item.priceAtOrder) * item.quantity).toFixed(0)}</span>
               </div>
             ))}
-            <div className="row" style={{ marginTop: 6 }}>
-              <span className="muted">Item total</span>
-              <span>₹{Number(order.subtotal).toFixed(0)}</span>
+          </div>
+
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div className="row" style={{ marginBottom: 10 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 15, color: 'var(--charcoal)' }}>
+                🧾 Bill Summary
+              </span>
+              <button
+                onClick={() => printReceipt(order)}
+                aria-label="Download bill"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--chili-dark)' }}
+              >
+                ⬇️
+              </button>
             </div>
-            <div className="row">
-              <span className="muted">Delivery fee</span>
-              <span>₹{Number(order.deliveryFee).toFixed(0)}</span>
-            </div>
-            {order.deliveryType && order.deliveryType !== 'standard' && (
-              <div className="row">
-                <span className="muted">{DELIVERY_TYPES.find((d) => d.value === order.deliveryType)?.label}</span>
-                <span>
-                  {(() => {
-                    const s = DELIVERY_TYPES.find((d) => d.value === order.deliveryType)?.surcharge ?? 0;
-                    return s > 0 ? `+₹${s}` : `-₹${Math.abs(s)}`;
-                  })()}
-                </span>
+            <div style={{ fontSize: 14 }}>
+              <div className="row" style={{ marginBottom: 6 }}>
+                <span className="muted">Item total</span>
+                <span>₹{Number(order.subtotal).toFixed(2)}</span>
               </div>
-            )}
-            {Number(order.tipAmount) > 0 && (
-              <div className="row">
-                <span className="muted">Tip for rider</span>
-                <span>+₹{Number(order.tipAmount).toFixed(0)}</span>
+              <div className="row" style={{ marginBottom: 6 }}>
+                <span className="muted">Delivery partner fee</span>
+                <span>₹{Number(order.deliveryFee).toFixed(2)}</span>
               </div>
-            )}
-            {Number(order.platformFeeAmount) > 0 && (
-              <div className="row">
-                <span className="muted">Platform fee</span>
-                <span>+₹{Number(order.platformFeeAmount).toFixed(2)}</span>
+              {order.deliveryType && order.deliveryType !== 'standard' && (
+                <div className="row" style={{ marginBottom: 6 }}>
+                  <span className="muted">{DELIVERY_TYPES.find((d) => d.value === order.deliveryType)?.label}</span>
+                  <span>
+                    {(() => {
+                      const s = DELIVERY_TYPES.find((d) => d.value === order.deliveryType)?.surcharge ?? 0;
+                      return s > 0 ? `+₹${s}` : `-₹${Math.abs(s)}`;
+                    })()}
+                  </span>
+                </div>
+              )}
+              {Number(order.tipAmount) > 0 && (
+                <div className="row" style={{ marginBottom: 6 }}>
+                  <span className="muted">Tip for rider</span>
+                  <span>+₹{Number(order.tipAmount).toFixed(2)}</span>
+                </div>
+              )}
+              {Number(order.platformFeeAmount) > 0 && (
+                <div className="row" style={{ marginBottom: 6 }}>
+                  <span className="muted">Platform fee</span>
+                  <span>₹{Number(order.platformFeeAmount).toFixed(2)}</span>
+                </div>
+              )}
+              {Number(order.packagingFeeAmount) > 0 && (
+                <div className="row" style={{ marginBottom: 6 }}>
+                  <span className="muted">Packaging fee</span>
+                  <span>₹{Number(order.packagingFeeAmount).toFixed(2)}</span>
+                </div>
+              )}
+              {/* GST rows only ever appear on an order actually placed while GST_ENABLED
+                  was on — see gst-config.util.ts. Nothing here fabricates a tax line. */}
+              {Number(order.restaurantGstAmount) > 0 && (
+                <div className="row" style={{ marginBottom: 6 }}>
+                  <span className="muted">GST (govt. taxes)</span>
+                  <span>₹{Number(order.restaurantGstAmount).toFixed(2)}</span>
+                </div>
+              )}
+              {Number(order.deliveryGstAmount) > 0 && (
+                <div className="row" style={{ marginBottom: 6 }}>
+                  <span className="muted">GST on delivery</span>
+                  <span>₹{Number(order.deliveryGstAmount).toFixed(2)}</span>
+                </div>
+              )}
+              {order.discountAmount != null && Number(order.discountAmount) > 0 && (
+                <div className="row" style={{ marginBottom: 6, color: 'var(--curry, #2e7d32)' }}>
+                  <span>🎉 {order.appliedOfferName}</span>
+                  <span>-₹{Number(order.discountAmount).toFixed(2)}</span>
+                </div>
+              )}
+              <div className="row" style={{ fontWeight: 700, fontSize: 15, borderTop: '1px solid #eee4d4', paddingTop: 10, marginTop: 4 }}>
+                <span>Paid</span>
+                <span>₹{Number(order.total).toFixed(2)}</span>
               </div>
-            )}
-            {Number(order.packagingFeeAmount) > 0 && (
-              <div className="row">
-                <span className="muted">Packaging fee</span>
-                <span>+₹{Number(order.packagingFeeAmount).toFixed(2)}</span>
-              </div>
-            )}
-            {Number(order.restaurantGstAmount) > 0 && (
-              <div className="row">
-                <span className="muted">Restaurant GST</span>
-                <span>+₹{Number(order.restaurantGstAmount).toFixed(2)}</span>
-              </div>
-            )}
-            {Number(order.deliveryGstAmount) > 0 && (
-              <div className="row">
-                <span className="muted">GST on delivery</span>
-                <span>+₹{Number(order.deliveryGstAmount).toFixed(2)}</span>
-              </div>
-            )}
-            {order.discountAmount != null && Number(order.discountAmount) > 0 && (
-              <div className="row" style={{ color: 'var(--curry, #2e7d32)' }}>
-                <span>🎉 {order.appliedOfferName}</span>
-                <span>-₹{Number(order.discountAmount).toFixed(0)}</span>
-              </div>
-            )}
-            <div className="row" style={{ fontWeight: 700, marginTop: 4 }}>
-              <span>Total</span>
-              <span>₹{Number(order.total).toFixed(0)}</span>
-            </div>
-            <div className="row" style={{ marginTop: 4, fontSize: 13 }}>
-              <span className="muted">{order.paymentMethod === 'cod' ? '💵 Cash on delivery' : '💳 Online'}</span>
-              <span style={{ color: order.paymentStatus === 'paid' ? 'var(--curry)' : '#8a5a00', fontWeight: 600 }}>{order.paymentStatus}</span>
             </div>
           </div>
 
-          <button className="btn-secondary" style={{ marginBottom: 14 }} onClick={() => printReceipt(order)}>
-            🖨 Print / save as PDF
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div className="row" style={{ marginBottom: 12 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 34, height: 34, borderRadius: '50%', background: '#e5ddc9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>
+                  👤
+                </span>
+                <span>
+                  <span style={{ display: 'block', fontWeight: 700, fontSize: 14, color: 'var(--charcoal)' }}>{order.customer?.user?.name}</span>
+                  <span style={{ display: 'block', fontSize: 12, color: '#8a8074' }}>{maskPhone(order.customer?.user?.phone)}</span>
+                </span>
+              </span>
+            </div>
+            <div style={{ borderTop: '1px solid #eee4d4', paddingTop: 10, marginBottom: 10 }}>
+              <p className="muted" style={{ margin: '0 0 2px', fontSize: 12 }}>Payment method</p>
+              <p style={{ margin: 0, fontSize: 14, color: 'var(--charcoal)' }}>
+                {order.paymentMethod === 'cod' ? '💵 Cash on delivery' : '💳 Paid online'}
+              </p>
+            </div>
+            <div style={{ borderTop: '1px solid #eee4d4', paddingTop: 10, marginBottom: 10 }}>
+              <p className="muted" style={{ margin: '0 0 2px', fontSize: 12 }}>Payment date</p>
+              <p style={{ margin: 0, fontSize: 14, color: 'var(--charcoal)' }}>
+                {new Date(order.deliveredAt || order.placedAt).toLocaleString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+              </p>
+            </div>
+            <div style={{ borderTop: '1px solid #eee4d4', paddingTop: 10 }}>
+              <p className="muted" style={{ margin: '0 0 2px', fontSize: 12 }}>Delivery address</p>
+              <p style={{ margin: 0, fontSize: 14, color: 'var(--charcoal)' }}>{order.deliveryAddress}</p>
+            </div>
+          </div>
+        </>
+      )}
+
+      {order.status === 'delivered' && (
+        <div className="card" id="order-receipt">
+          <button className="btn-secondary" style={{ marginBottom: 14, width: '100%' }} onClick={() => printReceipt(order)}>
+            ⬇ Invoice
           </button>
 
           {ratingSubmitted ? (

@@ -216,17 +216,17 @@ test('full order flow: customer orders, restaurant accepts, rider delivers', asy
     // word "Delivered" legitimately appears a second time in its delivery timeline, which
     // would otherwise make this locator ambiguous
     await expect(customerPage.locator('.tiffin-tier.current', { hasText: 'Delivered' })).toBeVisible({ timeout: 15_000 });
-    // The receipt: itemized lines, fee breakdown, delivery timeline, and who delivered it
-    await expect(customerPage.getByText('Receipt')).toBeVisible();
+    // The Order Details view: itemized lines, fee breakdown, delivery timeline, who delivered it
+    await expect(customerPage.getByText('Order was delivered')).toBeVisible();
     await expect(customerPage.getByText('E2E Test Dish × 1')).toBeVisible();
-    await expect(customerPage.getByText('Delivery fee')).toBeVisible();
+    await expect(customerPage.getByText('Delivery partner fee')).toBeVisible();
     await expect(customerPage.getByText(/by E2E Test Rider/)).toBeVisible();
     await expect(customerPage.getByText(/Picked up from .*Test Address/)).toBeVisible();
     await expect(customerPage.getByText('💵 Cash on delivery')).toBeVisible();
     // Regression: receipt labels use .muted, which is light-on-dark globally — inside the
     // cream receipt card they must resolve to the dark muted tone or they're invisible
     await expect(customerPage.getByText('Item total')).toHaveCSS('color', 'rgb(107, 97, 86)');
-    await expect(customerPage.getByRole('button', { name: /Print \/ save as PDF/ })).toBeVisible();
+    await expect(customerPage.getByRole('button', { name: /Invoice/ })).toBeVisible();
   });
 
   await test.step('A rating survives a page reload — the app never re-asks', async () => {
