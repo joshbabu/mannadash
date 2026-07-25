@@ -36,6 +36,18 @@ export class DeliveryPartnersService {
     throw new Error('Could not generate a unique referral code after 10 attempts');
   }
 
+  // Every NEW rider gets a code at signup (see below), but referralCode had to be added as
+  // a nullable column so it could be deployed onto a database that already had real riders
+  // with nothing to backfill them with (see the entity's comment). This is that backfill —
+  // called lazily by RiderProgramsService.getMyReferrals() the first time an existing rider
+  // actually needs their code, rather than requiring a one-off migration script.
+  async ensureReferralCode(rider: DeliveryPartner): Promise<string> {
+    if (rider.referralCode) return rider.referralCode;
+    rider.referralCode = await this.generateUniqueReferralCode();
+    await this.riderRepo.save(rider);
+    return rider.referralCode;
+  }
+
   async signup(dto: DeliveryPartnerSignupDto) {
     const existing = await this.riderRepo.findOne({ where: { phone: dto.phone } });
     if (existing) {

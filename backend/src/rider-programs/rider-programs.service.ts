@@ -9,6 +9,7 @@ import { Referral } from './entities/referral.entity';
 import { SosAlert } from './entities/sos-alert.entity';
 import { Order, OrderStatus } from '../orders/entities/order.entity';
 import { DeliveryPartner } from '../delivery-partners/entities/delivery-partner.entity';
+import { DeliveryPartnersService } from '../delivery-partners/delivery-partners.service';
 import { CreateShiftDto } from './dto/create-shift.dto';
 import { CreateIncentiveDto } from './dto/create-incentive.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
@@ -25,6 +26,7 @@ export class RiderProgramsService {
     @InjectRepository(SosAlert) private readonly sosAlertRepo: Repository<SosAlert>,
     @InjectRepository(Order) private readonly orderRepo: Repository<Order>,
     @InjectRepository(DeliveryPartner) private readonly deliveryPartnerRepo: Repository<DeliveryPartner>,
+    private readonly deliveryPartnersService: DeliveryPartnersService,
   ) {}
 
   // ==================== Shifts ====================
@@ -205,6 +207,7 @@ export class RiderProgramsService {
   async getMyReferrals(riderId: string) {
     const rider = await this.deliveryPartnerRepo.findOne({ where: { id: riderId } });
     if (!rider) throw new NotFoundException('Rider not found');
+    const referralCode = await this.deliveryPartnersService.ensureReferralCode(rider);
 
     const referrals = await this.referralRepo.find({
       where: { referrer: { id: riderId } },
@@ -227,7 +230,7 @@ export class RiderProgramsService {
     );
 
     return {
-      referralCode: rider.referralCode,
+      referralCode,
       bonusThresholdOrders: this.REFERRAL_BONUS_THRESHOLD_ORDERS,
       bonusAmount: this.REFERRAL_BONUS_AMOUNT,
       referredRiders,

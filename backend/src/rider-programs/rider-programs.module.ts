@@ -11,11 +11,13 @@ import { SosAlert } from './entities/sos-alert.entity';
 import { Order } from '../orders/entities/order.entity';
 import { DeliveryPartner } from '../delivery-partners/entities/delivery-partner.entity';
 import { AuthModule } from '../auth/auth.module';
+import { DeliveryPartnersModule } from '../delivery-partners/delivery-partners.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Shift, ShiftBooking, RiderIncentive, Announcement, Referral, SosAlert, Order, DeliveryPartner]),
     AuthModule,
+    DeliveryPartnersModule,
   ],
   providers: [RiderProgramsService],
   controllers: [RiderProgramsController],

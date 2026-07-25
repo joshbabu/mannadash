@@ -50,11 +50,14 @@ export class DeliveryPartner {
   @Column({ type: 'int', default: 0 })
   ratingCount: number;
 
-  // Assigned once at signup (see DeliveryPartnersService.generateUniqueReferralCode) — a
-  // short code this rider can share; another rider entering it at their own signup creates
-  // a Referral row (see rider-programs). Not sensitive, fine to expose normally.
-  @Column({ unique: true })
-  referralCode: string;
+  // Assigned at signup for every new rider (see DeliveryPartnersService.generateUniqueReferralCode).
+  // Nullable — not because it's optional in practice, but because `synchronize: true` can't
+  // add a NOT NULL column to a table that already has real rows with nothing to backfill
+  // them with (this broke a production deploy once already). Existing riders get one
+  // lazily generated the first time it's actually needed — see getMyReferrals(). Postgres
+  // allows multiple NULLs under a unique constraint, so this is safe pre-backfill.
+  @Column({ type: 'varchar', unique: true, nullable: true })
+  referralCode: string | null;
 
   // Bank details — same @Exclude() convention as Restaurant's pan/bank fields: real data,
   // never serialized in a normal find/findOne response. Only reachable through the
