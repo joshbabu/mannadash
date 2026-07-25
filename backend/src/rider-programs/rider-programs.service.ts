@@ -5,10 +5,14 @@ import { Shift } from './entities/shift.entity';
 import { ShiftBooking } from './entities/shift-booking.entity';
 import { RiderIncentive } from './entities/rider-incentive.entity';
 import { Announcement } from './entities/announcement.entity';
+import { Referral } from './entities/referral.entity';
+import { SosAlert } from './entities/sos-alert.entity';
 import { Order, OrderStatus } from '../orders/entities/order.entity';
+import { DeliveryPartner } from '../delivery-partners/entities/delivery-partner.entity';
 import { CreateShiftDto } from './dto/create-shift.dto';
 import { CreateIncentiveDto } from './dto/create-incentive.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
+import { CreateSosAlertDto } from './dto/create-sos-alert.dto';
 
 @Injectable()
 export class RiderProgramsService {
@@ -17,7 +21,10 @@ export class RiderProgramsService {
     @InjectRepository(ShiftBooking) private readonly shiftBookingRepo: Repository<ShiftBooking>,
     @InjectRepository(RiderIncentive) private readonly incentiveRepo: Repository<RiderIncentive>,
     @InjectRepository(Announcement) private readonly announcementRepo: Repository<Announcement>,
+    @InjectRepository(Referral) private readonly referralRepo: Repository<Referral>,
+    @InjectRepository(SosAlert) private readonly sosAlertRepo: Repository<SosAlert>,
     @InjectRepository(Order) private readonly orderRepo: Repository<Order>,
+    @InjectRepository(DeliveryPartner) private readonly deliveryPartnerRepo: Repository<DeliveryPartner>,
   ) {}
 
   // ==================== Shifts ====================
@@ -184,5 +191,89 @@ export class RiderProgramsService {
     if (!announcement) throw new NotFoundException('Announcement not found');
     announcement.active = false;
     return this.announcementRepo.save(announcement);
+  }
+
+  // ==================== Referrals ====================
+
+  // Placeholder amount — same caveat as gst-config.util.ts's rates: confirm the real
+  // referral payout figure with ops before this goes live. Bonus is never auto-credited;
+  // like RiderIncentive, this only ever reports real progress. Actually paying it out still
+  // goes through the existing manual admin Payout flow (POST /orders/rider/:id/payout).
+  private readonly REFERRAL_BONUS_THRESHOLD_ORDERS = 5;
+  private readonly REFERRAL_BONUS_AMOUNT = 100;
+
+  async getMyReferrals(riderId: string) {
+    const rider = await this.deliveryPartnerRepo.findOne({ where: { id: riderId } });
+    if (!rider) throw new NotFoundException('Rider not found');
+
+    const referrals = await this.referralRepo.find({
+      where: { referrer: { id: riderId } },
+      relations: { referee: true },
+      order: { createdAt: 'DESC' },
+    });
+
+    const referredRiders = await Promise.all(
+      referrals.map(async (r) => {
+        const deliveredCount = await this.orderRepo.count({
+          where: { deliveryPartner: { id: r.referee.id }, status: OrderStatus.DELIVERED },
+        });
+        return {
+          name: r.referee.name,
+          joinedAt: r.createdAt,
+          deliveredCount,
+          bonusAchieved: deliveredCount >= this.REFERRAL_BONUS_THRESHOLD_ORDERS,
+        };
+      }),
+    );
+
+    return {
+      referralCode: rider.referralCode,
+      bonusThresholdOrders: this.REFERRAL_BONUS_THRESHOLD_ORDERS,
+      bonusAmount: this.REFERRAL_BONUS_AMOUNT,
+      referredRiders,
+    };
+  }
+
+  async listAllReferrals() {
+    const referrals = await this.referralRepo.find({
+      relations: { referrer: true, referee: true },
+      order: { createdAt: 'DESC' },
+    });
+    return referrals.map((r) => ({
+      id: r.id,
+      referrerName: r.referrer.name,
+      refereeName: r.referee.name,
+      createdAt: r.createdAt,
+    }));
+  }
+
+  // ==================== SOS ====================
+
+  async triggerSos(riderId: string, dto: CreateSosAlertDto) {
+    const rider = await this.deliveryPartnerRepo.findOne({ where: { id: riderId } });
+    if (!rider) throw new NotFoundException('Rider not found');
+    const alert = this.sosAlertRepo.create({
+      deliveryPartner: rider,
+      latitude: dto.latitude,
+      longitude: dto.longitude,
+    });
+    await this.sosAlertRepo.save(alert);
+    return { logged: true };
+  }
+
+  async listSosAlerts() {
+    const alerts = await this.sosAlertRepo.find({
+      relations: { deliveryPartner: true },
+      order: { createdAt: 'DESC' },
+      take: 100,
+    });
+    return alerts.map((a) => ({
+      id: a.id,
+      riderName: a.deliveryPartner.name,
+      riderPhone: a.deliveryPartner.phone,
+      latitude: Number(a.latitude),
+      longitude: Number(a.longitude),
+      createdAt: a.createdAt,
+    }));
   }
 }

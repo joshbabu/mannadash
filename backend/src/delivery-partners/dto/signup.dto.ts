@@ -16,4 +16,10 @@ export class DeliveryPartnerSignupDto {
   @IsOptional()
   @IsEnum(VehicleType)
   vehicleType?: VehicleType;
+
+  // Optional — another rider's referralCode. A typo/invalid code doesn't block signup
+  // (see DeliveryPartnersService.signup), it just means no referral gets recorded.
+  @IsOptional()
+  @IsString()
+  referralCode?: string;
 }

@@ -34,6 +34,8 @@ import { Shift } from './rider-programs/entities/shift.entity';
 import { ShiftBooking } from './rider-programs/entities/shift-booking.entity';
 import { RiderIncentive } from './rider-programs/entities/rider-incentive.entity';
 import { Announcement } from './rider-programs/entities/announcement.entity';
+import { Referral } from './rider-programs/entities/referral.entity';
+import { SosAlert } from './rider-programs/entities/sos-alert.entity';
 import { RiderProgramsModule } from './rider-programs/rider-programs.module';
 
 @Module({
@@ -71,6 +73,8 @@ import { RiderProgramsModule } from './rider-programs/rider-programs.module';
           ShiftBooking,
           RiderIncentive,
           Announcement,
+          Referral,
+          SosAlert,
         ],
         // synchronize is fine for early MVP dev; switch to migrations before production
         synchronize: true,

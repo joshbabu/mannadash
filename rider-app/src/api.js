@@ -31,6 +31,10 @@ export const api = {
   signup: (body) => request('/delivery-partners/signup', { method: 'POST', body }),
   login: (body) => request('/delivery-partners/login', { method: 'POST', body }),
   changePassword: (body) => request('/delivery-partners/me/change-password', { method: 'POST', body, auth: true }),
+  getBankDetails: () => request('/delivery-partners/me/bank-details', { auth: true }),
+  updateBankDetails: (body) => request('/delivery-partners/me/bank-details', { method: 'PATCH', body, auth: true }),
+  getMyReferrals: () => request('/referrals/mine', { auth: true }),
+  triggerSos: (body) => request('/sos', { method: 'POST', body, auth: true }),
   getRider: (id) => request(`/delivery-partners/${id}`),
 
   setAvailability: (isAvailable) =>

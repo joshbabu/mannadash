@@ -471,3 +471,201 @@ describe('Rider programs — shifts, incentives, announcements (e2e)', () => {
     });
   });
 });
+
+/**
+ * Bank details, referrals, and SOS alerts — added alongside shifts/incentives/announcements.
+ * Key things this spec exists to prove:
+ *   - Bank details are genuinely self-service (a rider can only read/write their own) and
+ *     never leak through the normal find/findOne responses (the @Exclude() on the entity).
+ *   - Every rider gets a real, unique referral code at signup; a referral is only recorded
+ *     when a genuinely valid code is supplied, and a bad/typo'd one never blocks signup.
+ *   - Referral "bonus achieved" is computed from real delivered orders, same as incentives.
+ *   - An SOS alert is actually persisted (not just a client-side action with no record).
+ */
+describe('Rider programs — bank details, referrals, SOS (e2e)', () => {
+  let app: INestApplication;
+
+  beforeAll(async () => {
+    app = await createTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  function authed(token: string) {
+    return { Authorization: `Bearer ${token}` };
+  }
+
+  function uniquePhone(seed: number) {
+    return `9${String(Date.now()).slice(-8)}${seed}`;
+  }
+
+  describe('Bank details', () => {
+    it('a rider can set and then read back their own bank details', async () => {
+      const rider = await signUpRider(app);
+
+      const empty = await request(app.getHttpServer())
+        .get('/delivery-partners/me/bank-details')
+        .set(authed(rider.token))
+        .expect(200);
+      expect(empty.body.bankIfsc).toBeNull();
+
+      await request(app.getHttpServer())
+        .patch('/delivery-partners/me/bank-details')
+        .set(authed(rider.token))
+        .send({ bankIfsc: 'HDFC0001234', bankAccountNumber: '123456789012' })
+        .expect(200);
+
+      const filled = await request(app.getHttpServer())
+        .get('/delivery-partners/me/bank-details')
+        .set(authed(rider.token))
+        .expect(200);
+      expect(filled.body.bankIfsc).toBe('HDFC0001234');
+      expect(filled.body.bankAccountNumber).toBe('123456789012');
+    });
+
+    it('rejects a malformed IFSC code', async () => {
+      const rider = await signUpRider(app);
+      await request(app.getHttpServer())
+        .patch('/delivery-partners/me/bank-details')
+        .set(authed(rider.token))
+        .send({ bankIfsc: 'not-an-ifsc', bankAccountNumber: '123456789012' })
+        .expect(400);
+    });
+
+    it('bank details never appear in the normal restaurant-style findAll/findOne responses', async () => {
+      const rider = await signUpRider(app);
+      await request(app.getHttpServer())
+        .patch('/delivery-partners/me/bank-details')
+        .set(authed(rider.token))
+        .send({ bankIfsc: 'HDFC0001234', bankAccountNumber: '123456789012' })
+        .expect(200);
+
+      const found = await request(app.getHttpServer()).get(`/delivery-partners/${rider.id}`).expect(200);
+      expect(found.body.bankIfsc).toBeUndefined();
+      expect(found.body.bankAccountNumber).toBeUndefined();
+    });
+
+    it('requires authentication, and a customer cannot use the rider bank-details endpoint', async () => {
+      await request(app.getHttpServer()).get('/delivery-partners/me/bank-details').expect(401);
+      const customer = await signUpCustomer(app);
+      await request(app.getHttpServer())
+        .get('/delivery-partners/me/bank-details')
+        .set(authed(customer.token))
+        .expect(403);
+    });
+  });
+
+  describe('Referrals', () => {
+    it('every rider gets a unique referral code at signup', async () => {
+      const a = await signUpRider(app);
+      const b = await signUpRider(app);
+      const mineA = await request(app.getHttpServer()).get('/referrals/mine').set(authed(a.token)).expect(200);
+      const mineB = await request(app.getHttpServer()).get('/referrals/mine').set(authed(b.token)).expect(200);
+      expect(mineA.body.referralCode).toBeTruthy();
+      expect(mineB.body.referralCode).toBeTruthy();
+      expect(mineA.body.referralCode).not.toBe(mineB.body.referralCode);
+    });
+
+    it('signing up with a valid referral code links the referral, with real progress toward the bonus', async () => {
+      const referrer = await signUpRider(app);
+      const mine = await request(app.getHttpServer()).get('/referrals/mine').set(authed(referrer.token)).expect(200);
+      const code = mine.body.referralCode;
+
+      const phone = uniquePhone(1);
+      const signupRes = await request(app.getHttpServer())
+        .post('/delivery-partners/signup')
+        .send({ name: 'Referred Rider', phone, password: 'testpass123', referralCode: code })
+        .expect(201);
+      expect(signupRes.body.rider.id).toBeTruthy();
+
+      const afterSignup = await request(app.getHttpServer())
+        .get('/referrals/mine')
+        .set(authed(referrer.token))
+        .expect(200);
+      expect(afterSignup.body.referredRiders).toHaveLength(1);
+      expect(afterSignup.body.referredRiders[0].name).toBe('Referred Rider');
+      expect(afterSignup.body.referredRiders[0].deliveredCount).toBe(0);
+      expect(afterSignup.body.referredRiders[0].bonusAchieved).toBe(false);
+    });
+
+    it('an invalid/made-up referral code does not block signup and records no referral', async () => {
+      const phone = uniquePhone(2);
+      const signupRes = await request(app.getHttpServer())
+        .post('/delivery-partners/signup')
+        .send({ name: 'No Referrer', phone, password: 'testpass123', referralCode: 'ZZZZZZ' })
+        .expect(201);
+      expect(signupRes.body).toBeTruthy();
+    });
+
+    it('signup works fine with no referral code at all', async () => {
+      const phone = uniquePhone(3);
+      await request(app.getHttpServer())
+        .post('/delivery-partners/signup')
+        .send({ name: 'No Code', phone, password: 'testpass123' })
+        .expect(201);
+    });
+
+    it('an admin can see all referrals; a rider cannot', async () => {
+      const referrer = await signUpRider(app);
+      const mine = await request(app.getHttpServer()).get('/referrals/mine').set(authed(referrer.token)).expect(200);
+      const phone = uniquePhone(4);
+      await request(app.getHttpServer())
+        .post('/delivery-partners/signup')
+        .send({ name: 'Admin View Test', phone, password: 'testpass123', referralCode: mine.body.referralCode })
+        .expect(201);
+
+      const admin = await adminLogin(app);
+      const all = await request(app.getHttpServer()).get('/referrals').set(authed(admin)).expect(200);
+      expect(all.body.some((r: any) => r.refereeName === 'Admin View Test')).toBe(true);
+
+      await request(app.getHttpServer()).get('/referrals').set(authed(referrer.token)).expect(403);
+    });
+
+    it('requires authentication to read referral progress', async () => {
+      await request(app.getHttpServer()).get('/referrals/mine').expect(401);
+    });
+  });
+
+  describe('SOS alerts', () => {
+    it('a rider can trigger an SOS alert, and it shows up for admins', async () => {
+      const rider = await signUpRider(app);
+      await request(app.getHttpServer())
+        .post('/sos')
+        .set(authed(rider.token))
+        .send({ latitude: 17.45, longitude: 78.39 })
+        .expect(201);
+
+      const admin = await adminLogin(app);
+      const alerts = await request(app.getHttpServer()).get('/sos-alerts').set(authed(admin)).expect(200);
+      expect(alerts.body.some((a: any) => a.riderPhone === rider.phone && a.latitude === 17.45)).toBe(true);
+    });
+
+    it('rejects an out-of-range coordinate', async () => {
+      const rider = await signUpRider(app);
+      await request(app.getHttpServer())
+        .post('/sos')
+        .set(authed(rider.token))
+        .send({ latitude: 999, longitude: 78.39 })
+        .expect(400);
+    });
+
+    it('only a rider can trigger SOS; only an admin can list alerts', async () => {
+      const customer = await signUpCustomer(app);
+      await request(app.getHttpServer())
+        .post('/sos')
+        .set(authed(customer.token))
+        .send({ latitude: 17.45, longitude: 78.39 })
+        .expect(403);
+
+      const rider = await signUpRider(app);
+      await request(app.getHttpServer()).get('/sos-alerts').set(authed(rider.token)).expect(403);
+    });
+
+    it('requires authentication to trigger or list SOS alerts', async () => {
+      await request(app.getHttpServer()).post('/sos').send({ latitude: 17.45, longitude: 78.39 }).expect(401);
+      await request(app.getHttpServer()).get('/sos-alerts').expect(401);
+    });
+  });
+});

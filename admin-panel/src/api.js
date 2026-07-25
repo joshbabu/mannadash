@@ -49,6 +49,8 @@ export const api = {
   getAnnouncements: () => request('/announcements', { auth: true }),
   createAnnouncement: (body) => request('/announcements', { method: 'POST', body, auth: true }),
   deactivateAnnouncement: (id) => request(`/announcements/${id}/deactivate`, { method: 'PATCH', auth: true }),
+  getReferrals: () => request('/referrals', { auth: true }),
+  getSosAlerts: () => request('/sos-alerts', { auth: true }),
 
   getToken,
   setToken: (token) => localStorage.setItem('mannadash_admin_token', token),

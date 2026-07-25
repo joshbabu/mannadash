@@ -6,16 +6,35 @@ import * as bcrypt from 'bcrypt';
 import { DeliveryPartner } from './entities/delivery-partner.entity';
 import { DeliveryPartnerSignupDto } from './dto/signup.dto';
 import { DeliveryPartnerLoginDto } from './dto/login.dto';
+import { UpdateBankDetailsDto } from './dto/update-bank-details.dto';
+import { Referral } from '../rider-programs/entities/referral.entity';
 
 const SALT_ROUNDS = 10;
+const REFERRAL_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I — easy to misread aloud
 
 @Injectable()
 export class DeliveryPartnersService {
   constructor(
     @InjectRepository(DeliveryPartner)
     private readonly riderRepo: Repository<DeliveryPartner>,
+    @InjectRepository(Referral)
+    private readonly referralRepo: Repository<Referral>,
     private readonly jwtService: JwtService,
   ) {}
+
+  private async generateUniqueReferralCode(): Promise<string> {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      let code = '';
+      for (let i = 0; i < 6; i += 1) {
+        code += REFERRAL_CODE_CHARS[Math.floor(Math.random() * REFERRAL_CODE_CHARS.length)];
+      }
+      const existing = await this.riderRepo.findOne({ where: { referralCode: code } });
+      if (!existing) return code;
+    }
+    // Astronomically unlikely with a 33^6 space, but fail loudly rather than silently
+    // save a rider with a colliding/undefined code if it somehow happens.
+    throw new Error('Could not generate a unique referral code after 10 attempts');
+  }
 
   async signup(dto: DeliveryPartnerSignupDto) {
     const existing = await this.riderRepo.findOne({ where: { phone: dto.phone } });
@@ -24,18 +43,29 @@ export class DeliveryPartnersService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
+    const referralCode = await this.generateUniqueReferralCode();
     const rider = await this.riderRepo.save(
       this.riderRepo.create({
         name: dto.name,
         phone: dto.phone,
         passwordHash,
         vehicleType: dto.vehicleType,
+        referralCode,
         // Riders start unverified and unavailable — an admin/ops step (not built yet) should verify
         // documents before they can go online. See `verify()` below for the manual override used in dev.
         isVerified: false,
         isAvailable: false,
       }),
     );
+
+    // A supplied referral code that doesn't match any rider (typo, expired, made up) just
+    // means no Referral row gets created — it deliberately never blocks signup itself.
+    if (dto.referralCode) {
+      const referrer = await this.riderRepo.findOne({ where: { referralCode: dto.referralCode.toUpperCase() } });
+      if (referrer && referrer.id !== rider.id) {
+        await this.referralRepo.save(this.referralRepo.create({ referrer, referee: rider }));
+      }
+    }
 
     return this.buildAuthResponse(rider);
   }
@@ -163,5 +193,23 @@ export class DeliveryPartnersService {
     account.passwordHash = await bcrypt.hash(newPassword, 10);
     await this.riderRepo.save(account);
     return { changed: true };
+  }
+
+  // @Exclude() on the entity keeps these out of every normal find/findOne response — these
+  // two are the only paths that ever expose or change them, and only for the rider's own
+  // account (see the `me/bank-details` routes in the controller, not an :id param).
+  async getBankDetails(riderId: string) {
+    const rider = await this.riderRepo.findOne({ where: { id: riderId } });
+    if (!rider) throw new NotFoundException('Rider not found');
+    return { bankIfsc: rider.bankIfsc, bankAccountNumber: rider.bankAccountNumber };
+  }
+
+  async updateBankDetails(riderId: string, dto: UpdateBankDetailsDto) {
+    const rider = await this.riderRepo.findOne({ where: { id: riderId } });
+    if (!rider) throw new NotFoundException('Rider not found');
+    rider.bankIfsc = dto.bankIfsc;
+    rider.bankAccountNumber = dto.bankAccountNumber;
+    await this.riderRepo.save(rider);
+    return { bankIfsc: rider.bankIfsc, bankAccountNumber: rider.bankAccountNumber };
   }
 }

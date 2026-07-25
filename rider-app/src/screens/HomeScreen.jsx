@@ -5,6 +5,8 @@ import EarningsScreen from './EarningsScreen';
 import AccountScreen from './AccountScreen';
 import ShiftsScreen from './ShiftsScreen';
 import AnnouncementsScreen from './AnnouncementsScreen';
+import ReferScreen from './ReferScreen';
+import SosSheet from './SosSheet';
 import { enablePushNotifications, isPushSupported, getInitialPushStatus, silentlyRefreshSubscription } from '../utils/pushNotifications';
 
 // What each status can move to next, from the rider's side only —
@@ -24,6 +26,8 @@ const WAITING_MESSAGE = {
 export default function HomeScreen({ rider, onLogout }) {
   const [tab, setTab] = useState('deliveries');
   const [showAnnouncements, setShowAnnouncements] = useState(false);
+  const [showRefer, setShowRefer] = useState(false);
+  const [showSos, setShowSos] = useState(false);
   const [isOnline, setIsOnline] = useState(rider.isAvailable);
   const [isVerified, setIsVerified] = useState(rider.isVerified);
   const [ratingAvg, setRatingAvg] = useState(rider.ratingAvg || 0);
@@ -188,12 +192,23 @@ export default function HomeScreen({ rider, onLogout }) {
   if (showAnnouncements) {
     return <AnnouncementsScreen onBack={() => setShowAnnouncements(false)} />;
   }
+  if (showRefer) {
+    return <ReferScreen onBack={() => setShowRefer(false)} />;
+  }
 
   return (
     <div className="app-shell">
       <div className="topbar">
         <span className="brand">MannaDash Rider</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            className="btn-secondary"
+            onClick={() => setShowSos(true)}
+            aria-label="Emergency"
+            style={{ padding: '6px 10px', fontSize: 13, color: 'var(--chili)', borderColor: 'var(--chili)' }}
+          >
+            🆘
+          </button>
           <button
             className="btn-secondary"
             onClick={() => setShowAnnouncements(true)}
@@ -206,10 +221,19 @@ export default function HomeScreen({ rider, onLogout }) {
         </div>
       </div>
 
+      {showSos && <SosSheet onClose={() => setShowSos(false)} />}
+
       {tab === 'earnings' ? (
         <EarningsScreen />
       ) : tab === 'account' ? (
-        <AccountScreen rider={rider} ratingAvg={ratingAvg} ratingCount={ratingCount} isVerified={isVerified} onLogout={onLogout} />
+        <AccountScreen
+          rider={rider}
+          ratingAvg={ratingAvg}
+          ratingCount={ratingCount}
+          isVerified={isVerified}
+          onLogout={onLogout}
+          onOpenRefer={() => setShowRefer(true)}
+        />
       ) : tab === 'shifts' ? (
         <ShiftsScreen />
       ) : (

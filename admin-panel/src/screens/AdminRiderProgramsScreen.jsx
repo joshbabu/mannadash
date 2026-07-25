@@ -13,7 +13,7 @@ export default function AdminRiderProgramsScreen() {
   return (
     <div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        {['shifts', 'incentives', 'announcements'].map((t) => (
+        {['shifts', 'incentives', 'announcements', 'referrals', 'sos'].map((t) => (
           <button
             key={t}
             className="btn-secondary"
@@ -25,7 +25,7 @@ export default function AdminRiderProgramsScreen() {
               color: subTab === t ? '#fff' : undefined,
             }}
           >
-            {t}
+            {t === 'sos' ? 'SOS alerts' : t}
           </button>
         ))}
       </div>
@@ -33,6 +33,8 @@ export default function AdminRiderProgramsScreen() {
       {subTab === 'shifts' && <ShiftsAdmin />}
       {subTab === 'incentives' && <IncentivesAdmin />}
       {subTab === 'announcements' && <AnnouncementsAdmin />}
+      {subTab === 'referrals' && <ReferralsAdmin />}
+      {subTab === 'sos' && <SosAlertsAdmin />}
     </div>
   );
 }
@@ -296,6 +298,77 @@ function AnnouncementsAdmin() {
             {a.active && (
               <button className="btn-suspend" onClick={() => deactivate(a.id)}>Take down</button>
             )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ReferralsAdmin() {
+  const [referrals, setReferrals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    api.getReferrals().then(setReferrals).catch((err) => setError(err.message)).finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div>
+      {error && <div className="error-banner">{error}</div>}
+      <h2 style={{ fontSize: 16, marginBottom: 10 }}>All referrals</h2>
+      {loading && <p className="muted">Loading…</p>}
+      {!loading && referrals.length === 0 && <p className="muted">No referrals recorded yet.</p>}
+      <div className="stack">
+        {referrals.map((r) => (
+          <div key={r.id} className="card">
+            <p style={{ margin: 0 }}>
+              <strong>{r.referrerName}</strong> referred <strong>{r.refereeName}</strong>
+            </p>
+            <p className="muted" style={{ margin: '4px 0 0' }}>
+              {new Date(r.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SosAlertsAdmin() {
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    api.getSosAlerts().then(setAlerts).catch((err) => setError(err.message)).finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div>
+      {error && <div className="error-banner">{error}</div>}
+      <h2 style={{ fontSize: 16, marginBottom: 10 }}>Recent SOS alerts</h2>
+      {loading && <p className="muted">Loading…</p>}
+      {!loading && alerts.length === 0 && <p className="muted">No SOS alerts — good sign.</p>}
+      <div className="stack">
+        {alerts.map((a) => (
+          <div key={a.id} className="card" style={{ borderLeft: '4px solid var(--chili, #c1432e)' }}>
+            <div className="row" style={{ marginBottom: 4 }}>
+              <strong>{a.riderName}</strong>
+              <span className="muted">{a.riderPhone}</span>
+            </div>
+            <p className="muted" style={{ margin: '0 0 6px' }}>
+              {new Date(a.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+            </p>
+            <a
+              href={`https://www.google.com/maps?q=${a.latitude},${a.longitude}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ fontSize: 13, fontWeight: 600 }}
+            >
+              📍 View location on map
+            </a>
           </div>
         ))}
       </div>

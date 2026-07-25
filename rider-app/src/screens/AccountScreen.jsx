@@ -8,7 +8,7 @@ function maskPhone(phone) {
   return phone.length <= 4 ? phone : `${'X'.repeat(phone.length - 4)}${phone.slice(-4)}`;
 }
 
-export default function AccountScreen({ rider, ratingAvg, ratingCount, isVerified, onLogout }) {
+export default function AccountScreen({ rider, ratingAvg, ratingCount, isVerified, onLogout, onOpenRefer }) {
   const [pushSubscribed, setPushSubscribed] = useState(null);
   const [pushError, setPushError] = useState('');
   const [pushToggleBusy, setPushToggleBusy] = useState(false);
@@ -18,6 +18,36 @@ export default function AccountScreen({ rider, ratingAvg, ratingCount, isVerifie
   const [pwError, setPwError] = useState('');
   const [pwChanged, setPwChanged] = useState(false);
   const [changingPw, setChangingPw] = useState(false);
+
+  const [bankDetails, setBankDetails] = useState(null);
+  const [ifsc, setIfsc] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [bankError, setBankError] = useState('');
+  const [bankSaved, setBankSaved] = useState(false);
+  const [savingBank, setSavingBank] = useState(false);
+
+  useEffect(() => {
+    api.getBankDetails().then((d) => {
+      setBankDetails(d);
+      setIfsc(d.bankIfsc || '');
+      setAccountNumber(d.bankAccountNumber || '');
+    }).catch(() => {});
+  }, []);
+
+  async function saveBankDetails() {
+    setBankError('');
+    setSavingBank(true);
+    try {
+      const updated = await api.updateBankDetails({ bankIfsc: ifsc.toUpperCase(), bankAccountNumber: accountNumber });
+      setBankDetails(updated);
+      setBankSaved(true);
+      setTimeout(() => setBankSaved(false), 3000);
+    } catch (err) {
+      setBankError(err.message);
+    } finally {
+      setSavingBank(false);
+    }
+  }
 
   useEffect(() => {
     if (!isPushSupported()) {
@@ -79,6 +109,14 @@ export default function AccountScreen({ rider, ratingAvg, ratingCount, isVerifie
         </div>
       </div>
 
+      <button className="card" style={{ marginBottom: 16, width: '100%', textAlign: 'left', border: 'none', cursor: 'pointer' }} onClick={onOpenRefer}>
+        <div className="row">
+          <span style={{ fontWeight: 700, fontSize: 15 }}>🎁 Refer & Earn</span>
+          <span style={{ color: 'var(--curry)', fontSize: 18 }}>›</span>
+        </div>
+        <p className="muted" style={{ margin: '4px 0 0', fontSize: 13, color: '#6b6156' }}>Invite a rider, both of you earn a bonus</p>
+      </button>
+
       {isPushSupported() && (
         <div className="card" style={{ marginBottom: 16 }}>
           <p style={{ fontWeight: 700, margin: '0 0 4px' }}>🔔 Delivery notifications</p>
@@ -105,6 +143,22 @@ export default function AccountScreen({ rider, ratingAvg, ratingCount, isVerifie
               {changingPw ? 'Changing…' : 'Change password'}
             </button>
             {pwChanged && <span style={{ color: 'var(--curry)', fontWeight: 600, fontSize: 14 }}>✓ Changed</span>}
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <p style={{ fontWeight: 700, margin: '0 0 4px' }}>🏦 Bank details</p>
+        <p className="muted" style={{ margin: '0 0 10px', fontSize: 13, color: '#6b6156' }}>Where your payouts are sent</p>
+        {bankError && <div className="error-banner">{bankError}</div>}
+        <div className="stack">
+          <input placeholder="IFSC code (e.g. HDFC0001234)" value={ifsc} onChange={(e) => setIfsc(e.target.value.toUpperCase())} maxLength={11} />
+          <input placeholder="Account number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))} maxLength={18} />
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <button className="btn-secondary" onClick={saveBankDetails} disabled={savingBank || !ifsc || !accountNumber}>
+              {savingBank ? 'Saving…' : bankDetails?.bankIfsc ? 'Update' : 'Save'}
+            </button>
+            {bankSaved && <span style={{ color: 'var(--curry)', fontWeight: 600, fontSize: 14 }}>✓ Saved</span>}
           </div>
         </div>
       </div>

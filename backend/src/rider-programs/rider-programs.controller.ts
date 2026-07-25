@@ -3,6 +3,7 @@ import { RiderProgramsService } from './rider-programs.service';
 import { CreateShiftDto } from './dto/create-shift.dto';
 import { CreateIncentiveDto } from './dto/create-incentive.dto';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
+import { CreateSosAlertDto } from './dto/create-sos-alert.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 function requireAdmin(req: any) {
@@ -108,5 +109,41 @@ export class RiderProgramsController {
   deactivateAnnouncement(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
     requireAdmin(req);
     return this.service.deactivateAnnouncement(id);
+  }
+
+  // ==================== Referrals ====================
+
+  @UseGuards(JwtAuthGuard)
+  @Get('referrals/mine')
+  getMyReferrals(@Req() req: any) {
+    if (req.user.role !== 'rider') {
+      throw new ForbiddenException('Only riders have a referral code');
+    }
+    return this.service.getMyReferrals(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('referrals')
+  listReferrals(@Req() req: any) {
+    requireAdmin(req);
+    return this.service.listAllReferrals();
+  }
+
+  // ==================== SOS ====================
+
+  @UseGuards(JwtAuthGuard)
+  @Post('sos')
+  triggerSos(@Req() req: any, @Body() dto: CreateSosAlertDto) {
+    if (req.user.role !== 'rider') {
+      throw new ForbiddenException('Only riders can trigger an SOS alert');
+    }
+    return this.service.triggerSos(req.user.userId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('sos-alerts')
+  listSosAlerts(@Req() req: any) {
+    requireAdmin(req);
+    return this.service.listSosAlerts();
   }
 }

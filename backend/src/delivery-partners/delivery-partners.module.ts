@@ -3,10 +3,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DeliveryPartnersService } from './delivery-partners.service';
 import { DeliveryPartnersController } from './delivery-partners.controller';
 import { DeliveryPartner } from './entities/delivery-partner.entity';
+import { Referral } from '../rider-programs/entities/referral.entity';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([DeliveryPartner]), AuthModule],
+  imports: [TypeOrmModule.forFeature([DeliveryPartner, Referral]), AuthModule],
   providers: [DeliveryPartnersService],
   controllers: [DeliveryPartnersController],
   exports: [DeliveryPartnersService],

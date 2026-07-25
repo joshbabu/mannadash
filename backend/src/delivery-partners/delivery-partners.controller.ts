@@ -8,6 +8,7 @@ import { UpdateLocationDto } from './dto/update-location.dto';
 import { SetAvailabilityDto } from './dto/set-availability.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ChangePasswordDto } from '../auth/dto/change-password.dto';
+import { UpdateBankDetailsDto } from './dto/update-bank-details.dto';
 
 class AvailableNearbyQueryDto {
   @Type(() => Number)
@@ -56,6 +57,24 @@ export class DeliveryPartnersController {
   @Patch('me/availability')
   setMyAvailability(@Req() req: any, @Body() dto: SetAvailabilityDto) {
     return this.deliveryPartnersService.setAvailability(req.user.userId, dto.isAvailable);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/bank-details')
+  getMyBankDetails(@Req() req: any) {
+    if (req.user.role !== 'rider') {
+      throw new ForbiddenException('Only rider accounts can use this endpoint');
+    }
+    return this.deliveryPartnersService.getBankDetails(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('me/bank-details')
+  updateMyBankDetails(@Req() req: any, @Body() dto: UpdateBankDetailsDto) {
+    if (req.user.role !== 'rider') {
+      throw new ForbiddenException('Only rider accounts can use this endpoint');
+    }
+    return this.deliveryPartnersService.updateBankDetails(req.user.userId, dto);
   }
 
   // Gives a restaurant visibility into who's actually online nearby, instead of assignment
