@@ -21,9 +21,11 @@ export default function EarningsScreen() {
   const [error, setError] = useState('');
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [showPayouts, setShowPayouts] = useState(false);
+  const [incentives, setIncentives] = useState(null);
 
   useEffect(() => {
     api.getMyEarnings().then(setEarnings).catch((err) => setError(err.message));
+    api.getMyIncentives().then(setIncentives).catch(() => setIncentives([]));
   }, []);
 
   const weekEnd = useMemo(() => {
@@ -110,6 +112,33 @@ export default function EarningsScreen() {
           Your weekly earnings
         </p>
       </div>
+
+      {incentives && incentives.length > 0 && (
+        <div className="stack" style={{ marginBottom: 16 }}>
+          {incentives.map((inc) => {
+            const pct = Math.min(100, Math.round((inc.currentOrders / inc.targetOrders) * 100));
+            return (
+              <div key={inc.id} className="card" style={{ margin: 0 }}>
+                <div className="row" style={{ marginBottom: 6 }}>
+                  <strong style={{ fontSize: 14 }}>🎁 {inc.title}</strong>
+                  <span
+                    className="pill"
+                    style={{ background: inc.achieved ? '#e3edd8' : '#fff2d6', color: inc.achieved ? '#2e6b34' : '#8a5a00' }}
+                  >
+                    {inc.achieved ? 'Earned!' : `+₹${inc.bonusAmount.toFixed(0)}`}
+                  </span>
+                </div>
+                <div style={{ height: 8, borderRadius: 4, background: '#e5ddc9', overflow: 'hidden', marginBottom: 6 }}>
+                  <div style={{ height: '100%', width: `${pct}%`, background: inc.achieved ? 'var(--curry)' : 'var(--turmeric)', transition: 'width 0.3s ease' }} />
+                </div>
+                <p className="muted" style={{ margin: 0, fontSize: 12, color: '#6b6156' }}>
+                  {inc.currentOrders} of {inc.targetOrders} deliveries · ends {new Date(inc.validTo).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="row" style={{ gap: 10, marginBottom: 16 }}>
         <div className="card" style={{ flex: 1, textAlign: 'center', margin: 0 }}>

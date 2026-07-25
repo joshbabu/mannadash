@@ -30,6 +30,11 @@ import { PushSubscription } from './push/entities/push-subscription.entity';
 import { Offer } from './offers/entities/offer.entity';
 import { OfferRedemption } from './offers/entities/offer-redemption.entity';
 import { OffersModule } from './offers/offers.module';
+import { Shift } from './rider-programs/entities/shift.entity';
+import { ShiftBooking } from './rider-programs/entities/shift-booking.entity';
+import { RiderIncentive } from './rider-programs/entities/rider-incentive.entity';
+import { Announcement } from './rider-programs/entities/announcement.entity';
+import { RiderProgramsModule } from './rider-programs/rider-programs.module';
 
 @Module({
   imports: [
@@ -62,6 +67,10 @@ import { OffersModule } from './offers/offers.module';
           PushSubscription,
           Offer,
           OfferRedemption,
+          Shift,
+          ShiftBooking,
+          RiderIncentive,
+          Announcement,
         ],
         // synchronize is fine for early MVP dev; switch to migrations before production
         synchronize: true,
@@ -73,6 +82,7 @@ import { OffersModule } from './offers/offers.module';
     CustomersModule,
     DeliveryPartnersModule,
     OffersModule,
+    RiderProgramsModule,
     OrdersModule,
     AuthModule,
     AdminModule,

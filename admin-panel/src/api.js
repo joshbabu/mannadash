@@ -41,6 +41,15 @@ export const api = {
   getRiders: () => request('/delivery-partners'),
   verifyRider: (id) => request(`/delivery-partners/${id}/verify`, { method: 'PATCH', auth: true }),
 
+  getShifts: () => request('/shifts', { auth: true }),
+  createShift: (body) => request('/shifts', { method: 'POST', body, auth: true }),
+  getIncentives: () => request('/incentives', { auth: true }),
+  createIncentive: (body) => request('/incentives', { method: 'POST', body, auth: true }),
+  deactivateIncentive: (id) => request(`/incentives/${id}/deactivate`, { method: 'PATCH', auth: true }),
+  getAnnouncements: () => request('/announcements', { auth: true }),
+  createAnnouncement: (body) => request('/announcements', { method: 'POST', body, auth: true }),
+  deactivateAnnouncement: (id) => request(`/announcements/${id}/deactivate`, { method: 'PATCH', auth: true }),
+
   getToken,
   setToken: (token) => localStorage.setItem('mannadash_admin_token', token),
   clearToken: () => localStorage.removeItem('mannadash_admin_token'),

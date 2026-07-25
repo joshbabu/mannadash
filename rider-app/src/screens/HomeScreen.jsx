@@ -3,6 +3,8 @@ import { io } from 'socket.io-client';
 import { api, SOCKET_URL } from '../api';
 import EarningsScreen from './EarningsScreen';
 import AccountScreen from './AccountScreen';
+import ShiftsScreen from './ShiftsScreen';
+import AnnouncementsScreen from './AnnouncementsScreen';
 import { enablePushNotifications, isPushSupported, getInitialPushStatus, silentlyRefreshSubscription } from '../utils/pushNotifications';
 
 // What each status can move to next, from the rider's side only —
@@ -21,6 +23,7 @@ const WAITING_MESSAGE = {
 
 export default function HomeScreen({ rider, onLogout }) {
   const [tab, setTab] = useState('deliveries');
+  const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [isOnline, setIsOnline] = useState(rider.isAvailable);
   const [isVerified, setIsVerified] = useState(rider.isVerified);
   const [ratingAvg, setRatingAvg] = useState(rider.ratingAvg || 0);
@@ -182,17 +185,33 @@ export default function HomeScreen({ rider, onLogout }) {
 
   const activeOrders = orders.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled');
 
+  if (showAnnouncements) {
+    return <AnnouncementsScreen onBack={() => setShowAnnouncements(false)} />;
+  }
+
   return (
     <div className="app-shell">
       <div className="topbar">
         <span className="brand">MannaDash Rider</span>
-        {ratingAvg > 0 && <span className="pill">★ {ratingAvg.toFixed(1)} ({ratingCount})</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            className="btn-secondary"
+            onClick={() => setShowAnnouncements(true)}
+            aria-label="Messages"
+            style={{ padding: '6px 10px', fontSize: 13 }}
+          >
+            📢
+          </button>
+          {ratingAvg > 0 && <span className="pill">★ {ratingAvg.toFixed(1)} ({ratingCount})</span>}
+        </div>
       </div>
 
       {tab === 'earnings' ? (
         <EarningsScreen />
       ) : tab === 'account' ? (
         <AccountScreen rider={rider} ratingAvg={ratingAvg} ratingCount={ratingCount} isVerified={isVerified} onLogout={onLogout} />
+      ) : tab === 'shifts' ? (
+        <ShiftsScreen />
       ) : (
         <>
           {!isVerified && (
@@ -299,6 +318,10 @@ export default function HomeScreen({ rider, onLogout }) {
         <button aria-label="Deliveries" className={tab === 'deliveries' ? 'active' : ''} onClick={() => setTab('deliveries')}>
           <span className="bottom-nav__icon">🛵</span>
           Deliveries
+        </button>
+        <button aria-label="Shifts" className={tab === 'shifts' ? 'active' : ''} onClick={() => setTab('shifts')}>
+          <span className="bottom-nav__icon">🗓️</span>
+          Shifts
         </button>
         <button aria-label="Earnings" className={tab === 'earnings' ? 'active' : ''} onClick={() => setTab('earnings')}>
           <span className="bottom-nav__icon">💰</span>

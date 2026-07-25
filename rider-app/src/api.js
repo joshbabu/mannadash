@@ -46,6 +46,12 @@ export const api = {
   getPushStatus: () => request('/push/status', { auth: true }),
   updateOrderStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PATCH', body: { status }, auth: true }),
 
+  getShifts: () => request('/shifts', { auth: true }),
+  bookShift: (id) => request(`/shifts/${id}/book`, { method: 'POST', auth: true }),
+  unbookShift: (id) => request(`/shifts/${id}/book`, { method: 'DELETE', auth: true }),
+  getMyIncentives: () => request('/incentives/mine', { auth: true }),
+  getAnnouncements: () => request('/announcements', { auth: true }),
+
   getToken,
   setToken: (token) => localStorage.setItem('dabba_rider_token', token),
   clearToken: () => localStorage.removeItem('dabba_rider_token'),
