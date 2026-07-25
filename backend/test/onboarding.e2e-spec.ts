@@ -19,6 +19,7 @@ describe('Restaurant onboarding (e2e)', () => {
     fssaiExpiry: '2027-03-31',
     pan: 'AAMCR7443M',
     gstin: '36AAMCR7443M1ZP',
+    legalEntityName: 'MEHFIL RESTAURANT PRIVATE LIMITED',
     bankIfsc: 'HDFC0001234',
     bankAccountNumber: '123456789012',
     isVegOnly: true,
@@ -52,6 +53,7 @@ describe('Restaurant onboarding (e2e)', () => {
     expect(res.body.whatsappNumber).toBe('9876543210');
     expect(res.body.fssaiNumber).toBe('12345678901234');
     expect(res.body.gstin).toBe('36AAMCR7443M1ZP');
+    expect(res.body.legalEntityName).toBe('MEHFIL RESTAURANT PRIVATE LIMITED');
     expect(res.body.isVegOnly).toBe(true);
     expect(res.body.costForTwo).toBe(400);
     expect(res.body.weeklyHours.friday).toEqual({ open: '09:00', close: '23:00' });
@@ -217,7 +219,7 @@ describe('Restaurant onboarding (e2e)', () => {
       await request(app.getHttpServer())
         .patch(`/restaurants/${restaurant.id}`)
         .set('Authorization', `Bearer ${restaurant.token}`)
-        .send({ gstin: null })
+        .send({ gstin: null, legalEntityName: null })
         .expect(200);
       const adminToken = await adminLogin(app);
       const kyc = await request(app.getHttpServer())
@@ -225,6 +227,7 @@ describe('Restaurant onboarding (e2e)', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
       expect(kyc.body.gstin).toBeNull();
+      expect(kyc.body.legalEntityName).toBeNull();
     });
   });
 

@@ -113,6 +113,7 @@ export default function SettingsScreen({ restaurant }) {
           fssaiExpiry: kyc.fssaiExpiry || '',
           pan: kyc.pan || '',
           gstin: kyc.gstin || '',
+          legalEntityName: kyc.legalEntityName || '',
           bankIfsc: kyc.bankIfsc || '',
           bankAccountNumber: kyc.bankAccountNumber || '',
         });
@@ -177,6 +178,7 @@ export default function SettingsScreen({ restaurant }) {
       fssaiExpiry: form.fssaiNumber ? form.fssaiExpiry : null,
       pan: orNull(form.pan),
       gstin: orNull(form.gstin),
+      legalEntityName: orNull(form.legalEntityName),
       bankIfsc: orNull(form.bankIfsc),
       bankAccountNumber: orNull(form.bankAccountNumber),
     };
@@ -344,6 +346,15 @@ export default function SettingsScreen({ restaurant }) {
           )}
           <input placeholder="Business / owner PAN" value={form.pan} onChange={(e) => set('pan', upper(e.target.value))} maxLength={10} />
           <input placeholder="GSTIN" value={form.gstin} onChange={(e) => set('gstin', upper(e.target.value))} maxLength={15} />
+          <input
+            placeholder="Legal entity name (optional — for tax invoices, e.g. 'MEHFIL RESTAURANT')"
+            value={form.legalEntityName}
+            onChange={(e) => set('legalEntityName', e.target.value)}
+            maxLength={200}
+          />
+          <p className="muted" style={{ fontSize: 12, marginTop: -8 }}>
+            Only shown on the tax invoice preview if you fill it in — leave blank and it'll honestly show as not on file.
+          </p>
           <input placeholder="Bank IFSC code" value={form.bankIfsc} onChange={(e) => set('bankIfsc', upper(e.target.value))} maxLength={11} />
           <input placeholder="Bank account number" value={form.bankAccountNumber} onChange={(e) => set('bankAccountNumber', e.target.value.replace(/\D/g, ''))} maxLength={18} />
         </div>

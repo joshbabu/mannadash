@@ -79,8 +79,12 @@ describe('Order tax invoice data (e2e)', () => {
     expect(second.body.invoiceNumber).toBe(first.body.invoiceNumber);
   });
 
-  it("passes through a restaurant's real GSTIN/FSSAI when it has completed KYC for them", async () => {
-    const { customer, orderId } = await setupPaidOrder({ gstin: '36ABCDE1234F1Z5', fssaiNumber: '12345678901234' });
+  it("passes through a restaurant's real GSTIN/FSSAI/legal entity name when it has completed KYC for them", async () => {
+    const { customer, orderId } = await setupPaidOrder({
+      gstin: '36ABCDE1234F1Z5',
+      fssaiNumber: '12345678901234',
+      legalEntityName: 'MEHFIL RESTAURANT PRIVATE LIMITED',
+    });
 
     const res = await request(app.getHttpServer())
       .get(`/orders/${orderId}/tax-invoice`)
@@ -88,9 +92,10 @@ describe('Order tax invoice data (e2e)', () => {
       .expect(200);
     expect(res.body.restaurantGstin).toBe('36ABCDE1234F1Z5');
     expect(res.body.restaurantFssai).toBe('12345678901234');
+    expect(res.body.restaurantLegalEntityName).toBe('MEHFIL RESTAURANT PRIVATE LIMITED');
   });
 
-  it('reports null (not a fabricated value) when a restaurant has no GSTIN/FSSAI on file', async () => {
+  it('reports null (not a fabricated value) when a restaurant has no GSTIN/FSSAI/legal entity name on file', async () => {
     const { customer, orderId } = await setupPaidOrder();
 
     const res = await request(app.getHttpServer())
@@ -99,6 +104,7 @@ describe('Order tax invoice data (e2e)', () => {
       .expect(200);
     expect(res.body.restaurantGstin).toBeNull();
     expect(res.body.restaurantFssai).toBeNull();
+    expect(res.body.restaurantLegalEntityName).toBeNull();
   });
 
   it('defaults the platform tax profile to obviously-fake TEST values, never a real-looking default', async () => {

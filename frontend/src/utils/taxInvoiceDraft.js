@@ -91,7 +91,7 @@ function invoiceHeader(title, isTestData) {
 }
 
 function restaurantInvoiceHtml(data) {
-  const { order, restaurantGstin, restaurantFssai, invoiceNumber, platform } = data;
+  const { order, restaurantGstin, restaurantFssai, restaurantLegalEntityName, invoiceNumber, platform } = data;
   const gst = splitGst(Number(order.restaurantGstAmount || 0));
   const gross = Number(order.subtotal || 0);
   return `
@@ -99,7 +99,7 @@ function restaurantInvoiceHtml(data) {
       ${invoiceHeader('Tax Invoice', platform.isTestData)}
       <p class="field-block">
         <strong>Tax Invoice on behalf of –</strong><br/>
-        <strong>Legal Entity Name:</strong> [RESTAURANT_LEGAL_ENTITY_NAME — not on file]<br/>
+        <strong>Legal Entity Name:</strong> ${restaurantLegalEntityName ? escapeHtml(restaurantLegalEntityName) : '[not on file for this restaurant]'}<br/>
         <strong>Restaurant Name:</strong> ${escapeHtml(order.restaurant?.name)}<br/>
         <strong>Restaurant Address:</strong> ${escapeHtml(order.restaurant?.address)}<br/>
         <strong>Restaurant GSTIN:</strong> ${restaurantGstin ? escapeHtml(restaurantGstin) : '[not on file for this restaurant]'}<br/>

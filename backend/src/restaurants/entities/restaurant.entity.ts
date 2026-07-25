@@ -77,6 +77,13 @@ export class Restaurant {
   @Column({ type: 'varchar', nullable: true })
   gstin: string | null;
 
+  // Optional — a restaurant's registered legal entity name can differ from its public
+  // display `name` (e.g. "MEHFIL RESTAURANT" vs "Mehfil"). Purely restaurant-controlled;
+  // null just means they haven't entered one, shown honestly as "not on file" on the tax
+  // invoice rather than falling back to `name`, which is a marketing name, not a legal one.
+  @Column({ type: 'varchar', nullable: true })
+  legalEntityName: string | null;
+
   // PAN and bank details are sensitive — excluded from every serialized API response.
   // Admins (and the owner themselves) read them via the dedicated GET /restaurants/:id/kyc.
   @Exclude()

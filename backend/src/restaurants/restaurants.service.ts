@@ -72,6 +72,7 @@ export class RestaurantsService {
       fssaiExpiry: r.fssaiExpiry,
       pan: r.pan,
       gstin: r.gstin,
+      legalEntityName: r.legalEntityName,
       bankIfsc: r.bankIfsc,
       bankAccountNumber: r.bankAccountNumber,
     };

@@ -468,6 +468,7 @@ export class OrdersService {
       order,
       restaurantGstin: order.restaurant.gstin || null,
       restaurantFssai: order.restaurant.fssaiNumber || null,
+      restaurantLegalEntityName: order.restaurant.legalEntityName || null,
       platform: getPlatformTaxProfile(),
     };
   }

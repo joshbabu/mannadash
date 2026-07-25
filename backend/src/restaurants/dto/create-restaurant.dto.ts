@@ -1,4 +1,4 @@
-import { IsBoolean, IsDateString, IsEmail, IsInt, IsNumber, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
+import { IsBoolean, IsDateString, IsEmail, IsInt, IsNumber, IsOptional, IsString, MaxLength, Matches, Max, Min } from 'class-validator';
 import { IsWeeklyHours } from './is-weekly-hours.validator';
 import type { WeeklyHours } from '../operating-hours.util';
 
@@ -86,6 +86,13 @@ export class CreateRestaurantDto {
   @IsOptional()
   @Matches(/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, { message: 'gstin must be a valid 15-character GSTIN' })
   gstin?: string;
+
+  // Optional — see Restaurant.legalEntityName. No format validation since legal entity
+  // names vary too much to usefully pattern-match; just a plain string if provided.
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  legalEntityName?: string;
 
   @IsOptional()
   @Matches(/^[A-Z]{4}0[A-Z0-9]{6}$/, { message: 'bankIfsc must be a valid IFSC code (e.g. HDFC0001234)' })
