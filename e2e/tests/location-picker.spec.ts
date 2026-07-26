@@ -202,6 +202,65 @@ test('address picker: add via the map flow, select, edit, and delete a saved add
   });
 });
 
+test('address picker: the top-level search box confirms on the map and saves — not an instant, unsaved selection', async ({ page }) => {
+  // This is specifically the bug this test guards against: the top-level "Select your
+  // location" search used to apply a tapped result directly as the session's browsing
+  // location without ever saving it, so it silently reverted to whatever saved address was
+  // already selected on the next load. That looked like "picking from search doesn't work"
+  // even though the tap itself registered fine.
+  const PLACE_LAT = 17.4059538;
+  const PLACE_LNG = 78.5561;
+  const PLACE_DISPLAY_NAME = 'Pista House Uppal, Meher Garden Rd, Uppal, Hyderabad, Telangana 500039, India';
+
+  await page.route('https://nominatim.openstreetmap.org/**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/search') {
+      await route.fulfill({
+        json: [{ place_id: 2, lat: String(PLACE_LAT), lon: String(PLACE_LNG), display_name: PLACE_DISPLAY_NAME }],
+      });
+    } else if (url.pathname === '/reverse') {
+      await route.fulfill({ json: { display_name: PLACE_DISPLAY_NAME } });
+    } else {
+      await route.continue();
+    }
+  });
+
+  const customerPhone = uniquePhone(5);
+  await page.goto('http://localhost:5173');
+  await page.getByText('Create an account').click();
+  await page.getByPlaceholder('Full name').fill('E2E Top-Level Search Customer');
+  await page.getByPlaceholder('Phone number').fill(customerPhone);
+  await page.getByPlaceholder('Password').fill('testpass123');
+  await page.locator('button[type="submit"]').click();
+  await expect(page.getByPlaceholder('Search by name, cuisine, or dish…')).toBeVisible();
+
+  const picker = page.getByTestId('address-picker');
+  const mapScreen = page.getByTestId('location-map-screen');
+  const addressBar = page.getByTestId('address-bar');
+
+  await addressBar.click();
+  await picker.getByPlaceholder('Search an area or address').fill('Pista House');
+
+  // Tapping the result must NOT close the picker or apply anything instantly — it must
+  // land on the pin-confirm map, pre-centered on the result, exactly like "Add New Address".
+  await picker.getByText('Pista House Uppal', { exact: true }).click();
+  await expect(picker).toBeVisible();
+  await expect(mapScreen.getByText('Place the pin at exact delivery location')).toBeVisible();
+  await expect(mapScreen.getByText(PLACE_DISPLAY_NAME)).toBeVisible({ timeout: 10_000 });
+
+  await mapScreen.getByRole('button', { name: 'Confirm & proceed' }).click();
+  await expect(mapScreen.getByRole('heading', { name: 'Name this address' })).toBeVisible();
+  // Pre-filled from the search result's name, matching the reference behavior
+  await expect(mapScreen.getByPlaceholder('Label (e.g. Home, Work)')).toHaveValue('Pista House Uppal');
+  await mapScreen.getByRole('button', { name: 'Save address' }).click();
+
+  // Saving closes the whole picker (not back to the "Select your location" list) and the
+  // newly saved address is immediately active — the actual fix.
+  await expect(mapScreen).not.toBeVisible();
+  await expect(picker).not.toBeVisible();
+  await expect(addressBar.getByText('Pista House Uppal', { exact: true })).toBeVisible();
+});
+
 test('a location-permission banner shows when access is off', async ({ page, context }) => {
   // Playwright's default browser context has no geolocation permission granted, which is
   // exactly the "off" state this banner should react to.

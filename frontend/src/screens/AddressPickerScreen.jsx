@@ -32,6 +32,7 @@ export default function AddressPickerScreen({
   const [locationOn, setLocationOn] = useState(false);
   const [locationMapMode, setLocationMapMode] = useState(null); // null | 'add' | 'edit'
   const [editTarget, setEditTarget] = useState(null);
+  const [searchAddCenter, setSearchAddCenter] = useState(null); // {lat, lng, label} when 'add' was triggered from a search result
   const [openMenuId, setOpenMenuId] = useState(null);
   const [error, setError] = useState('');
 
@@ -76,12 +77,19 @@ export default function AddressPickerScreen({
   }
 
   function selectSearchResult(result) {
-    onSelectAddress({
+    // Matches the reference behavior: a search result is a starting point to confirm on
+    // the map and save as a real address, not something that gets applied instantly.
+    // The earlier version called onSelectAddress() directly here — which set it as the
+    // browsing location for this session only, never persisted it, and got silently
+    // overwritten by the saved "Home" address again on the next app load. That's exactly
+    // how a restaurant's real, corrected coordinates could look "not able to pick from
+    // search" — tapping a result appeared to do nothing lasting.
+    setSearchAddCenter({
+      lat: parseFloat(result.lat),
+      lng: parseFloat(result.lon),
       label: shortLabelFor(result),
-      address: result.display_name,
-      latitude: parseFloat(result.lat),
-      longitude: parseFloat(result.lon),
     });
+    setLocationMapMode('add');
   }
 
   function toggleLocation() {
@@ -91,6 +99,7 @@ export default function AddressPickerScreen({
   }
 
   function openAddOnMap() {
+    setSearchAddCenter(null);
     setLocationMapMode('add');
   }
 
@@ -105,8 +114,15 @@ export default function AddressPickerScreen({
       ? await api.updateAddress(editTarget.id, payload)
       : await api.saveAddress(payload);
     onAddressesUpdated(updated);
+    // Make the address that was just confirmed the active one immediately — otherwise a
+    // freshly-corrected address only shows up in the list, and whatever was selected
+    // before (possibly the same stale address that prompted the fix) stays active.
+    const activeId = locationMapMode === 'edit' ? editTarget.id : updated[updated.length - 1]?.id;
+    const nowActive = updated.find((a) => a.id === activeId);
+    if (nowActive) onSelectAddress(nowActive);
     setLocationMapMode(null);
     setEditTarget(null);
+    setSearchAddCenter(null);
   }
 
   async function deleteAddress(id) {
@@ -291,9 +307,18 @@ export default function AddressPickerScreen({
       {locationMapMode && (
         <LocationMapScreen
           mode={locationMapMode}
-          initialCenter={locationMapMode === 'edit' && editTarget ? { lat: Number(editTarget.latitude), lng: Number(editTarget.longitude) } : defaultLatLng}
-          initialLabel={locationMapMode === 'edit' && editTarget ? editTarget.label : ''}
-          onClose={() => { setLocationMapMode(null); setEditTarget(null); }}
+          startAtMap={locationMapMode === 'add' && Boolean(searchAddCenter)}
+          initialCenter={
+            locationMapMode === 'edit' && editTarget
+              ? { lat: Number(editTarget.latitude), lng: Number(editTarget.longitude) }
+              : searchAddCenter || defaultLatLng
+          }
+          initialLabel={
+            locationMapMode === 'edit' && editTarget
+              ? editTarget.label
+              : searchAddCenter?.label || ''
+          }
+          onClose={() => { setLocationMapMode(null); setEditTarget(null); setSearchAddCenter(null); }}
           onSave={handleMapSave}
         />
       )}

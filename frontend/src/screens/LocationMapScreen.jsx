@@ -15,8 +15,8 @@ const DEFAULT_CENTER = { lat: 17.4435, lng: 78.3772 }; // Hitech City, Hyderabad
 //     shown in a bottom sheet, matching the "place the pin at exact delivery location" screen.
 //   'label'  — (add mode only) name the address before saving; edit mode skips this and
 //     keeps the existing label, since repositioning a pin isn't renaming it.
-export default function LocationMapScreen({ mode, initialCenter, initialLabel, onClose, onSave }) {
-  const [step, setStep] = useState(mode === 'edit' ? 'map' : 'prompt');
+export default function LocationMapScreen({ mode, initialCenter, initialLabel, onClose, onSave, startAtMap }) {
+  const [step, setStep] = useState(mode === 'edit' || startAtMap ? 'map' : 'prompt');
   const [center, setCenter] = useState(initialCenter || DEFAULT_CENTER);
   const [resolvedAddress, setResolvedAddress] = useState('');
   const [resolvingAddress, setResolvingAddress] = useState(false);
