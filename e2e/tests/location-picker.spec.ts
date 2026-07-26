@@ -261,6 +261,40 @@ test('address picker: the top-level search box confirms on the map and saves —
   await expect(addressBar.getByText('Pista House Uppal', { exact: true })).toBeVisible();
 });
 
+test('a failed geocode search shows a real error message, not silence — this is the fix for the reported "nothing happens" bug', async ({ page }) => {
+  // Reproduces the actual bug: the search code used to call res.json() without checking
+  // res.ok first, so a rate-limited or otherwise-failed Nominatim response (very plausible
+  // against the real API — it's ~1 req/sec limited) either silently showed "No matches"
+  // (misleading) or, if the error body happened to be JSON-shaped, could crash the
+  // results render entirely — which from the outside looks exactly like "I typed and
+  // nothing happened at all."
+  await page.route('https://nominatim.openstreetmap.org/search**', async (route) => {
+    await route.fulfill({ status: 429, body: 'Rate limited' });
+  });
+
+  const customerPhone = uniquePhone(6);
+  await page.goto('http://localhost:5173');
+  await page.getByText('Create an account').click();
+  await page.getByPlaceholder('Full name').fill('E2E Search Failure Customer');
+  await page.getByPlaceholder('Phone number').fill(customerPhone);
+  await page.getByPlaceholder('Password').fill('testpass123');
+  await page.locator('button[type="submit"]').click();
+  await expect(page.getByPlaceholder('Search by name, cuisine, or dish…')).toBeVisible();
+
+  const addressBar = page.getByTestId('address-bar');
+  const picker = page.getByTestId('address-picker');
+  const mapScreen = page.getByTestId('location-map-screen');
+
+  await addressBar.click();
+  await picker.getByText('Add New Address').click();
+  await expect(mapScreen.getByText('Get the fastest delivery')).toBeVisible();
+
+  await mapScreen.getByPlaceholder('Search an area or address').fill('Anywhere');
+  await expect(mapScreen.getByText('Could not search right now — try again in a moment.')).toBeVisible();
+  // Must NOT show the misleading "no matches" message for what is actually a failure
+  await expect(mapScreen.getByText(/No matches for/)).not.toBeVisible();
+});
+
 test('a location-permission banner shows when access is off', async ({ page, context }) => {
   // Playwright's default browser context has no geolocation permission granted, which is
   // exactly the "off" state this banner should react to.

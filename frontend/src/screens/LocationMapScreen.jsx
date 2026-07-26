@@ -23,10 +23,12 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
   const [promptQuery, setPromptQuery] = useState('');
   const [promptResults, setPromptResults] = useState([]);
   const [promptSearching, setPromptSearching] = useState(false);
+  const [promptError, setPromptError] = useState('');
   const [mapSearchOpen, setMapSearchOpen] = useState(false);
   const [mapSearchQuery, setMapSearchQuery] = useState('');
   const [mapSearchResults, setMapSearchResults] = useState([]);
   const [mapSearching, setMapSearching] = useState(false);
+  const [mapSearchError, setMapSearchError] = useState('');
   const [label, setLabel] = useState(initialLabel || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -42,16 +44,25 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
     if (query.length < 3) {
       setPromptResults([]);
       setPromptSearching(false);
+      setPromptError('');
       return undefined;
     }
     const controller = new AbortController();
     setPromptSearching(true);
+    setPromptError('');
     const timer = setTimeout(() => {
       const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&viewbox=${HYDERABAD_VIEWBOX}&bounded=0&countrycodes=in&limit=6`;
       fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } })
-        .then((res) => res.json())
-        .then((results) => setPromptResults(results || []))
-        .catch((err) => { if (err.name !== 'AbortError') setPromptResults([]); })
+        .then((res) => {
+          if (!res.ok) throw new Error(`Search failed (${res.status})`);
+          return res.json();
+        })
+        .then((results) => setPromptResults(Array.isArray(results) ? results : []))
+        .catch((err) => {
+          if (err.name === 'AbortError') return;
+          setPromptResults([]);
+          setPromptError('Could not search right now — try again in a moment.');
+        })
         .finally(() => setPromptSearching(false));
     }, 400);
     return () => { clearTimeout(timer); controller.abort(); };
@@ -65,16 +76,25 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
     if (query.length < 3) {
       setMapSearchResults([]);
       setMapSearching(false);
+      setMapSearchError('');
       return undefined;
     }
     const controller = new AbortController();
     setMapSearching(true);
+    setMapSearchError('');
     const timer = setTimeout(() => {
       const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&viewbox=${HYDERABAD_VIEWBOX}&bounded=0&countrycodes=in&limit=6`;
       fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } })
-        .then((res) => res.json())
-        .then((results) => setMapSearchResults(results || []))
-        .catch((err) => { if (err.name !== 'AbortError') setMapSearchResults([]); })
+        .then((res) => {
+          if (!res.ok) throw new Error(`Search failed (${res.status})`);
+          return res.json();
+        })
+        .then((results) => setMapSearchResults(Array.isArray(results) ? results : []))
+        .catch((err) => {
+          if (err.name === 'AbortError') return;
+          setMapSearchResults([]);
+          setMapSearchError('Could not search right now — try again in a moment.');
+        })
         .finally(() => setMapSearching(false));
     }, 400);
     return () => { clearTimeout(timer); controller.abort(); };
@@ -85,7 +105,10 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
     fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`, {
       headers: { Accept: 'application/json' },
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`Reverse geocode failed (${res.status})`);
+        return res.json();
+      })
       .then((result) => setResolvedAddress(result?.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`))
       .catch(() => setResolvedAddress(`${lat.toFixed(5)}, ${lng.toFixed(5)}`))
       .finally(() => setResolvingAddress(false));
@@ -198,7 +221,8 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
           {promptQuery.trim().length >= 3 && (
             <div style={{ flex: 1, overflowY: 'auto' }}>
               {promptSearching && <p className="muted">Searching…</p>}
-              {!promptSearching && promptResults.length === 0 && (
+              {!promptSearching && promptError && <div className="error-banner">{promptError}</div>}
+              {!promptSearching && !promptError && promptResults.length === 0 && (
                 <p className="muted">No matches for "{promptQuery.trim()}".</p>
               )}
               <div className="stack">
@@ -250,7 +274,8 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
             {mapSearchOpen && mapSearchQuery.trim().length >= 3 && (
               <div style={{ marginTop: 8, background: '#fff', borderRadius: 14, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', overflow: 'hidden', maxHeight: 240, overflowY: 'auto' }}>
                 {mapSearching && <p className="muted" style={{ padding: 12 }}>Searching…</p>}
-                {!mapSearching && mapSearchResults.length === 0 && (
+                {!mapSearching && mapSearchError && <div className="error-banner" style={{ margin: 12 }}>{mapSearchError}</div>}
+                {!mapSearching && !mapSearchError && mapSearchResults.length === 0 && (
                   <p className="muted" style={{ padding: 12 }}>No matches.</p>
                 )}
                 {mapSearchResults.map((r) => (
