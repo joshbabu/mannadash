@@ -169,13 +169,21 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
 
   function confirmPin() {
     const finalCenter = mapRef.current ? mapRef.current.getCenter() : center;
-    const payload = { latitude: finalCenter.lat, longitude: finalCenter.lng, address: resolvedAddress };
     if (mode === 'edit') {
-      save({ ...payload, label: initialLabel });
-    } else {
-      setCenter({ lat: finalCenter.lat, lng: finalCenter.lng });
-      setStep('label');
+      save({ latitude: finalCenter.lat, longitude: finalCenter.lng, address: resolvedAddress, label: initialLabel });
+      return;
     }
+    if (!label.trim()) {
+      setError('Give this address a name (e.g. Home, Work) before saving.');
+      return;
+    }
+    save({
+      latitude: finalCenter.lat,
+      longitude: finalCenter.lng,
+      address: resolvedAddress,
+      label: label.trim(),
+      addressDetails: addressDetails.trim() || undefined,
+    });
   }
 
   async function save(payload) {
@@ -187,17 +195,6 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
       setError(err.message);
       setSaving(false);
     }
-  }
-
-  function confirmLabel() {
-    if (!label.trim()) return;
-    save({
-      label: label.trim(),
-      address: resolvedAddress,
-      addressDetails: addressDetails.trim() || undefined,
-      latitude: center.lat,
-      longitude: center.lng,
-    });
   }
 
   return (
@@ -325,8 +322,10 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
             </div>
           </div>
 
-          <div style={{ background: 'var(--paper)', borderRadius: '20px 20px 0 0', padding: 20, boxShadow: '0 -4px 16px rgba(0,0,0,0.15)' }}>
-            <p style={{ fontSize: 13, color: '#8a8074', marginBottom: 10 }}>Place the pin at exact delivery location</p>
+          <div style={{ background: 'var(--paper)', borderRadius: '20px 20px 0 0', padding: 20, boxShadow: '0 -4px 16px rgba(0,0,0,0.15)', maxHeight: '55vh', overflowY: 'auto' }}>
+            <p style={{ fontSize: 13, color: '#8a8074', marginBottom: 10 }}>
+              {mode === 'edit' ? 'Place the pin at exact delivery location' : 'Delivery details'}
+            </p>
             {error && <div className="error-banner" style={{ marginBottom: 12 }}>{error}</div>}
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 16 }}>
               <span style={{ fontSize: 18 }}>📍</span>
@@ -339,38 +338,51 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
                 </span>
               </span>
             </div>
+
+            {mode === 'add' && (
+              <>
+                <input
+                  placeholder="Address details — floor, flat no., tower (optional)"
+                  value={addressDetails}
+                  onChange={(e) => setAddressDetails(e.target.value)}
+                  maxLength={200}
+                  style={{ width: '100%', marginBottom: 12, background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd' }}
+                />
+                <p style={{ fontSize: 12, color: '#8a8074', marginBottom: 8 }}>Save address as</p>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                  {[
+                    { tag: 'Home', icon: '🏠' },
+                    { tag: 'Work', icon: '💼' },
+                    { tag: 'Other', icon: '📍' },
+                  ].map(({ tag, icon }) => (
+                    <button
+                      key={tag}
+                      onClick={() => setLabel(tag)}
+                      className="btn-secondary"
+                      style={{
+                        flex: 1,
+                        borderColor: label === tag ? 'var(--charcoal)' : undefined,
+                        background: label === tag ? 'var(--accent-gradient, #1c1b29)' : undefined,
+                        color: label === tag ? '#fff' : undefined,
+                      }}
+                    >
+                      {icon} {tag}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  placeholder="Or name it yourself (e.g. Mom's House)"
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  style={{ width: '100%', marginBottom: 16, background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd' }}
+                />
+              </>
+            )}
+
             <button className="btn-primary" onClick={confirmPin} disabled={resolvingAddress || saving} style={{ width: '100%' }}>
-              {saving ? 'Saving…' : 'Confirm & proceed'}
+              {saving ? 'Saving…' : mode === 'edit' ? 'Confirm & proceed' : 'Save address'}
             </button>
           </div>
-        </div>
-      )}
-
-      {step === 'label' && (
-        <div style={{ padding: '20px 20px 40px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
-            <button onClick={() => setStep('map')} aria-label="Back" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: 'var(--charcoal)', padding: 0 }}>←</button>
-            <h2 style={{ fontSize: 20 }}>Name this address</h2>
-          </div>
-          <p style={{ fontSize: 13, color: '#6b6156', marginBottom: 16 }}>{resolvedAddress}</p>
-          {error && <div className="error-banner" style={{ marginBottom: 12 }}>{error}</div>}
-          <input
-            placeholder="Address details — floor, flat no., tower (optional)"
-            value={addressDetails}
-            onChange={(e) => setAddressDetails(e.target.value)}
-            maxLength={200}
-            autoFocus
-            style={{ width: '100%', marginBottom: 14, background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd' }}
-          />
-          <input
-            placeholder="Label (e.g. Home, Work)"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            style={{ width: '100%', marginBottom: 14, background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd' }}
-          />
-          <button className="btn-primary" onClick={confirmLabel} disabled={saving || !label.trim()} style={{ width: '100%' }}>
-            {saving ? 'Saving…' : 'Save address'}
-          </button>
         </div>
       )}
     </div>

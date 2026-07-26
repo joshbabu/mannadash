@@ -154,20 +154,20 @@ test('address picker: add via the map flow, select, edit, and delete a saved add
     await mapScreen.getByPlaceholder('Search an area or address').fill('Test Office Area');
     await mapScreen.getByText('Test Office Area', { exact: true }).click();
 
-    // Lands on the pin-placement map step, centered on the search result; the mocked
-    // reverse-geocode response should populate the bottom sheet automatically.
-    await expect(mapScreen.getByText('Place the pin at exact delivery location')).toBeVisible();
+    // Lands on the pin-placement map, centered on the search result, with the full
+    // "Delivery details" bottom sheet (address details, save-as tags, label) all on the
+    // same screen — the mocked reverse-geocode response should populate it automatically.
+    await expect(mapScreen.getByText('Delivery details')).toBeVisible();
     await expect(mapScreen.getByText(OFFICE_DISPLAY_NAME)).toBeVisible({ timeout: 10_000 });
 
-    await mapScreen.getByRole('button', { name: 'Confirm & proceed' }).click();
-
-    await expect(mapScreen.getByRole('heading', { name: 'Name this address' })).toBeVisible();
-    await mapScreen.getByPlaceholder('Label (e.g. Home, Work)').fill('Office');
+    await mapScreen.getByPlaceholder(/Address details/).fill('3rd Floor, Suite 12');
+    await mapScreen.getByPlaceholder("Or name it yourself (e.g. Mom's House)").fill('Office');
     await mapScreen.getByRole('button', { name: 'Save address' }).click();
 
     await expect(mapScreen).not.toBeVisible();
     await expect(picker.getByText('Office', { exact: true })).toBeVisible();
     await expect(picker.getByText(OFFICE_DISPLAY_NAME)).toBeVisible();
+    await expect(picker.getByText('3rd Floor, Suite 12', { exact: false })).toBeVisible();
   });
 
   await test.step('Selecting it closes the picker and marks it as the active address', async () => {
@@ -245,13 +245,11 @@ test('address picker: the top-level search box confirms on the map and saves —
   // land on the pin-confirm map, pre-centered on the result, exactly like "Add New Address".
   await picker.getByText('Pista House Uppal', { exact: true }).click();
   await expect(picker).toBeVisible();
-  await expect(mapScreen.getByText('Place the pin at exact delivery location')).toBeVisible();
+  await expect(mapScreen.getByText('Delivery details')).toBeVisible();
   await expect(mapScreen.getByText(PLACE_DISPLAY_NAME)).toBeVisible({ timeout: 10_000 });
 
-  await mapScreen.getByRole('button', { name: 'Confirm & proceed' }).click();
-  await expect(mapScreen.getByRole('heading', { name: 'Name this address' })).toBeVisible();
   // Pre-filled from the search result's name, matching the reference behavior
-  await expect(mapScreen.getByPlaceholder('Label (e.g. Home, Work)')).toHaveValue('Pista House Uppal');
+  await expect(mapScreen.getByPlaceholder("Or name it yourself (e.g. Mom's House)")).toHaveValue('Pista House Uppal');
   await mapScreen.getByRole('button', { name: 'Save address' }).click();
 
   // Saving closes the whole picker (not back to the "Select your location" list) and the
@@ -293,6 +291,48 @@ test('a failed geocode search shows a real error message, not silence — this i
   await expect(mapScreen.getByText('Could not search right now — try again in a moment.')).toBeVisible();
   // Must NOT show the misleading "no matches" message for what is actually a failure
   await expect(mapScreen.getByText(/No matches for/)).not.toBeVisible();
+});
+
+test('address picker: "Place the pin manually" reaches the full save flow with no dependency on search or geolocation', async ({ page }) => {
+  // The actual gap this closes: before this button existed, reaching the pin-drop map at
+  // all required either a successful search match or device geolocation — if a personal
+  // address genuinely wasn't in Nominatim's database (a real, common case) and the person
+  // wasn't using GPS, there was no way to add an address at all.
+  const MANUAL_DISPLAY_NAME = 'Manually Placed Pin Address, Hyderabad, Telangana, India';
+  await page.route('https://nominatim.openstreetmap.org/reverse**', async (route) => {
+    await route.fulfill({ json: { display_name: MANUAL_DISPLAY_NAME } });
+  });
+
+  const customerPhone = uniquePhone(7);
+  await page.goto('http://localhost:5173');
+  await page.getByText('Create an account').click();
+  await page.getByPlaceholder('Full name').fill('E2E Manual Pin Customer');
+  await page.getByPlaceholder('Phone number').fill(customerPhone);
+  await page.getByPlaceholder('Password').fill('testpass123');
+  await page.locator('button[type="submit"]').click();
+  await expect(page.getByPlaceholder('Search by name, cuisine, or dish…')).toBeVisible();
+
+  const addressBar = page.getByTestId('address-bar');
+  const picker = page.getByTestId('address-picker');
+  const mapScreen = page.getByTestId('location-map-screen');
+
+  await addressBar.click();
+  await picker.getByText('Add New Address').click();
+  await expect(mapScreen.getByText('Get the fastest delivery')).toBeVisible();
+
+  await mapScreen.getByText('Place the pin manually on a map').click();
+  await expect(mapScreen.getByText('Delivery details')).toBeVisible();
+  await expect(mapScreen.getByText(MANUAL_DISPLAY_NAME)).toBeVisible({ timeout: 10_000 });
+
+  await mapScreen.getByPlaceholder(/Address details/).fill('Flat 4B');
+  const homeTag = mapScreen.getByRole('button', { name: '🏠 Home' });
+  await homeTag.click();
+  await expect(mapScreen.getByPlaceholder("Or name it yourself (e.g. Mom's House)")).toHaveValue('Home');
+
+  await mapScreen.getByRole('button', { name: 'Save address' }).click();
+  await expect(mapScreen).not.toBeVisible();
+  await expect(picker.getByText('Home', { exact: true })).toBeVisible();
+  await expect(picker.getByText('Flat 4B', { exact: false })).toBeVisible();
 });
 
 test('a location-permission banner shows when access is off', async ({ page, context }) => {
