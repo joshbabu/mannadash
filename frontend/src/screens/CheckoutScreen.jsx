@@ -89,7 +89,7 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, sche
   }, []);
 
   function pickSavedAddress(saved) {
-    setAddress(saved.address);
+    setAddress(saved.addressDetails ? `${saved.addressDetails}, ${saved.address}` : saved.address);
     setLatitude(saved.latitude);
     setLongitude(saved.longitude);
     setSaveThisAddress(false);

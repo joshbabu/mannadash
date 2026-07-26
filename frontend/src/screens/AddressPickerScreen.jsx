@@ -272,7 +272,9 @@ export default function AddressPickerScreen({
                       </span>
                     )}
                   </span>
-                  <span style={{ display: 'block', fontSize: 13, color: '#6b6156' }}>{a.address}</span>
+                  <span style={{ display: 'block', fontSize: 13, color: '#6b6156' }}>
+                    {a.addressDetails ? `${a.addressDetails}, ` : ''}{a.address}
+                  </span>
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === a.id ? null : a.id); }}

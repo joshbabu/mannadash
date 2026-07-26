@@ -40,6 +40,32 @@ describe('Saved addresses (e2e)', () => {
     expect(res.body[0].id).toBeTruthy();
   });
 
+  it('saves addressDetails (floor/flat/tower) alongside the address when provided', async () => {
+    const customer = await signUpCustomer(app);
+    const res = await request(app.getHttpServer())
+      .post('/customers/me/addresses')
+      .set('Authorization', `Bearer ${customer.token}`)
+      .send({
+        label: 'Home',
+        address: 'Sairam Colony, Vijayapuri Colony, Uppal',
+        addressDetails: '2-129, Pulipati Nilayam, 2/A',
+        latitude: 17.45,
+        longitude: 78.39,
+      })
+      .expect(201);
+    expect(res.body[0].addressDetails).toBe('2-129, Pulipati Nilayam, 2/A');
+  });
+
+  it('addressDetails is optional — an address without it saves fine and has no such field set', async () => {
+    const customer = await signUpCustomer(app);
+    const res = await request(app.getHttpServer())
+      .post('/customers/me/addresses')
+      .set('Authorization', `Bearer ${customer.token}`)
+      .send({ label: 'Home', address: 'Uppal, Hyderabad', latitude: 17.45, longitude: 78.39 })
+      .expect(201);
+    expect(res.body[0].addressDetails).toBeUndefined();
+  });
+
   it('can save multiple addresses, and they persist across separate requests', async () => {
     const customer = await signUpCustomer(app);
     await request(app.getHttpServer())
@@ -133,6 +159,32 @@ describe('Saved addresses (e2e)', () => {
       .expect(200);
     expect(updated.body[0].label).toBe('Renamed');
     expect(updated.body[0].address).toBe('Addr 1');
+  });
+
+  it("editing just the pin location (correcting a wrong spot) doesn't wipe an existing addressDetails — the actual edit-mode flow only sends latitude/longitude/address", async () => {
+    const customer = await signUpCustomer(app);
+    const added = await request(app.getHttpServer())
+      .post('/customers/me/addresses')
+      .set('Authorization', `Bearer ${customer.token}`)
+      .send({
+        label: 'Home',
+        address: 'Addr 1',
+        addressDetails: '2-129, Pulipati Nilayam',
+        latitude: 17.45,
+        longitude: 78.39,
+      })
+      .expect(201);
+    const addressId = added.body[0].id;
+
+    // Matches LocationMapScreen's confirmPin() in edit mode exactly — no addressDetails key
+    // in the payload at all, not even as null.
+    const updated = await request(app.getHttpServer())
+      .patch(`/customers/me/addresses/${addressId}`)
+      .set('Authorization', `Bearer ${customer.token}`)
+      .send({ latitude: 17.46, longitude: 78.4, address: 'Corrected Addr' })
+      .expect(200);
+    expect(updated.body[0].addressDetails).toBe('2-129, Pulipati Nilayam');
+    expect(updated.body[0].address).toBe('Corrected Addr');
   });
 
   it('updating a nonexistent address id returns 404', async () => {

@@ -30,6 +30,7 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
   const [mapSearching, setMapSearching] = useState(false);
   const [mapSearchError, setMapSearchError] = useState('');
   const [label, setLabel] = useState(initialLabel || '');
+  const [addressDetails, setAddressDetails] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -190,7 +191,13 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
 
   function confirmLabel() {
     if (!label.trim()) return;
-    save({ label: label.trim(), address: resolvedAddress, latitude: center.lat, longitude: center.lng });
+    save({
+      label: label.trim(),
+      address: resolvedAddress,
+      addressDetails: addressDetails.trim() || undefined,
+      latitude: center.lat,
+      longitude: center.lng,
+    });
   }
 
   return (
@@ -217,6 +224,19 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
             onChange={(e) => setPromptQuery(e.target.value)}
             style={{ width: '100%', background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd', marginBottom: 14, borderRadius: 24, padding: '12px 16px' }}
           />
+
+          {/* Search and device location are both just conveniences to get close faster —
+              neither one has to succeed. This is the actual "add it manually" path: drag a
+              pin yourself, works for anywhere, regardless of whether it's in the free
+              geocoder's database or whether you're physically there right now. Always
+              available, including right alongside a "No matches" result. */}
+          <button
+            onClick={() => goToMap(initialCenter || DEFAULT_CENTER)}
+            className="btn-secondary"
+            style={{ width: '100%', textAlign: 'center', marginBottom: 20 }}
+          >
+            📍 Place the pin manually on a map
+          </button>
 
           {promptQuery.trim().length >= 3 && (
             <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -335,10 +355,17 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
           <p style={{ fontSize: 13, color: '#6b6156', marginBottom: 16 }}>{resolvedAddress}</p>
           {error && <div className="error-banner" style={{ marginBottom: 12 }}>{error}</div>}
           <input
+            placeholder="Address details — floor, flat no., tower (optional)"
+            value={addressDetails}
+            onChange={(e) => setAddressDetails(e.target.value)}
+            maxLength={200}
+            autoFocus
+            style={{ width: '100%', marginBottom: 14, background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd' }}
+          />
+          <input
             placeholder="Label (e.g. Home, Work)"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            autoFocus
             style={{ width: '100%', marginBottom: 14, background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd' }}
           />
           <button className="btn-primary" onClick={confirmLabel} disabled={saving || !label.trim()} style={{ width: '100%' }}>

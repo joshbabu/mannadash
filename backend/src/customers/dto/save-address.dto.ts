@@ -1,4 +1,4 @@
-import { IsNumber, IsString, Max, Min } from 'class-validator';
+import { IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 export class SaveAddressDto {
   @IsString()
@@ -6,6 +6,13 @@ export class SaveAddressDto {
 
   @IsString()
   address: string;
+
+  // Floor/flat/tower/landmark — the exact-unit detail a search result or dropped pin can't
+  // capture on its own. Optional; shown alongside the address wherever it's displayed.
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  addressDetails?: string;
 
   @IsNumber()
   @Min(-90)
