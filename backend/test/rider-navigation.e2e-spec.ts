@@ -105,4 +105,77 @@ describe('Rider order list — navigation coordinates and call numbers (e2e)', (
     const mine = await request(app.getHttpServer()).get('/orders/rider/mine').set(authed(rider.token)).expect(200);
     expect(mine.body).toEqual([]);
   });
+
+  it("reflects a restaurant's corrected location in the rider's Navigate coordinates — the actual fix for a real reported bug where Navigate pointed at the wrong place with no way to correct it", async () => {
+    // Deliberately start with a wrong/placeholder-style location, matching how the real
+    // bug happened — a restaurant onboarded with an inaccurate pin and no way to fix it.
+    const restaurant = await signUpRestaurant(app, { latitude: 17.44, longitude: 78.38 });
+    const rider = await signUpRider(app);
+    const admin = await adminLogin(app);
+
+    await request(app.getHttpServer())
+      .patch(`/restaurants/${restaurant.id}/status`)
+      .set(authed(admin))
+      .send({ status: 'approved' })
+      .expect(200);
+    await request(app.getHttpServer()).patch(`/delivery-partners/${rider.id}/verify`).set(authed(admin)).expect(200);
+    await request(app.getHttpServer())
+      .patch('/delivery-partners/me/location')
+      .set(authed(rider.token))
+      .send({ latitude: 17.44, longitude: 78.38 })
+      .expect(200);
+    await request(app.getHttpServer())
+      .patch('/delivery-partners/me/availability')
+      .set(authed(rider.token))
+      .send({ isAvailable: true })
+      .expect(200);
+
+    const item = await request(app.getHttpServer())
+      .post('/menu-items')
+      .set(authed(restaurant.token))
+      .send({ restaurantId: restaurant.id, name: 'Correction Test Dish', price: 100, category: 'main' })
+      .expect(201);
+    const customer = await signUpCustomer(app);
+    const order = await request(app.getHttpServer())
+      .post('/orders')
+      .set(authed(customer.token))
+      .send({
+        restaurantId: restaurant.id,
+        items: [{ menuItemId: item.body.id, quantity: 1 }],
+        deliveryAddress: 'Correction Test Address',
+        latitude: 17.45,
+        longitude: 78.39,
+      })
+      .expect(201);
+
+    const t = (token: string, status: string) =>
+      request(app.getHttpServer())
+        .patch(`/orders/${order.body.id}/status`)
+        .set(authed(token))
+        .send({ status })
+        .expect(200);
+    await t(restaurant.token, 'accepted');
+    await t(restaurant.token, 'preparing');
+    await t(restaurant.token, 'ready_for_pickup');
+    await request(app.getHttpServer())
+      .post(`/orders/${order.body.id}/assign-rider/${rider.id}`)
+      .set(authed(restaurant.token))
+      .expect(201);
+
+    const before = await request(app.getHttpServer()).get('/orders/rider/mine').set(authed(rider.token)).expect(200);
+    const orderBefore = before.body.find((o: any) => o.id === order.body.id);
+    expect(orderBefore.pickupCoords.lat).toBeCloseTo(17.44, 2);
+
+    // The owner corrects their location via Settings — real Uppal, Hyderabad coordinates
+    await request(app.getHttpServer())
+      .patch(`/restaurants/${restaurant.id}`)
+      .set(authed(restaurant.token))
+      .send({ latitude: 17.4062, longitude: 78.5589 })
+      .expect(200);
+
+    const after = await request(app.getHttpServer()).get('/orders/rider/mine').set(authed(rider.token)).expect(200);
+    const orderAfter = after.body.find((o: any) => o.id === order.body.id);
+    expect(orderAfter.pickupCoords.lat).toBeCloseTo(17.4062, 2);
+    expect(orderAfter.pickupCoords.lng).toBeCloseTo(78.5589, 2);
+  });
 });

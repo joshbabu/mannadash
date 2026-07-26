@@ -61,6 +61,29 @@ describe('Restaurant onboarding (e2e)', () => {
     expect(res.body.weeklyHours.sunday).toBeNull();
   });
 
+  it('exposes the real stored coordinates on GET, matching what was set at signup', async () => {
+    const restaurant = await signUpRestaurant(app, { latitude: 17.44, longitude: 78.38 });
+    const res = await request(app.getHttpServer()).get(`/restaurants/${restaurant.id}`).expect(200);
+    expect(res.body.latitude).toBeCloseTo(17.44, 3);
+    expect(res.body.longitude).toBeCloseTo(78.38, 3);
+  });
+
+  it('lets the owner correct a wrong location, and it actually takes — this is the fix for ' +
+    'the bug where a restaurant had no way to correct a bad pin and riders got navigated ' +
+    'to the wrong place', async () => {
+    const restaurant = await signUpRestaurant(app, { latitude: 17.44, longitude: 78.38 });
+
+    await request(app.getHttpServer())
+      .patch(`/restaurants/${restaurant.id}`)
+      .set('Authorization', `Bearer ${restaurant.token}`)
+      .send({ latitude: 17.4062, longitude: 78.5589 }) // real Uppal, Hyderabad coordinates
+      .expect(200);
+
+    const res = await request(app.getHttpServer()).get(`/restaurants/${restaurant.id}`).expect(200);
+    expect(res.body.latitude).toBeCloseTo(17.4062, 3);
+    expect(res.body.longitude).toBeCloseTo(78.5589, 3);
+  });
+
   it('never exposes PAN or bank details in create, findOne, or list responses', async () => {
     // The create response is the sneakiest path — it used to return a raw DB row that
     // bypassed @Exclude serialization entirely.

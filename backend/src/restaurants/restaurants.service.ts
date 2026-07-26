@@ -56,6 +56,14 @@ export class RestaurantsService {
     if (!restaurant) {
       throw new NotFoundException(`Restaurant ${id} not found`);
     }
+    const coords = await this.restaurantRepo.manager.query(
+      `SELECT ST_Y(location::geometry) as lat, ST_X(location::geometry) as lng FROM restaurants WHERE id = $1`,
+      [id],
+    );
+    if (coords[0]) {
+      restaurant.latitude = Number(coords[0].lat);
+      restaurant.longitude = Number(coords[0].lng);
+    }
     return restaurant;
   }
 

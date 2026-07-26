@@ -145,4 +145,13 @@ export class Restaurant {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  // Transient — NOT a @Column, ignored by schema sync. Populated on demand by
+  // RestaurantsService.findOne() via a raw ST_X/ST_Y extraction from the real `location`
+  // geography column, so the owner's Settings screen can show and correct their current
+  // pin — the backend has always supported updating it (see update()'s ST_MakePoint), it
+  // just had no UI, which is exactly how a restaurant can end up with a wrong/placeholder
+  // location and no way to fix it themselves.
+  latitude?: number;
+  longitude?: number;
 }

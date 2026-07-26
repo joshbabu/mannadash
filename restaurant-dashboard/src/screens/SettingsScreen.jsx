@@ -31,6 +31,8 @@ export default function SettingsScreen({ restaurant }) {
   const [form, setForm] = useState(null); // null until both fetches land
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [locationMsg, setLocationMsg] = useState('');
   const [savedAt, setSavedAt] = useState(null);
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
@@ -116,6 +118,8 @@ export default function SettingsScreen({ restaurant }) {
           legalEntityName: kyc.legalEntityName || '',
           bankIfsc: kyc.bankIfsc || '',
           bankAccountNumber: kyc.bankAccountNumber || '',
+          latitude: pub.latitude ?? null,
+          longitude: pub.longitude ?? null,
         });
       })
       .catch((err) => setError(err.message));
@@ -123,6 +127,27 @@ export default function SettingsScreen({ restaurant }) {
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
   const upper = (v) => v.toUpperCase().replace(/\s/g, '');
+
+  function useMyLocation() {
+    if (!navigator.geolocation) {
+      setLocationMsg("This browser can't get your location — enter coordinates manually below.");
+      return;
+    }
+    setLocating(true);
+    setLocationMsg('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        set('latitude', pos.coords.latitude);
+        set('longitude', pos.coords.longitude);
+        setLocating(false);
+        setLocationMsg('Got it — save below to update your delivery pin.');
+      },
+      () => {
+        setLocating(false);
+        setLocationMsg("Couldn't get your location — check your browser's location permission, or enter coordinates manually.");
+      },
+    );
+  }
 
   function validate() {
     if (!form.ownerName || !form.name || !form.cuisineType || !form.address) return 'Name, owner, cuisine and address are required';
@@ -181,6 +206,11 @@ export default function SettingsScreen({ restaurant }) {
       legalEntityName: orNull(form.legalEntityName),
       bankIfsc: orNull(form.bankIfsc),
       bankAccountNumber: orNull(form.bankAccountNumber),
+      // Omitted entirely (not sent as null) when we don't have a real value — the backend
+      // only touches the stored location when both latitude and longitude are present.
+      ...(form.latitude != null && form.longitude != null
+        ? { latitude: Number(form.latitude), longitude: Number(form.longitude) }
+        : {}),
     };
 
     try {
@@ -242,6 +272,43 @@ export default function SettingsScreen({ restaurant }) {
           <input placeholder="Owner name" value={form.ownerName} onChange={(e) => set('ownerName', e.target.value)} />
           <input placeholder="Cuisine type" value={form.cuisineType} onChange={(e) => set('cuisineType', e.target.value)} />
           <input placeholder="Address" value={form.address} onChange={(e) => set('address', e.target.value)} />
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        {sectionTitle('Delivery location', "The exact pin riders navigate to — wrong or missing here means Navigate sends them to the wrong place")}
+        <div className="stack">
+          {form.latitude != null && form.longitude != null ? (
+            <p className="muted" style={{ margin: 0 }}>
+              Currently set to {Number(form.latitude).toFixed(5)}, {Number(form.longitude).toFixed(5)}
+            </p>
+          ) : (
+            <p style={{ margin: 0, color: 'var(--chili-dark)', fontWeight: 600 }}>
+              No location on file yet — riders can't be pointed here until you set one.
+            </p>
+          )}
+          <button className="btn-secondary" onClick={useMyLocation} disabled={locating}>
+            {locating ? 'Getting your location…' : '📍 Use my current location'}
+          </button>
+          {locationMsg && <p className="muted" style={{ margin: 0 }}>{locationMsg}</p>}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              placeholder="Latitude"
+              type="number"
+              step="any"
+              value={form.latitude ?? ''}
+              onChange={(e) => set('latitude', e.target.value === '' ? null : Number(e.target.value))}
+              style={{ flex: 1 }}
+            />
+            <input
+              placeholder="Longitude"
+              type="number"
+              step="any"
+              value={form.longitude ?? ''}
+              onChange={(e) => set('longitude', e.target.value === '' ? null : Number(e.target.value))}
+              style={{ flex: 1 }}
+            />
+          </div>
         </div>
       </div>
 
