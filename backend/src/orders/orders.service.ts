@@ -416,11 +416,39 @@ export class OrdersService {
 
   // Rider facing — lists orders currently assigned to this rider
   async findAllForRider(riderId: string): Promise<Order[]> {
-    return this.orderRepo.find({
+    const orders = await this.orderRepo.find({
       where: { deliveryPartner: { id: riderId } },
       relations: { restaurant: true, customer: { user: true }, items: { menuItem: true, selectedOptions: true } },
       order: { placedAt: 'DESC' },
     });
+    if (orders.length === 0) return orders;
+
+    // Real pickup/drop coordinates for the rider app's "Navigate" deep-link — same
+    // ST_X/ST_Y extraction already used in assignRider(), just batched across this whole
+    // list in two queries instead of one raw query per order.
+    const restaurantIds = [...new Set(orders.map((o) => o.restaurant.id))];
+    const restaurantCoords = await this.orderRepo.manager.query(
+      `SELECT id, ST_Y(location::geometry) as lat, ST_X(location::geometry) as lng FROM restaurants WHERE id = ANY($1)`,
+      [restaurantIds],
+    );
+    const restaurantCoordMap = new Map<string, { lat: number; lng: number }>(
+      restaurantCoords.map((r: any) => [r.id, { lat: Number(r.lat), lng: Number(r.lng) }]),
+    );
+
+    const orderIds = orders.map((o) => o.id);
+    const deliveryCoords = await this.orderRepo.manager.query(
+      `SELECT id, ST_Y("deliveryLocation"::geometry) as lat, ST_X("deliveryLocation"::geometry) as lng FROM orders WHERE id = ANY($1)`,
+      [orderIds],
+    );
+    const deliveryCoordMap = new Map<string, { lat: number; lng: number }>(
+      deliveryCoords.map((d: any) => [d.id, { lat: Number(d.lat), lng: Number(d.lng) }]),
+    );
+
+    for (const o of orders) {
+      o.pickupCoords = restaurantCoordMap.get(o.restaurant.id) ?? null;
+      o.dropCoords = deliveryCoordMap.get(o.id) ?? null;
+    }
+    return orders;
   }
 
   async findOne(id: string, requestingUserId?: string): Promise<Order> {

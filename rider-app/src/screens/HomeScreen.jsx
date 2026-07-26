@@ -300,6 +300,10 @@ export default function HomeScreen({ rider, onLogout }) {
             <div className="stack">
               {activeOrders.map((order) => {
                 const action = RIDER_ACTIONS[order.status];
+                const isPickupPhase = order.status !== 'picked_up';
+                const navCoords = isPickupPhase ? order.pickupCoords : order.dropCoords;
+                const callPhone = isPickupPhase ? order.restaurant.phone : order.customer?.user?.phone;
+                const callLabel = isPickupPhase ? 'Call restaurant' : 'Call customer';
                 return (
                   <div key={order.id} className="card">
                     <div className="row" style={{ marginBottom: 8 }}>
@@ -322,6 +326,29 @@ export default function HomeScreen({ rider, onLogout }) {
                         💵 Collect ₹{Number(order.total).toFixed(0)} in cash
                       </p>
                     )}
+
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                      {navCoords && (
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${navCoords.lat},${navCoords.lng}&travelmode=driving`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn-secondary"
+                          style={{ flex: 1, textAlign: 'center', textDecoration: 'none', display: 'block' }}
+                        >
+                          🧭 Navigate
+                        </a>
+                      )}
+                      {callPhone && (
+                        <a
+                          href={`tel:${callPhone}`}
+                          className="btn-secondary"
+                          style={{ flex: 1, textAlign: 'center', textDecoration: 'none', display: 'block' }}
+                        >
+                          📞 {callLabel}
+                        </a>
+                      )}
+                    </div>
 
                     {action ? (
                       <button className="btn-primary" style={{ background: 'var(--curry)' }} onClick={() => advance(order, action.value)}>

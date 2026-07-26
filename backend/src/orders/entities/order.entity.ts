@@ -192,4 +192,13 @@ export class Order {
 
   @Column({ type: 'timestamp', nullable: true })
   deliveredAt: Date;
+
+  // Transient — NOT a @Column, so TypeORM's schema sync ignores these entirely. Populated
+  // on demand by OrdersService.findAllForRider() via a raw ST_X/ST_Y extraction from the
+  // real PostGIS location columns, for the rider app's "Navigate" deep-link into Maps.
+  // Declared here (rather than just spreading into a plain object in the service) so the
+  // response stays a real Order instance and ClassSerializerInterceptor keeps correctly
+  // enforcing every @Exclude() on nested relations (customer.user.passwordHash etc.).
+  pickupCoords?: { lat: number; lng: number } | null;
+  dropCoords?: { lat: number; lng: number } | null;
 }
