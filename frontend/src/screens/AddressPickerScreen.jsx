@@ -110,16 +110,20 @@ export default function AddressPickerScreen({
   }
 
   async function handleMapSave(payload) {
+    const wasSearchDriven = locationMapMode === 'add' && Boolean(searchAddCenter);
     const updated = locationMapMode === 'edit'
       ? await api.updateAddress(editTarget.id, payload)
       : await api.saveAddress(payload);
     onAddressesUpdated(updated);
-    // Make the address that was just confirmed the active one immediately — otherwise a
-    // freshly-corrected address only shows up in the list, and whatever was selected
-    // before (possibly the same stale address that prompted the fix) stays active.
-    const activeId = locationMapMode === 'edit' ? editTarget.id : updated[updated.length - 1]?.id;
-    const nowActive = updated.find((a) => a.id === activeId);
-    if (nowActive) onSelectAddress(nowActive);
+    // Only auto-select (and thereby close the whole picker) when this save came from the
+    // top-level search — that's the one case where "confirm this address" clearly means
+    // "start using it now". Plain "Add New Address" and "Edit" both stay on the list
+    // afterward instead, same as before this fix — confirmed by the existing tests, which
+    // this regressed the first time around by auto-closing after every save.
+    if (wasSearchDriven) {
+      const newlyAdded = updated[updated.length - 1];
+      if (newlyAdded) onSelectAddress(newlyAdded);
+    }
     setLocationMapMode(null);
     setEditTarget(null);
     setSearchAddCenter(null);
