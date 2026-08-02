@@ -293,6 +293,88 @@ test('a failed geocode search shows a real error message, not silence — this i
   await expect(mapScreen.getByText(/No matches for/)).not.toBeVisible();
 });
 
+test('address picker: typing a full address geocodes it and lands on that exact spot', async ({ page }) => {
+  const TYPED_TEXT = '2-129, Sairam Colony, Vijayapuri Colony, Uppal, Hyderabad';
+  const FOUND_LAT = 17.3981827;
+  const FOUND_LNG = 78.5669366;
+  const FOUND_DISPLAY_NAME = "Pulipati's Nilayam, Sairam Colony, Vijayapuri Colony, Uppal, Hyderabad, Telangana, India";
+
+  await page.route('https://nominatim.openstreetmap.org/search**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.searchParams.get('q') === TYPED_TEXT) {
+      await route.fulfill({ json: [{ place_id: 9, lat: String(FOUND_LAT), lon: String(FOUND_LNG), display_name: FOUND_DISPLAY_NAME }] });
+    } else {
+      await route.fulfill({ json: [] });
+    }
+  });
+  await page.route('https://nominatim.openstreetmap.org/reverse**', async (route) => {
+    await route.fulfill({ json: { display_name: FOUND_DISPLAY_NAME } });
+  });
+
+  const customerPhone = uniquePhone(8);
+  await page.goto('http://localhost:5173');
+  await page.getByText('Create an account').click();
+  await page.getByPlaceholder('Full name').fill('E2E Typed Address Found Customer');
+  await page.getByPlaceholder('Phone number').fill(customerPhone);
+  await page.getByPlaceholder('Password').fill('testpass123');
+  await page.locator('button[type="submit"]').click();
+  await expect(page.getByPlaceholder('Search by name, cuisine, or dish…')).toBeVisible();
+
+  const addressBar = page.getByTestId('address-bar');
+  const picker = page.getByTestId('address-picker');
+  const mapScreen = page.getByTestId('location-map-screen');
+
+  await addressBar.click();
+  await picker.getByText('Add New Address').click();
+  await mapScreen.getByText('Or just type your full address').click();
+  await mapScreen.getByPlaceholder(/Type your full address/).fill(TYPED_TEXT);
+  await mapScreen.getByRole('button', { name: 'Continue' }).click();
+
+  await expect(mapScreen.getByText('Delivery details')).toBeVisible();
+  await expect(mapScreen.getByText(FOUND_DISPLAY_NAME)).toBeVisible({ timeout: 10_000 });
+  // Found a real match — no "couldn't automatically place" note should show
+  await expect(mapScreen.getByText(/Couldn't automatically place/)).not.toBeVisible();
+});
+
+test("address picker: typing an address the geocoder can't find still keeps exactly what was typed, with an honest note", async ({ page }) => {
+  const TYPED_TEXT = 'Some Very Obscure Personal Building Name Nobody Mapped';
+
+  await page.route('https://nominatim.openstreetmap.org/search**', async (route) => {
+    await route.fulfill({ json: [] }); // genuinely no match — real, honest failure
+  });
+
+  const customerPhone = uniquePhone(9);
+  await page.goto('http://localhost:5173');
+  await page.getByText('Create an account').click();
+  await page.getByPlaceholder('Full name').fill('E2E Typed Address Not Found Customer');
+  await page.getByPlaceholder('Phone number').fill(customerPhone);
+  await page.getByPlaceholder('Password').fill('testpass123');
+  await page.locator('button[type="submit"]').click();
+  await expect(page.getByPlaceholder('Search by name, cuisine, or dish…')).toBeVisible();
+
+  const addressBar = page.getByTestId('address-bar');
+  const picker = page.getByTestId('address-picker');
+  const mapScreen = page.getByTestId('location-map-screen');
+
+  await addressBar.click();
+  await picker.getByText('Add New Address').click();
+  await mapScreen.getByText('Or just type your full address').click();
+  await mapScreen.getByPlaceholder(/Type your full address/).fill(TYPED_TEXT);
+  await mapScreen.getByRole('button', { name: 'Continue' }).click();
+
+  // Still reaches the map with the full save flow — never a dead end — and what was typed
+  // is preserved as the address rather than silently replaced by a reverse-geocode of
+  // wherever the fallback center happens to be.
+  await expect(mapScreen.getByText('Delivery details')).toBeVisible();
+  await expect(mapScreen.getByText(TYPED_TEXT)).toBeVisible();
+  await expect(mapScreen.getByText(/Couldn't automatically place/)).toBeVisible();
+
+  await mapScreen.getByRole('button', { name: 'Home', exact: false }).click();
+  await mapScreen.getByRole('button', { name: 'Save address' }).click();
+  await expect(mapScreen).not.toBeVisible();
+  await expect(picker.getByText(TYPED_TEXT, { exact: false })).toBeVisible();
+});
+
 test('address picker: "Place the pin manually" reaches the full save flow with no dependency on search or geolocation', async ({ page }) => {
   // The actual gap this closes: before this button existed, reaching the pin-drop map at
   // all required either a successful search match or device geolocation — if a personal

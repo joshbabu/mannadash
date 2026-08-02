@@ -33,6 +33,14 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
   const [addressDetails, setAddressDetails] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [showManualText, setShowManualText] = useState(false);
+  const [manualText, setManualText] = useState('');
+  const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [manualNote, setManualNote] = useState('');
+  // When set, the first reverse-geocode on map load is skipped in favor of exactly what
+  // the person typed — only cleared once they actually drag the pin themselves, at which
+  // point normal reverse-geocoding resumes for wherever they moved it to.
+  const pendingResolvedOverride = useRef(null);
 
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
@@ -102,6 +110,11 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
   }, [mapSearchQuery, mapSearchOpen, step]);
 
   function reverseGeocode(lat, lng) {
+    if (pendingResolvedOverride.current) {
+      setResolvedAddress(pendingResolvedOverride.current);
+      pendingResolvedOverride.current = null;
+      return;
+    }
     setResolvingAddress(true);
     fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`, {
       headers: { Accept: 'application/json' },
@@ -118,6 +131,39 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
   function goToMap(nextCenter) {
     setCenter(nextCenter);
     setStep('map');
+  }
+
+  async function submitManualAddress() {
+    const text = manualText.trim();
+    if (!text) return;
+    setManualSubmitting(true);
+    setManualNote('');
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(text)}&viewbox=${HYDERABAD_VIEWBOX}&bounded=0&countrycodes=in&limit=1`;
+      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      const results = res.ok ? await res.json() : [];
+      if (Array.isArray(results) && results.length > 0) {
+        // Found it — center there and let normal reverse-geocoding describe that exact
+        // point (usually a close match to, or better than, what was typed).
+        goToMap({ lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) });
+      } else {
+        // Couldn't place it automatically — this is the actual, honest tradeoff: MannaDash
+        // needs real coordinates for restaurant distance and rider navigation, not just
+        // text, so a pin still has to end up somewhere. Center on the best available
+        // starting point and use exactly what was typed as the address, rather than
+        // silently overwriting it with a reverse-geocode of an unrelated fallback point —
+        // the person can drag the pin to the right spot from here.
+        pendingResolvedOverride.current = text;
+        setManualNote("Couldn't automatically place this on the map — drag the pin below to the right spot; what you typed is kept as the address either way.");
+        goToMap(initialCenter || DEFAULT_CENTER);
+      }
+    } catch {
+      pendingResolvedOverride.current = text;
+      setManualNote("Couldn't automatically place this on the map — drag the pin below to the right spot; what you typed is kept as the address either way.");
+      goToMap(initialCenter || DEFAULT_CENTER);
+    } finally {
+      setManualSubmitting(false);
+    }
   }
 
   function useDeviceLocation() {
@@ -144,6 +190,9 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
     let debounceTimer;
     map.on('moveend', () => {
       const c = map.getCenter();
+      // The person just dragged the map themselves — whatever text override was pending
+      // from typing an address no longer applies to wherever they moved it to.
+      pendingResolvedOverride.current = null;
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => reverseGeocode(c.lat, c.lng), 300);
     });
@@ -230,10 +279,40 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
           <button
             onClick={() => goToMap(initialCenter || DEFAULT_CENTER)}
             className="btn-secondary"
-            style={{ width: '100%', textAlign: 'center', marginBottom: 20 }}
+            style={{ width: '100%', textAlign: 'center', marginBottom: 12 }}
           >
             📍 Place the pin manually on a map
           </button>
+
+          {!showManualText ? (
+            <button
+              onClick={() => setShowManualText(true)}
+              className="btn-secondary"
+              style={{ width: '100%', textAlign: 'center', marginBottom: 20 }}
+            >
+              ✏️ Or just type your full address
+            </button>
+          ) : (
+            <div style={{ marginBottom: 20 }}>
+              <textarea
+                placeholder="Type your full address — house/flat no., street, area, landmark…"
+                value={manualText}
+                onChange={(e) => setManualText(e.target.value)}
+                rows={3}
+                autoFocus
+                style={{ width: '100%', background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd', borderRadius: 12, padding: 12, fontFamily: 'inherit', fontSize: 14, marginBottom: 10, resize: 'vertical' }}
+              />
+              {manualNote && <p className="muted" style={{ fontSize: 12, marginBottom: 10 }}>{manualNote}</p>}
+              <button
+                className="btn-primary"
+                onClick={submitManualAddress}
+                disabled={!manualText.trim() || manualSubmitting}
+                style={{ width: '100%' }}
+              >
+                {manualSubmitting ? 'Looking it up…' : 'Continue'}
+              </button>
+            </div>
+          )}
 
           {promptQuery.trim().length >= 3 && (
             <div style={{ flex: 1, overflowY: 'auto' }}>
