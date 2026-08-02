@@ -271,29 +271,38 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
               an absolutely-positioned overlay here was intermittently invisible on mobile
               (Safari's containing-block/viewport handling for fixed-position ancestors can
               be unreliable), and this is just as usable without that risk. */}
-          <div style={{ position: 'relative', zIndex: 20, background: '#fff', padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.15)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f4f1ea', borderRadius: 24, padding: '10px 14px' }}>
+          <div style={{ position: 'relative', zIndex: 20, background: 'var(--paper)', padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.15)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <button
                 onClick={() => (mode === 'add' ? setStep('prompt') : onClose())}
                 aria-label="Back"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: 0, color: 'var(--charcoal)' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, padding: '0 4px 0 0', color: 'var(--charcoal)', flexShrink: 0 }}
               >
                 ←
               </button>
-              <input
-                placeholder="Search an area or address"
-                value={mapSearchQuery}
-                onFocus={() => setMapSearchOpen(true)}
-                onChange={(e) => { setMapSearchQuery(e.target.value); setMapSearchOpen(true); }}
-                style={{ flex: 1, border: 'none', outline: 'none', background: 'none', fontSize: 14, color: 'var(--charcoal)' }}
-              />
+              <div
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, flex: 1,
+                  background: '#fff', border: '1px solid #ddd', borderRadius: 24, padding: '11px 16px',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                }}
+              >
+                <span style={{ fontSize: 15, opacity: 0.6 }}>🔍</span>
+                <input
+                  placeholder="Search an area or address"
+                  value={mapSearchQuery}
+                  onFocus={() => setMapSearchOpen(true)}
+                  onChange={(e) => { setMapSearchQuery(e.target.value); setMapSearchOpen(true); }}
+                  style={{ flex: 1, border: 'none', outline: 'none', background: 'none', fontSize: 14, color: 'var(--charcoal)', minWidth: 0 }}
+                />
+              </div>
             </div>
             {mapSearchOpen && mapSearchQuery.trim().length >= 3 && (
               <div style={{ marginTop: 8, background: '#fff', borderRadius: 14, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', overflow: 'hidden', maxHeight: 240, overflowY: 'auto' }}>
                 {mapSearching && <p className="muted" style={{ padding: 12 }}>Searching…</p>}
                 {!mapSearching && mapSearchError && <div className="error-banner" style={{ margin: 12 }}>{mapSearchError}</div>}
                 {!mapSearching && !mapSearchError && mapSearchResults.length === 0 && (
-                  <p className="muted" style={{ padding: 12 }}>No matches.</p>
+                  <p className="muted" style={{ padding: 12 }}>No matches — try a broader area name, or drag the pin below instead.</p>
                 )}
                 {mapSearchResults.map((r) => (
                   <button
