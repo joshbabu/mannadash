@@ -366,7 +366,7 @@ test("address picker: typing an address the geocoder can't find still keeps exac
   // is preserved as the address rather than silently replaced by a reverse-geocode of
   // wherever the fallback center happens to be.
   await expect(mapScreen.getByText('Delivery details')).toBeVisible();
-  await expect(mapScreen.getByText(TYPED_TEXT)).toBeVisible();
+  await expect(mapScreen.getByText(TYPED_TEXT).first()).toBeVisible();
   await expect(mapScreen.getByText(/Couldn't automatically place/)).toBeVisible();
 
   await mapScreen.getByRole('button', { name: 'Home', exact: false }).click();
