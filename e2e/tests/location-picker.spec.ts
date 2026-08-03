@@ -13,15 +13,17 @@ function uniquePhone(prefix: number) {
 const DEFAULT_LAT = 17.4435;
 const DEFAULT_LNG = 78.3772;
 
-// Placed ~10km from the default center — outside the default 8km nearby-search radius —
+// Placed ~20.8km from the default center — outside the 15km nearby-search radius (widened
+// from 8km this session for city-wide coverage, which is exactly why this needed updating:
+// the original ~10km offset used to clear the old 8km radius but now falls inside 15km) —
 // but the customer's saved "Home" address below sits right next to it. Regression coverage
 // for the bug where the address bar showed the saved address while distances/results were
 // still computed from the hardcoded default location: before the fix, this restaurant simply
 // never showed up until a saved address was selected.
-const RESTAURANT_LAT = 17.53;
-const RESTAURANT_LNG = 78.4;
-const HOME_LAT = 17.5305;
-const HOME_LNG = 78.4005;
+const RESTAURANT_LAT = 17.62515;
+const RESTAURANT_LNG = 78.42508;
+const HOME_LAT = 17.62565;
+const HOME_LNG = 78.42558;
 
 test('restaurant distances reflect the selected saved address, not the default location', async ({ page }) => {
   const api = await request.newContext({ baseURL: API_BASE });
