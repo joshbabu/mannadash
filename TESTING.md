@@ -12,25 +12,44 @@ Not as cleanup later, not "if there's time." A feature without a test is treated
 
 ## What's covered right now
 
-**Backend** (`backend/test/*.e2e-spec.ts`, 18 tests across 4 files):
+**Backend** (`backend/test/*.e2e-spec.ts` + `backend/src/**/*.spec.ts`, 35 e2e suites / ~295
+tests + 2 unit suites / 6 tests, all run for real against Postgres+PostGIS — not just `tsc`):
 - Order lifecycle authority — restaurant vs rider vs customer permission boundaries
-- Ratings math, admin gating
-- Operating hours enforcement, customer-initiated cancellation window, rider payout tracking
-- **Refund auto-flagging on cancellation of a paid order, and admin refund completion** (added
-  after catching that this was tested manually but never automated — see note below)
+- Ratings math, admin gating; operating hours enforcement; cancellation/refund tracking
 - Push notification subscription auth
+- Tax invoice generation — real invoice numbering, real restaurant KYC passthrough, honest
+  placeholders for genuinely-missing data, safe migration onto a table with existing rows
+- Rider programs — shifts (with real DB-level double-booking prevention), incentives (real
+  progress computed from actual delivered orders, never faked), announcements, referrals
+  (real codes, real per-referee progress), SOS alerts, bank details (self-service,
+  `@Exclude()`-protected), rider navigation coordinates (real `ST_X`/`ST_Y` extraction)
+- Saved addresses — full CRUD, `addressDetails`, receiver name/phone, partial-update
+  semantics, restaurant location self-correction flowing through to a rider's Navigate button
+- Nearby-restaurant search radius (15km, matching Swiggy/Zomato's general range) and the
+  distance-tiered delivery fee schedule, both with real Hyderabad coordinates, not made-up ones
+- Delivery fee formula tested as a pure unit test (`delivery-fee.util.spec.ts`) — geodesic
+  test-helper imprecision made an exact e2e assertion at a boundary value unreliable, so the
+  formula itself gets tested directly instead
 
 Read the spec files directly — they're written to be readable as documentation of the rules
 themselves.
 
-**Frontend / cross-app** (`e2e/tests/order-flow.spec.ts`, 2 tests):
+**Frontend / cross-app** (`e2e/tests/*.spec.ts`, 4 files, 13 top-level tests, several with
+multiple `test.step()`s):
 - The complete order flow across all three apps: customer orders, restaurant accepts/prepares/
   assigns, rider delivers, customer sees every update live with no refresh
-- **Customer cancelling their own order via the real Cancel button** (added for the same reason
-  as above — this shipped with zero automated coverage until caught)
+- Customer cancelling their own order via the real Cancel button
+- Logout across all three apps; restaurant onboarding
+- Address picker: add via map, search-to-save (not an instant unsaved selection), manual pin
+  placement, typing a full address with real geocode-or-honest-fallback, unified add/edit form,
+  a failed geocode search showing a real error instead of silence, and the checkout-carries-the-
+  selected-address regression (checkout used to always restart at a hardcoded default)
 
 **Not yet covered** (fair game for "add a test when you touch this next"): ratings submission,
-the live map, saved addresses/reorder, insights calculations, menu photo upload.
+the live map (needs real multi-app geolocation-permission choreography that doesn't fit cleanly
+into the existing suite), insights calculations, menu photo upload, the rider app's Earnings/
+Shifts/Refer/SOS screens end-to-end through a real browser (backend logic for all of these is
+covered; the rider-app UI itself isn't yet in the Playwright suite).
 
 ## Seeing results
 

@@ -735,6 +735,120 @@ time, not just today.
   proper automated coverage for the whole live-map feature at some point, not just this
   addition to it.
 
+- **GST tax invoice infrastructure: real backend, not just UI — DONE.** `GET
+  /orders/:id/tax-invoice` now backs the tax invoice preview with genuinely persisted data:
+  an invoice number assigned once per order and never changed after, a restaurant's real
+  GSTIN/FSSAI/legal entity name if they've entered it (new optional `legalEntityName` field,
+  self-service via restaurant Settings), and the platform's own registration profile via
+  env vars that default to obviously-fake `TEST`-prefixed values until real ones are set —
+  same on/off philosophy as `GST_ENABLED`. Never fabricates a number for data that's
+  genuinely missing; shows "not on file" instead. 9 backend tests plus 4 more for the
+  legal-entity-name addition.
+
+- **Rider app: full visual rebuild to match the customer app, then real feature build-out
+  from a reference app — DONE.** Two passes: first, the rider app's whole visual language
+  (flat, no theme.css polish) got rebuilt to match the customer app exactly — dark gradient
+  background, glossy cards, floating bottom-nav pill, skeleton loaders, micro-interactions.
+  Then, working from actual reference screenshots (a Zomato-style delivery partner app),
+  built out real features rather than decorative UI shells for anything without backend
+  support: **Shifts** (real DB-level double-booking prevention, can't book a shift that's
+  already started), **Incentives** (progress computed live from real delivered orders,
+  never stored/faked, placeholder bonus figures clearly flagged pending real numbers),
+  **Announcements** (real admin-broadcast, no read-tracking built — that'd need a separate
+  per-rider read-receipt table), **Refer & Earn** (real unique codes generated at signup,
+  real per-referee progress, actual money movement still goes through the existing manual
+  admin Payout flow rather than auto-crediting), **Emergency/SOS** (real device geolocation,
+  a real logged alert visible to admin — not just a client-side dead end — plus India's
+  actual emergency numbers as `tel:` links), and **Bank details** (self-service,
+  `@Exclude()`-protected, same convention as Restaurant's PAN/bank fields). Explicitly
+  declined to build "Loans & Insurance" from the same reference — that's a real third-party
+  financial product partnership, not something to fake.
+
+  **Real production bug caught in this batch**: `referralCode` was declared as a required
+  unique column, and `synchronize: true` can't add a `NOT NULL` column to a table that
+  already has real rider rows with nothing to backfill them with — this broke the actual
+  production deploy. Fixed by making it nullable with a lazy backfill (`ensureReferralCode()`
+  generates one the first time an existing rider actually needs it) rather than a one-off
+  migration script. Verified by literally reproducing the production scenario: built a
+  database with the pre-migration schema and a real existing rider row, booted the fixed
+  code against it, and confirmed via the real API that the lazy backfill works end to end.
+
+  Separately, real navigation and calling were added to the rider's delivery cards — a
+  🧭 Navigate button deep-linking to Maps using real `ST_X`/`ST_Y`-extracted coordinates
+  (batched across the whole order list, not N+1 queries), and 📞 Call using the real
+  restaurant/customer phone numbers already on the order. Transient (non-`@Column`) fields
+  on the `Order` entity carry these, deliberately not a plain-object spread, so
+  `ClassSerializerInterceptor` keeps correctly stripping `passwordHash` etc. from nested
+  relations. 20+ backend tests across this whole batch, all run for real against Postgres.
+
+- **The "Pista House navigates to the wrong place" saga — restaurant self-service location
+  correction, DONE, and a real lesson about compounding root causes.** What started as one
+  reported bug ("Navigate opens to a random spot") turned into several real, separate
+  problems, each genuinely needing to be found and fixed in turn rather than being one bug
+  wearing different hats:
+  1. The restaurant's own stored coordinates were simply wrong (likely from early
+     placeholder-location testing), and there was **no way for a restaurant to ever correct
+     that themselves** — Settings had zero location fields, even though the backend had
+     quietly supported updating it via `PATCH /restaurants/:id` the whole time. Fixed: a
+     real "Delivery location" section in Settings — device geolocation, or manual lat/lng —
+     plus `GET /restaurants/:id` now actually exposing real coordinates, which it never did.
+  2. Once restaurants were correctly placed city-wide, the "nearby" search radius (5-8km,
+     inconsistently — turned out three different places controlled this number, not one:
+     a service default, a DTO default, and a DTO validation cap that would have silently
+     *rejected* a wider request) was far too tight for the actual stated plan of covering
+     the whole Hyderabad metro. Widened to 15km, matching Swiggy/Zomato's general range —
+     tested with real Hyderabad coordinates (Uppal to Secunderabad shows, Uppal to
+     Gachibowli genuinely doesn't, both confirmed against real distances, not assumptions).
+  3. The delivery fee's ₹90 cap, calibrated for the old ~10km radius, needed to extend out
+     to the new 15km one — raised to ₹115 (reaches exactly ₹113 at 15km), positioned a bit
+     below Swiggy/Zomato's user-supplied typical ranges. The exact-value assertion for this
+     turned out to be a bad fit for an e2e test (real geodesic imprecision in how the test
+     constructs distances made an exact rupee value at a non-buffered boundary flaky) — the
+     formula itself now has a proper pure unit test instead, which is the right home for
+     that kind of precision.
+  4. **The actual biggest one**: checkout always started completely fresh at a hardcoded
+     default location (17.45, 78.39) with no address at all, regardless of what was already
+     selected while browsing — it only ever got corrected if the customer explicitly
+     re-picked their address *at checkout specifically*, which nobody would think to do
+     since every other delivery app carries the already-selected address through
+     automatically. This wasn't a Mehfil-specific or even a location-accuracy issue at all —
+     any order placed without that manual re-pick would have used the wrong location,
+     regardless of how correct the restaurant's own coordinates were. Fixed by threading the
+     real active address (or, failing that, real geolocation coordinates — only falling back
+     to the hardcoded default if genuinely neither exists) from the browsing screen through
+     to checkout. Given how this could plausibly explain some of the earlier distance
+     confusion in this same saga, this is worth specifically re-testing manually: place a
+     normal order (browse → restaurant → straight to checkout, no manual re-pick) and
+     confirm the delivery fee looks right.
+
+  Real geocode lookups for Pista House, Mehfil, Paradise Biryani, Green Bawarchi, and
+  Bawarchi (RTC X Roads) were done via live Google Places search rather than guessed, since
+  the free Nominatim/OpenStreetMap geocoder the app itself uses has real, genuine data-
+  coverage gaps for personal building names — confirmed directly (a real address search for
+  "Pulipati Nilayam" came back with an honest "No matches," not a bug).
+
+- **Address system: several real gaps closed together, working from a live reference app —
+  DONE.** Also from this thread: the top-level address search used to apply a tapped result
+  instantly as an *unsaved* session-only location — never went through the save pipeline at
+  all, so it silently reverted to the stale saved address on next load, which is exactly why
+  re-searching to fix a wrong Home address kept looking like it didn't work. Now routes
+  through the same real pin-confirm-and-save flow as "Add New Address." Also added, matching
+  the reference: a **"Place the pin manually on a map"** option that doesn't depend on
+  search or geolocation succeeding at all (the actual fix for "why can't we just add an
+  address manually"), a **"type your full address"** path that geocodes what's typed and
+  falls back to keeping the typed text as-is (never silently replaced) if the geocoder can't
+  place it automatically, a real **`addressDetails`** (floor/flat/tower) field and
+  **receiver name/phone per address** (genuinely optional, independent of each other), and —
+  after a direct report that editing only exposed the pin and silently dropped every other
+  field from the UI — a single unified form for both adding and editing, pre-filled with
+  whatever's actually saved. Also fixed: all three Nominatim network calls in
+  `LocationMapScreen` were missing a `res.ok` check before parsing JSON, so a real failure
+  (rate-limiting, a blocked request) either showed a misleading "No matches" or could crash
+  the results render — now shows an honest error message instead. Caught and fixed two of my
+  own regressions along the way (an auto-close-after-save behavior that broke the existing
+  "stay on the list after adding" test, and a JSX structural break introduced while removing
+  dead code) — both caught by the real test suite, not shipped silently.
+
 ## For the new chat
 
 Paste this file's contents, or just reference "MannaDash" — Claude's memory system should also
