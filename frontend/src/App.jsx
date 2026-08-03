@@ -24,6 +24,17 @@ export default function App() {
   const [showFavorites, setShowFavorites] = useState(false);
   const [showStatement, setShowStatement] = useState(false);
   const [scheduledFor, setScheduledFor] = useState(null); // ISO string | null
+  // Mirrors RestaurantListScreen's own selectedAddress so checkout can start from the
+  // customer's actual currently-active address instead of the hardcoded default — see the
+  // onAddressChange callback passed to RestaurantListScreen below. This was the real bug:
+  // checkout always started fresh at DEFAULT_LAT/DEFAULT_LNG with no address at all, and
+  // only ever got corrected if the customer happened to re-pick their address at checkout
+  // specifically — which most people reasonably wouldn't think to do, since every other
+  // delivery app carries the already-selected address through automatically.
+  const [activeAddress, setActiveAddress] = useState(null);
+  // Fallback for when the customer used geolocation but has no saved/named address
+  // selected — still real coordinates, just without a nice address label attached.
+  const [activeLatLng, setActiveLatLng] = useState(null);
 
   if (!user) {
     return (
@@ -105,6 +116,8 @@ export default function App() {
         orderItems={pendingOrder.orderItems}
         menuItems={pendingOrder.menuItems}
         scheduledFor={scheduledFor}
+        initialAddress={activeAddress}
+        initialLatLng={activeLatLng}
         onBack={() => setPendingOrder(null)}
         onOrderPlaced={(order) => { setScheduledFor(null); handleOrderPlaced(order); }}
       />
@@ -130,7 +143,16 @@ export default function App() {
       />
     );
   } else {
-    content = <RestaurantListScreen onSelectRestaurant={setSelectedRestaurant} scheduledFor={scheduledFor} onSetScheduledFor={setScheduledFor} budgetFilterActive={budgetFilter} />;
+    content = (
+      <RestaurantListScreen
+        onSelectRestaurant={setSelectedRestaurant}
+        scheduledFor={scheduledFor}
+        onSetScheduledFor={setScheduledFor}
+        budgetFilterActive={budgetFilter}
+        onAddressChange={setActiveAddress}
+        onCurrentLatLngChange={setActiveLatLng}
+      />
+    );
   }
 
   const showBottomNav = !selectedRestaurant && !pendingOrder && !trackingOrderId && !legalDoc && !showMyAccount && !showFavorites && !showStatement;

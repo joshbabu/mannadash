@@ -18,11 +18,25 @@ const INSTRUCTION_CHIPS = [
   { id: 'leave_with_security', icon: '🛡️', label: 'Leave with security' },
 ];
 
-export default function CheckoutScreen({ restaurant, orderItems, menuItems, scheduledFor, onBack, onOrderPlaced }) {
+export default function CheckoutScreen({ restaurant, orderItems, menuItems, scheduledFor, initialAddress, initialLatLng, onBack, onOrderPlaced }) {
   const orderingForUser = api.getStoredUser();
-  const [address, setAddress] = useState('');
-  const [latitude, setLatitude] = useState(DEFAULT_LAT);
-  const [longitude, setLongitude] = useState(DEFAULT_LNG);
+  // Seeded from the customer's actual currently-active address (see App.jsx/RestaurantListScreen)
+  // rather than always starting blank at the hardcoded default — that gap meant an order could
+  // silently go out with the wrong delivery location unless the customer happened to re-pick
+  // their address at checkout specifically. Falls back to raw geolocation coordinates (real
+  // position, just no address label) if there's no named/saved address selected, and only
+  // falls all the way back to the hardcoded default if genuinely neither is available.
+  const [address, setAddress] = useState(() =>
+    initialAddress
+      ? (initialAddress.addressDetails ? `${initialAddress.addressDetails}, ${initialAddress.address}` : initialAddress.address)
+      : '',
+  );
+  const [latitude, setLatitude] = useState(() =>
+    initialAddress ? Number(initialAddress.latitude) : initialLatLng ? initialLatLng.lat : DEFAULT_LAT,
+  );
+  const [longitude, setLongitude] = useState(() =>
+    initialAddress ? Number(initialAddress.longitude) : initialLatLng ? initialLatLng.lng : DEFAULT_LNG,
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [savedAddresses, setSavedAddresses] = useState([]);
@@ -83,10 +97,6 @@ export default function CheckoutScreen({ restaurant, orderItems, menuItems, sche
       return next;
     });
   }
-
-  useEffect(() => {
-    api.getSavedAddresses().then(setSavedAddresses).catch(() => {});
-  }, []);
 
   function pickSavedAddress(saved) {
     setAddress(saved.addressDetails ? `${saved.addressDetails}, ${saved.address}` : saved.address);

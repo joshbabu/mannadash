@@ -29,6 +29,8 @@ test('restaurant distances reflect the selected saved address, not the default l
   const restaurantPhone = uniquePhone(1);
   const restaurantName = `E2E Location Test Restaurant ${restaurantPhone}`;
 
+  let restaurantId: string;
+
   await test.step('Set up an approved restaurant far from the default location', async () => {
     const created = await api.post('/restaurants', {
       data: {
@@ -43,7 +45,11 @@ test('restaurant distances reflect the selected saved address, not the default l
       },
     });
     expect(created.ok()).toBeTruthy();
-    const restaurantId = (await created.json()).id;
+    restaurantId = (await created.json()).id;
+
+    const claimed = await api.post('/restaurants/signup', { data: { restaurantId, password: 'testpass123' } });
+    expect(claimed.ok()).toBeTruthy();
+    const restaurantToken = (await claimed.json()).accessToken;
 
     const adminAuth = await api.post('/admin/login', {
       data: { username: 'admin', password: 'test_admin_password' },
@@ -56,6 +62,12 @@ test('restaurant distances reflect the selected saved address, not the default l
       data: { status: 'approved' },
     });
     expect(approveRes.ok()).toBeTruthy();
+
+    const itemRes = await api.post('/menu-items', {
+      headers: { Authorization: `Bearer ${restaurantToken}` },
+      data: { restaurantId, name: 'E2E Checkout Address Dish', price: 150, category: 'main' },
+    });
+    expect(itemRes.ok()).toBeTruthy();
   });
 
   let customerToken: string;
@@ -102,6 +114,22 @@ test('restaurant distances reflect the selected saved address, not the default l
     const distanceText = await card.getByText(/km$/).textContent();
     const km = parseFloat(distanceText!.replace('km', '').trim());
     expect(km).toBeLessThan(1);
+  });
+
+  await test.step("Ordering from that restaurant WITHOUT re-picking an address at checkout still uses the real selected address, not the hardcoded default — the actual bug this covers: checkout used to always start fresh at the default location regardless of what was already selected", async () => {
+    await page.getByText(restaurantName).click();
+    await page.locator('.card', { hasText: 'E2E Checkout Address Dish' }).getByRole('button', { name: 'Add' }).click();
+    await page.getByRole('button', { name: /View cart/ }).click();
+
+    // The address must already be filled in from what was selected while browsing — not
+    // blank, and not requiring the customer to tap anything address-related first.
+    await expect(page.locator('#checkout-cart-summary')).toBeVisible();
+    await expect(page.getByText('Near the test restaurant')).toBeVisible();
+
+    // The real proof: delivery fee must reflect the true short distance (the flat ₹25
+    // base-tier fee, since Home is right next to the restaurant), not the fee that a
+    // ~10km-away hardcoded default would produce.
+    await expect(page.locator('#checkout-cart-summary').getByText('₹25', { exact: false })).toBeVisible();
   });
 });
 

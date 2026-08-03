@@ -59,13 +59,16 @@ const QUICK_CATEGORIES = [
   { label: 'Shake', icon: '🥤' },
 ];
 
-export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor, onSetScheduledFor, budgetFilterActive }) {
+export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor, onSetScheduledFor, budgetFilterActive, onAddressChange, onCurrentLatLngChange }) {
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sortBy, setSortBy] = useState('distance'); // 'distance' | 'rating'
   const [searchQuery, setSearchQuery] = useState('');
   const [currentLatLng, setCurrentLatLng] = useState({ lat: DEFAULT_LAT, lng: DEFAULT_LNG });
+  useEffect(() => {
+    onCurrentLatLngChange?.(currentLatLng);
+  }, [currentLatLng, onCurrentLatLngChange]);
   const [dishMatches, setDishMatches] = useState([]); // restaurants found by dish, not name/cuisine
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState(new Set());
@@ -74,7 +77,9 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
-  const [showAddressPicker, setShowAddressPicker] = useState(false);
+  useEffect(() => {
+    onAddressChange?.(selectedAddress);
+  }, [selectedAddress, onAddressChange]);  const [showAddressPicker, setShowAddressPicker] = useState(false);
   const [showLocationBanner, setShowLocationBanner] = useState(false);
   const [showLocationDeniedModal, setShowLocationDeniedModal] = useState(false);
 
