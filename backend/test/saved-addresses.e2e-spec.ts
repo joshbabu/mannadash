@@ -143,6 +143,44 @@ describe('Saved addresses (e2e)', () => {
     expect(updated.body[0].address).toBe('New address text');
   });
 
+  it('saves receiver name and phone for this specific address when provided', async () => {
+    const customer = await signUpCustomer(app);
+    const res = await request(app.getHttpServer())
+      .post('/customers/me/addresses')
+      .set('Authorization', `Bearer ${customer.token}`)
+      .send({
+        label: 'Home',
+        address: 'Sairam Colony, Vijayapuri Colony, Uppal',
+        receiverName: 'Joshua Pulipati',
+        receiverPhone: '9876543210',
+        latitude: 17.45,
+        longitude: 78.39,
+      })
+      .expect(201);
+    expect(res.body[0].receiverName).toBe('Joshua Pulipati');
+    expect(res.body[0].receiverPhone).toBe('9876543210');
+  });
+
+  it('rejects a malformed receiver phone number', async () => {
+    const customer = await signUpCustomer(app);
+    await request(app.getHttpServer())
+      .post('/customers/me/addresses')
+      .set('Authorization', `Bearer ${customer.token}`)
+      .send({ label: 'Home', address: 'Uppal, Hyderabad', receiverPhone: '12345', latitude: 17.45, longitude: 78.39 })
+      .expect(400);
+  });
+
+  it('receiver name/phone are optional and independent of each other', async () => {
+    const customer = await signUpCustomer(app);
+    const res = await request(app.getHttpServer())
+      .post('/customers/me/addresses')
+      .set('Authorization', `Bearer ${customer.token}`)
+      .send({ label: 'Home', address: 'Uppal, Hyderabad', receiverName: 'Just A Name', latitude: 17.45, longitude: 78.39 })
+      .expect(201);
+    expect(res.body[0].receiverName).toBe('Just A Name');
+    expect(res.body[0].receiverPhone).toBeUndefined();
+  });
+
   it('a partial update only changes the fields sent, leaving the rest as-is', async () => {
     const customer = await signUpCustomer(app);
     const added = await request(app.getHttpServer())

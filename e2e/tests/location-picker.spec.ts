@@ -161,6 +161,8 @@ test('address picker: add via the map flow, select, edit, and delete a saved add
     await expect(mapScreen.getByText(OFFICE_DISPLAY_NAME)).toBeVisible({ timeout: 10_000 });
 
     await mapScreen.getByPlaceholder(/Address details/).fill('3rd Floor, Suite 12');
+    await mapScreen.getByPlaceholder("Receiver's name").fill('Reception Desk');
+    await mapScreen.getByPlaceholder("Receiver's phone (10 digits)").fill('9876543210');
     await mapScreen.getByPlaceholder("Or name it yourself (e.g. Mom's House)").fill('Office');
     await mapScreen.getByRole('button', { name: 'Save address' }).click();
 
@@ -168,6 +170,8 @@ test('address picker: add via the map flow, select, edit, and delete a saved add
     await expect(picker.getByText('Office', { exact: true })).toBeVisible();
     await expect(picker.getByText(OFFICE_DISPLAY_NAME)).toBeVisible();
     await expect(picker.getByText('3rd Floor, Suite 12', { exact: false })).toBeVisible();
+    await expect(picker.getByText('Reception Desk', { exact: false })).toBeVisible();
+    await expect(picker.getByText('9876543210', { exact: false })).toBeVisible();
   });
 
   await test.step('Selecting it closes the picker and marks it as the active address', async () => {

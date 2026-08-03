@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 
 export class UpdateAddressDto {
   @IsOptional()
@@ -13,6 +13,15 @@ export class UpdateAddressDto {
   @IsString()
   @MaxLength(200)
   addressDetails?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  receiverName?: string;
+
+  @IsOptional()
+  @Matches(/^[6-9]\d{9}$/, { message: 'receiverPhone must be a 10-digit mobile number' })
+  receiverPhone?: string;
 
   @IsOptional()
   @IsNumber()

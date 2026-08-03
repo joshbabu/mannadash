@@ -31,6 +31,8 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
   const [mapSearchError, setMapSearchError] = useState('');
   const [label, setLabel] = useState(initialLabel || '');
   const [addressDetails, setAddressDetails] = useState('');
+  const [receiverName, setReceiverName] = useState('');
+  const [receiverPhone, setReceiverPhone] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [showManualText, setShowManualText] = useState(false);
@@ -226,12 +228,18 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
       setError('Give this address a name (e.g. Home, Work) before saving.');
       return;
     }
+    if (receiverPhone.trim() && !/^[6-9]\d{9}$/.test(receiverPhone.trim())) {
+      setError('Receiver phone must be a valid 10-digit mobile number.');
+      return;
+    }
     save({
       latitude: finalCenter.lat,
       longitude: finalCenter.lng,
       address: resolvedAddress,
       label: label.trim(),
       addressDetails: addressDetails.trim() || undefined,
+      receiverName: receiverName.trim() || undefined,
+      receiverPhone: receiverPhone.trim() || undefined,
     });
   }
 
@@ -302,7 +310,6 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
                 autoFocus
                 style={{ width: '100%', background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd', borderRadius: 12, padding: 12, fontFamily: 'inherit', fontSize: 14, marginBottom: 10, resize: 'vertical' }}
               />
-              {manualNote && <p className="muted" style={{ fontSize: 12, marginBottom: 10 }}>{manualNote}</p>}
               <button
                 className="btn-primary"
                 onClick={submitManualAddress}
@@ -415,6 +422,7 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
               {mode === 'edit' ? 'Place the pin at exact delivery location' : 'Delivery details'}
             </p>
             {error && <div className="error-banner" style={{ marginBottom: 12 }}>{error}</div>}
+            {manualNote && <div className="error-banner" style={{ marginBottom: 12, background: '#fff2d6', color: '#8a5a00', borderColor: '#f0c36d' }}>{manualNote}</div>}
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 16 }}>
               <span style={{ fontSize: 18 }}>📍</span>
               <span style={{ minWidth: 0 }}>
@@ -434,6 +442,21 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
                   value={addressDetails}
                   onChange={(e) => setAddressDetails(e.target.value)}
                   maxLength={200}
+                  style={{ width: '100%', marginBottom: 12, background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd' }}
+                />
+                <p style={{ fontSize: 12, color: '#8a8074', marginBottom: 8 }}>Receiver details for this address (optional)</p>
+                <input
+                  placeholder="Receiver's name"
+                  value={receiverName}
+                  onChange={(e) => setReceiverName(e.target.value)}
+                  maxLength={100}
+                  style={{ width: '100%', marginBottom: 8, background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd' }}
+                />
+                <input
+                  placeholder="Receiver's phone (10 digits)"
+                  value={receiverPhone}
+                  onChange={(e) => setReceiverPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  inputMode="numeric"
                   style={{ width: '100%', marginBottom: 12, background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd' }}
                 />
                 <p style={{ fontSize: 12, color: '#8a8074', marginBottom: 8 }}>Save address as</p>

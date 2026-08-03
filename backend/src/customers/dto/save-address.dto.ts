@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 
 export class SaveAddressDto {
   @IsString()
@@ -13,6 +13,17 @@ export class SaveAddressDto {
   @IsString()
   @MaxLength(200)
   addressDetails?: string;
+
+  // Who actually receives deliveries at this specific address — can genuinely differ from
+  // the account holder (e.g. a family member at Home, a colleague at Work). Optional.
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  receiverName?: string;
+
+  @IsOptional()
+  @Matches(/^[6-9]\d{9}$/, { message: 'receiverPhone must be a 10-digit mobile number' })
+  receiverPhone?: string;
 
   @IsNumber()
   @Min(-90)
