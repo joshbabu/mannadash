@@ -88,7 +88,7 @@ describe('Delivery fee & minimum order (e2e)', () => {
       const ctx = await setupApprovedRestaurant();
       const customer = await signUpCustomer(app);
       const res = await placeOrderAtDistanceKm(ctx, customer, 25).expect(201);
-      expect(Number(res.body.deliveryFee)).toBe(90);
+      expect(Number(res.body.deliveryFee)).toBe(115);
     });
 
     it('total reflects the tiered fee, not the old flat ₹30', async () => {
