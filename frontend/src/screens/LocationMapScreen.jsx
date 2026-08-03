@@ -15,7 +15,10 @@ const DEFAULT_CENTER = { lat: 17.4435, lng: 78.3772 }; // Hitech City, Hyderabad
 //     shown in a bottom sheet, matching the "place the pin at exact delivery location" screen.
 //   'label'  — (add mode only) name the address before saving; edit mode skips this and
 //     keeps the existing label, since repositioning a pin isn't renaming it.
-export default function LocationMapScreen({ mode, initialCenter, initialLabel, onClose, onSave, startAtMap }) {
+export default function LocationMapScreen({
+  mode, initialCenter, initialLabel, initialAddressDetails, initialReceiverName, initialReceiverPhone,
+  onClose, onSave, startAtMap,
+}) {
   const [step, setStep] = useState(mode === 'edit' || startAtMap ? 'map' : 'prompt');
   const [center, setCenter] = useState(initialCenter || DEFAULT_CENTER);
   const [resolvedAddress, setResolvedAddress] = useState('');
@@ -30,9 +33,9 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
   const [mapSearching, setMapSearching] = useState(false);
   const [mapSearchError, setMapSearchError] = useState('');
   const [label, setLabel] = useState(initialLabel || '');
-  const [addressDetails, setAddressDetails] = useState('');
-  const [receiverName, setReceiverName] = useState('');
-  const [receiverPhone, setReceiverPhone] = useState('');
+  const [addressDetails, setAddressDetails] = useState(initialAddressDetails || '');
+  const [receiverName, setReceiverName] = useState(initialReceiverName || '');
+  const [receiverPhone, setReceiverPhone] = useState(initialReceiverPhone || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [showManualText, setShowManualText] = useState(false);
@@ -220,10 +223,6 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
 
   function confirmPin() {
     const finalCenter = mapRef.current ? mapRef.current.getCenter() : center;
-    if (mode === 'edit') {
-      save({ latitude: finalCenter.lat, longitude: finalCenter.lng, address: resolvedAddress, label: initialLabel });
-      return;
-    }
     if (!label.trim()) {
       setError('Give this address a name (e.g. Home, Work) before saving.');
       return;
@@ -419,7 +418,7 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
 
           <div style={{ background: 'var(--paper)', borderRadius: '20px 20px 0 0', padding: 20, boxShadow: '0 -4px 16px rgba(0,0,0,0.15)', maxHeight: '55vh', overflowY: 'auto' }}>
             <p style={{ fontSize: 13, color: '#8a8074', marginBottom: 10 }}>
-              {mode === 'edit' ? 'Place the pin at exact delivery location' : 'Delivery details'}
+              Delivery details
             </p>
             {error && <div className="error-banner" style={{ marginBottom: 12 }}>{error}</div>}
             {manualNote && <div className="error-banner" style={{ marginBottom: 12, background: '#fff2d6', color: '#8a5a00', borderColor: '#f0c36d' }}>{manualNote}</div>}
@@ -435,10 +434,9 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
               </span>
             </div>
 
-            {mode === 'add' && (
-              <>
-                <input
-                  placeholder="Address details — floor, flat no., tower (optional)"
+            <>
+              <input
+                placeholder="Address details — floor, flat no., tower (optional)"
                   value={addressDetails}
                   onChange={(e) => setAddressDetails(e.target.value)}
                   maxLength={200}
@@ -488,10 +486,9 @@ export default function LocationMapScreen({ mode, initialCenter, initialLabel, o
                   style={{ width: '100%', marginBottom: 16, background: '#fff', color: 'var(--charcoal)', border: '1px solid #ddd' }}
                 />
               </>
-            )}
 
             <button className="btn-primary" onClick={confirmPin} disabled={resolvingAddress || saving} style={{ width: '100%' }}>
-              {saving ? 'Saving…' : mode === 'edit' ? 'Confirm & proceed' : 'Save address'}
+              {saving ? 'Saving…' : 'Save address'}
             </button>
           </div>
         </div>

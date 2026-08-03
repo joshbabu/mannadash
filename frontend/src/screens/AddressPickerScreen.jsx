@@ -329,6 +329,9 @@ export default function AddressPickerScreen({
               ? editTarget.label
               : searchAddCenter?.label || ''
           }
+          initialAddressDetails={locationMapMode === 'edit' && editTarget ? editTarget.addressDetails : ''}
+          initialReceiverName={locationMapMode === 'edit' && editTarget ? editTarget.receiverName : ''}
+          initialReceiverPhone={locationMapMode === 'edit' && editTarget ? editTarget.receiverPhone : ''}
           onClose={() => { setLocationMapMode(null); setEditTarget(null); setSearchAddCenter(null); }}
           onSave={handleMapSave}
         />

@@ -199,7 +199,7 @@ describe('Saved addresses (e2e)', () => {
     expect(updated.body[0].address).toBe('Addr 1');
   });
 
-  it("editing just the pin location (correcting a wrong spot) doesn't wipe an existing addressDetails — the actual edit-mode flow only sends latitude/longitude/address", async () => {
+  it("a partial update (e.g. changing only lat/lng/address) doesn't wipe fields it doesn't mention — general PATCH semantics, not specific to any one screen", async () => {
     const customer = await signUpCustomer(app);
     const added = await request(app.getHttpServer())
       .post('/customers/me/addresses')
@@ -214,8 +214,6 @@ describe('Saved addresses (e2e)', () => {
       .expect(201);
     const addressId = added.body[0].id;
 
-    // Matches LocationMapScreen's confirmPin() in edit mode exactly — no addressDetails key
-    // in the payload at all, not even as null.
     const updated = await request(app.getHttpServer())
       .patch(`/customers/me/addresses/${addressId}`)
       .set('Authorization', `Bearer ${customer.token}`)
@@ -223,6 +221,44 @@ describe('Saved addresses (e2e)', () => {
       .expect(200);
     expect(updated.body[0].addressDetails).toBe('2-129, Pulipati Nilayam');
     expect(updated.body[0].address).toBe('Corrected Addr');
+  });
+
+  it('editing an address now sends and updates every field together (label, addressDetails, receiver info, and the pin) — matching what the actual edit screen sends since it shows the full form, not just the pin', async () => {
+    const customer = await signUpCustomer(app);
+    const added = await request(app.getHttpServer())
+      .post('/customers/me/addresses')
+      .set('Authorization', `Bearer ${customer.token}`)
+      .send({
+        label: 'Home',
+        address: 'Original Addr',
+        addressDetails: 'Original details',
+        receiverName: 'Original Receiver',
+        receiverPhone: '9111111111',
+        latitude: 17.45,
+        longitude: 78.39,
+      })
+      .expect(201);
+    const addressId = added.body[0].id;
+
+    const updated = await request(app.getHttpServer())
+      .patch(`/customers/me/addresses/${addressId}`)
+      .set('Authorization', `Bearer ${customer.token}`)
+      .send({
+        label: 'Home Corrected',
+        address: 'Updated Addr',
+        addressDetails: 'Updated details',
+        receiverName: 'Updated Receiver',
+        receiverPhone: '9222222222',
+        latitude: 17.5,
+        longitude: 78.5,
+      })
+      .expect(200);
+    const result = updated.body[0];
+    expect(result.label).toBe('Home Corrected');
+    expect(result.address).toBe('Updated Addr');
+    expect(result.addressDetails).toBe('Updated details');
+    expect(result.receiverName).toBe('Updated Receiver');
+    expect(result.receiverPhone).toBe('9222222222');
   });
 
   it('updating a nonexistent address id returns 404', async () => {

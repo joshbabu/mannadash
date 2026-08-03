@@ -183,19 +183,29 @@ test('address picker: add via the map flow, select, edit, and delete a saved add
     await expect(picker.getByText('SELECTED')).toBeVisible();
   });
 
-  await test.step('Editing opens the map (pre-centered on the existing pin) instead of a text form', async () => {
+  await test.step('Editing opens the map (pre-centered on the existing pin) with the full form pre-filled — not just a pin-only confirm', async () => {
     await picker.getByLabel('Options for Office').click();
     await picker.getByText('✏️ Edit').click();
 
-    // Edit mode skips the "Get the fastest delivery" prompt and the label step — it goes
-    // straight to the pin-placement map, and Confirm & proceed saves immediately.
+    // Edit mode skips the "Get the fastest delivery" prompt — it goes straight to the map,
+    // pre-centered on the address's existing coordinates — but shows the SAME full
+    // "Delivery details" form as adding, pre-filled with what was already saved, not a
+    // stripped-down pin-only confirm. This is what was actually broken before: editing
+    // only let you nudge the pin and lost every other field in the process.
     await expect(mapScreen.getByText('Get the fastest delivery')).not.toBeVisible();
-    await expect(mapScreen.getByText('Place the pin at exact delivery location')).toBeVisible();
+    await expect(mapScreen.getByText('Delivery details')).toBeVisible();
     await expect(mapScreen.getByText(OFFICE_DISPLAY_NAME)).toBeVisible({ timeout: 10_000 });
+    await expect(mapScreen.getByPlaceholder(/Address details/)).toHaveValue('3rd Floor, Suite 12');
+    await expect(mapScreen.getByPlaceholder("Receiver's name")).toHaveValue('Reception Desk');
+    await expect(mapScreen.getByPlaceholder("Receiver's phone (10 digits)")).toHaveValue('9876543210');
+    await expect(mapScreen.getByPlaceholder("Or name it yourself (e.g. Mom's House)")).toHaveValue('Office');
 
-    await mapScreen.getByRole('button', { name: 'Confirm & proceed' }).click();
+    // Actually change something to prove the edit round-trips for real, not just the pin
+    await mapScreen.getByPlaceholder(/Address details/).fill('4th Floor, Suite 20');
+    await mapScreen.getByRole('button', { name: 'Save address' }).click();
     await expect(mapScreen).not.toBeVisible();
     await expect(picker.getByText('Office', { exact: true })).toBeVisible();
+    await expect(picker.getByText('4th Floor, Suite 20', { exact: false })).toBeVisible();
   });
 
   await test.step('Deleting removes it from the saved list', async () => {
