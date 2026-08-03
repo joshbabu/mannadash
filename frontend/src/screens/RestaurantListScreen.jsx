@@ -179,7 +179,7 @@ export default function RestaurantListScreen({ onSelectRestaurant, scheduledFor,
     }
     const timer = setTimeout(() => {
       api
-        .getNearbyRestaurants(currentLatLng.lat, currentLatLng.lng, 8000, q)
+        .getNearbyRestaurants(currentLatLng.lat, currentLatLng.lng, 15000, q)
         .then(setDishMatches)
         .catch(() => setDishMatches([]));
     }, 350);

@@ -123,10 +123,12 @@ export class RestaurantsService {
 
   /**
    * Find approved, open restaurants within `radius` meters of the given point,
+   * defaulting to 15km — matching the radius Zomato uses, a sensible middle ground between
+   * a too-tight local radius and unbounded city-wide results.
    * ordered nearest-first. This is the core "restaurants near me" query.
    */
   async findNearby(query: NearbyQueryDto): Promise<(Restaurant & { distanceMeters: number; matchedDishes?: string[] })[]> {
-    const { lat, lng, radius = 5000, dish } = query;
+    const { lat, lng, radius = 15000, dish } = query;
 
     let matchingRestaurantIds: string[] | null = null;
     let dishesByRestaurant = new Map<string, string[]>();

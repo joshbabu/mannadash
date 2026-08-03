@@ -33,7 +33,9 @@ export const api = {
   login: (body) => request('/auth/login', { method: 'POST', body }),
 
   // Restaurants
-  getNearbyRestaurants: (lat, lng, radius = 8000, dish) =>
+  // 15km — matching the radius Zomato uses. See the matching comment on the backend's
+  // findNearby() / NearbyQueryDto.
+  getNearbyRestaurants: (lat, lng, radius = 15000, dish) =>
     request(`/restaurants/nearby?lat=${lat}&lng=${lng}&radius=${radius}${dish ? `&dish=${encodeURIComponent(dish)}` : ''}`),
   getCategoryPhotos: () => request('/menu-items/category-photos'),
   getRestaurant: (id) => request(`/restaurants/${id}`),

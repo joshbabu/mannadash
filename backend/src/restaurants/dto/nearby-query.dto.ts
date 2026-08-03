@@ -14,13 +14,14 @@ export class NearbyQueryDto {
   @Max(180)
   lng: number;
 
-  // Search radius in meters — defaults to 5km, a reasonable delivery-zone radius for a city launch
+  // Search radius in meters — defaults to 15km, matching the radius Zomato uses. The max
+  // is raised to give some headroom above the default without being unbounded.
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(100)
-  @Max(20000)
-  radius?: number = 5000;
+  @Max(25000)
+  radius?: number = 15000;
 
   // Phase H: find restaurants BY DISH, not just by name/cuisine — e.g. searching "litti
   // chokha" surfaces every nearby restaurant that actually serves it, even ones whose own
